@@ -1,0 +1,17 @@
+# Never commit secrets — this repo will be cloned onto multiple machines
+# and pushed to a remote. Anything matched here stays local-only.
+.env
+.env.*
+id_*                 # SSH private keys
+*.key
+*.pem
+
+# Local, machine-specific escape hatch.
+# Convention: any config that needs an untracked local tweak sources a
+# sibling *.local file, e.g. .zshrc ends with:
+#     [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+*.local
+
+# Editor / OS noise
+.DS_Store
+*.swp
