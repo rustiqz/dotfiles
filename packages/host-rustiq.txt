@@ -1,0 +1,48 @@
+# Packages specific to this machine (hostname: rustiq).
+# Hardware: Intel Comet Lake-U, UHD Graphics (Gen9.5) iGPU, laptop.
+# Hardware-dependent things live here so packages/pacman.txt stays portable.
+
+# --- CPU ---------------------------------------------------------------------
+
+# CPU errata/security microcode, loaded by the initramfs at boot.
+# Requires a bootloader config regeneration after install (see below).
+intel-ucode
+
+# Intel-specific thermal management daemon. On U-series chips this is what
+# keeps sustained loads (long tsc/webpack builds) from thermal-throttling
+# harder than necessary.
+thermald
+
+# --- GPU ---------------------------------------------------------------------
+
+# Mesa: the open-source OpenGL/EGL implementation. Hyprland renders through
+# this, so it is a hard requirement for the compositor, not just for apps.
+mesa
+
+# Vulkan driver (ANV). Not strictly required by Hyprland, which uses the
+# GLES renderer by default, but wanted by Electron apps, browsers and
+# anything doing GPU compositing via Vulkan.
+vulkan-intel
+
+# VA-API hardware video decode. iHD is the modern driver and covers Gen8+,
+# so Comet Lake uses this one — NOT the older libva-intel-driver (i965),
+# which is for pre-Broadwell hardware. Without it, video in browsers
+# decodes on the CPU and drains battery noticeably.
+intel-media-driver
+
+# vainfo — verifies the above actually loaded. Small, worth having.
+libva-utils
+
+# --- Laptop ------------------------------------------------------------------
+
+# Backlight control. Hyprland has no built-in brightness handling, so the
+# XF86MonBrightness key bindings in Phase 5 will shell out to this.
+brightnessctl
+
+# Power profile switching (power-saver / balanced / performance). GNOME's
+# power slider drives this today; under Hyprland you query it via
+# powerprofilesctl, and waybar can expose it.
+power-profiles-daemon
+
+# Battery/AC state over D-Bus. Consumed by waybar's battery module later.
+upower

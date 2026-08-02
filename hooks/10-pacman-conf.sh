@@ -1,37 +1,41 @@
-# ~/dotfiles/hooks/10-pacman-conf.sh
+#!/usr/bin/env bash
 #
-# Tunes /etc/pacman.conf. This lives in a hook rather than a stow package
-# because /etc is outside $HOME, needs root, and we want to EDIT the
-# distro-shipped file rather than replace it (replacing it would hide
-# .pacnew updates from future pacman releases).
+# Tune /etc/pacman.conf: colour output, parallel downloads, multilib repo.
 #
-# Every edit is guarded or idempotent, so re-running bootstrap.sh is safe.
+# This edits a system file in place rather than shipping a full pacman.conf,
+# because pacman.conf carries machine-relevant defaults that vary by install
+# and get updated as .pacnew files. Surgical edits survive those updates;
+# a wholesale replacement would fight them.
+#
+# Idempotent: every change is guarded or written as a regex that matches
+# both the commented default and the already-applied value.
 
 set -euo pipefail
 CONF=/etc/pacman.conf
 
-# Parallel downloads. Recent Arch ships this uncommented at 5; older
-# installs have it commented out. The optional '#' in the pattern
-# handles both cases, and re-running just rewrites the same value.
-sudo sed -i 's/^#\?ParallelDownloads = .*/ParallelDownloads = 10/' "$CONF"
+# Colourised output. The default line is "#Color"; the \?  makes the
+# leading # optional so re-runs match the already-uncommented line.
+sudo sed -i 's/^#\?Color$/Color/' "$CONF"
 
-# Colored output. Shipped commented; uncomment it.
-sudo sed -i 's/^#Color$/Color/' "$CONF"
+# Download 10 packages concurrently instead of 1. Biggest single speedup
+# for large installs. .* on the right matches whatever value is there.
+sudo sed -i 's/^#\?ParallelDownloads.*/ParallelDownloads = 10/' "$CONF"
 
-# Show old->new version numbers on upgrades. Genuinely useful when a
-# system update breaks something and you need to know what moved.
-sudo sed -i 's/^#VerbosePkgLists$/VerbosePkgLists/' "$CONF"
-
-# ILoveCandy: pac-man style progress bar. Not present in the default
-# file at all, so append it after Color rather than uncommenting.
-grep -q '^ILoveCandy' "$CONF" || sudo sed -i '/^Color$/a ILoveCandy' "$CONF"
-
-# multilib: the 32-bit repository. Needed for Steam, Wine, and a few
-# proprietary dev tools. The default file has the two lines commented;
-# this strips the leading '#' from that block only.
-if ! grep -q '^\[multilib\]' "$CONF"; then
-  sudo sed -i '/^#\[multilib\]/,/^#Include = .*mirrorlist/ s/^#//' "$CONF"
+# Pac-Man animation in the progress bar. Purely cosmetic, requires
+# ILoveCandy to appear in the [options] section — inserted right after
+# ParallelDownloads, which is guaranteed to be in that section.
+if ! grep -q '^ILoveCandy' "$CONF"; then
+  sudo sed -i '/^ParallelDownloads/a ILoveCandy' "$CONF"
 fi
 
-# Refresh package databases so the newly-enabled repo is usable.
-sudo pacman -Sy
+# multilib: 32-bit packages. Needed for Steam, Wine, some proprietary
+# toolchains, and 32-bit build targets. The default file has the repo
+# header and its Include line both commented; this uncomments the pair.
+if ! grep -q '^\[multilib\]' "$CONF"; then
+  sudo sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' "$CONF"
+  # New repo enabled → refresh the package databases so pacman knows
+  # what's in it. -yy forces refresh even if the DB looks current.
+  sudo pacman -Syy --noconfirm
+fi
+
+echo "pacman.conf tuned."

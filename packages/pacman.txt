@@ -1,0 +1,70 @@
+# Official-repo packages, installed by bootstrap.sh via pacman.
+# One per line. Blank lines and # comments are ignored.
+# Grouped by phase so this stays readable as it grows.
+
+# --- Phase 1: base system ----------------------------------------------------
+
+# Pacman tooling
+pacman-contrib          # paccache (cache cleanup), checkupdates, rankmirrors
+reflector               # regenerates the mirrorlist ranked by speed
+pkgfile                 # "which package owns this command?" lookups
+
+# Audio: PipeWire replaces PulseAudio + JACK behind compatible interfaces,
+# so apps expecting either still work. wireplumber is its session manager —
+# it decides routing and device priorities. Without it PipeWire runs but
+# nothing is wired up.
+pipewire
+pipewire-alsa           # ALSA apps route through PipeWire
+pipewire-pulse          # PulseAudio drop-in replacement
+pipewire-jack           # JACK drop-in replacement
+wireplumber
+pavucontrol             # GUI mixer, useful for per-app volume debugging
+
+# Bluetooth stack. bluez is the daemon, bluez-utils gives you bluetoothctl
+# for CLI pairing — worth having since Hyprland has no bluetooth applet
+# until you configure one.
+bluez
+bluez-utils
+
+# Networking (GNOME already pulled NetworkManager in; listed so a fresh
+# machine without GNOME still gets it)
+networkmanager
+openssh
+
+# Memory: compressed swap in RAM. Faster than disk swap and avoids
+# writing swap to your SSD.
+zram-generator
+
+# Firmware updates over LVFS — mostly relevant for laptops
+fwupd
+
+# Fonts. A Nerd Font is non-optional here: starship, eza icons, lazygit
+# and most Neovim statuslines render glyphs from that patched range.
+# Without it you get boxes everywhere.
+ttf-jetbrains-mono-nerd
+noto-fonts              # broad Unicode coverage, the sane default
+noto-fonts-emoji        # colour emoji
+noto-fonts-cjk          # Chinese/Japanese/Korean, prevents tofu in browsers
+ttf-liberation          # metric-compatible with Arial/Times, fixes web pages
+
+# Misc base
+man-db
+man-pages
+xdg-user-dirs           # creates ~/Documents, ~/Downloads etc.
+unzip
+zip
+rsync
+
+
+# --- Phase 1 additions -------------------------------------------------------
+
+# RealtimeKit: grants realtime scheduling priority to audio threads on
+# request. PipeWire logs "RTKit does not give us MaxRealtimePriority"
+# and falls back to priority 1 without it, which risks xruns/crackling
+# when the CPU is busy. Optional dep of pipewire, so not pulled in.
+rtkit
+
+# glxinfo / eglinfo — inspect which Mesa driver and GL version are active.
+# Diagnostic only, but the first thing you want when a compositor
+# misbehaves.
+mesa-utils

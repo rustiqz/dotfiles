@@ -1,22 +1,42 @@
-# ~/dotfiles/hooks/20-services.sh
+#!/usr/bin/env bash
 #
-# Enables systemd units. `enable` is idempotent, and --now also starts
-# the unit immediately so a first run doesn't require a reboot.
+# Enable system services. Kept in one hook so the full set of enabled
+# units is visible in a single file rather than scattered across the repo.
+#
+# `enable --now` both enables at boot and starts immediately.
+# Enabling an already-enabled unit is a no-op, so this is idempotent.
 
 set -euo pipefail
 
-enable_unit() {
-  # Skip units whose package isn't installed on this machine — keeps the
-  # hook portable across hosts with different package sets.
-  systemctl list-unit-files "$1" &>/dev/null || return 0
-  sudo systemctl enable --now "$1"
+# Helper: enable a unit only if it exists, so this hook doesn't fail on a
+# machine where the owning package isn't installed (e.g. no bluetooth HW).
+enable_if_present() {
+  if systemctl list-unit-files "$1" &>/dev/null && \
+     systemctl list-unit-files "$1" | grep -q "$1"; then
+    echo "  enabling $1"
+    sudo systemctl enable --now "$1"
+  else
+    echo "  skipping $1 (not installed)"
+  fi
 }
 
-enable_unit NetworkManager.service   # network (already on under GNOME)
-enable_unit bluetooth.service        # bluetooth adapter at boot
-enable_unit fstrim.timer             # weekly SSD TRIM — important on ext4,
-                                     # which has no continuous discard by default
-enable_unit reflector.timer          # periodic mirrorlist refresh
-enable_unit paccache.timer           # prunes /var/cache/pacman, keeping the
-                                     # last 3 versions of each package
-enable_unit systemd-timesyncd.service # NTP clock sync
+echo "System services:"
+enable_if_present NetworkManager.service
+enable_if_present bluetooth.service
+enable_if_present systemd-timesyncd.service   # NTP clock sync
+enable_if_present fstrim.timer                # weekly SSD TRIM (ext4)
+enable_if_present paccache.timer              # prunes old pkg cache versions
+enable_if_present power-profiles-daemon.service
+
+# User services: PipeWire runs per-session, not system-wide.
+#
+# These are socket-activated by default — pipewire.socket starts the daemon
+# on the first client connection. That means the .service units show as
+# "disabled" while still being active, which is correct and intended.
+# We enable the *sockets* rather than the services so activation works
+# from a clean login without starting daemons that may not be needed.
+echo "User services:"
+systemctl --user enable --now pipewire.socket pipewire-pulse.socket
+systemctl --user enable --now wireplumber.service   # session manager, not socket-activated
+
+echo "Services enabled."

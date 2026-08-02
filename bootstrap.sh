@@ -58,21 +58,29 @@ if ! command -v paru >/dev/null; then
   rm -rf "$tmp"
 fi
 
-# ---------------------------------------------------------------------------
-# 3. Packages
-# ---------------------------------------------------------------------------
 # Reads a manifest file and feeds it to the given installer command.
 #   $1        = path to manifest
 #   $2..      = installer command (e.g. `sudo pacman`, `paru`)
-# Manifests are one package per line; blank lines and #-comments ignored,
-# so you can group and annotate them.
+#
+# Manifest format: one package per line. Both full-line comments and
+# trailing inline comments are supported, e.g.
+#     pipewire-alsa    # ALSA apps route through PipeWire
+#
+# Parsing, in order:
+#   sed 's/#.*//'         strip everything from the first # onward
+#   sed 's/[[:space:]]//g' strip all remaining whitespace (package names
+#                          never contain any, so this is safe and also
+#                          removes the indentation left behind above)
+#   grep -v '^$'          drop lines that are now empty
 install_list() {
   local file=$1; shift
   [[ -f $file ]] || return 0                 # manifest is optional
   log "Packages: $(basename "$file")"
   # -r on xargs: do nothing if the manifest is empty rather than running
   #              the installer with no arguments (which would error)
-  grep -vE '^\s*(#|$)' "$file" | xargs -r "$@" -S --needed --noconfirm
+  sed -e 's/#.*//' -e 's/[[:space:]]//g' "$file" \
+    | grep -v '^$' \
+    | xargs -r "$@" -S --needed --noconfirm
 }
 
 install_list "$DOTFILES/packages/pacman.txt"      sudo pacman   # official repos
