@@ -1,0 +1,15 @@
+# ~/.config/mise/config.toml
+#
+# Global tool versions. Project-local .mise.toml (or .tool-versions)
+# files override this per-directory — this is just the fallback when a
+# project doesn't pin its own.
+
+[tools]
+node = "lts"
+
+[settings]
+# Also respect other tools' version-pin files (.nvmrc, .node-version,
+# .python-version, ...) — most repos in the wild predate mise/.mise.toml,
+# so this avoids every existing project needing a mise-specific file
+# added before `cd`-based version switching works.
+legacy_version_file = true

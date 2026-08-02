@@ -103,3 +103,36 @@ jq                         # JSON query/pretty-print, used constantly at a CLI
 # Not otherwise guaranteed on a minimal Arch install; hooks/41-bat-theme.sh
 # needs it to fetch the TokyoNight theme.
 curl
+
+
+# --- Phase 3: dev toolchain ---------------------------------------------------
+
+# Node version manager. Manages Node itself (see mise/.config/mise/config.toml
+# for the pinned default version) — deliberately NOT installing `nodejs`
+# here, since that would fight mise for control of which Node is on PATH.
+mise
+
+# Node package manager. Only depends on node-gyp (for native addon builds),
+# not on `nodejs` itself — it bundles its own runtime, so it coexists with
+# mise-managed Node versions without conflict.
+pnpm
+
+# Containers. docker-compose here is the v2 CLI plugin (`docker compose`),
+# not the old standalone python `docker-compose` binary.
+docker
+docker-compose
+
+# Postgres client. Arch ships psql bundled with the full postgresql package
+# (server binaries included) — there's no client-only split like Debian's
+# postgresql-client. The server is never enabled; Postgres itself is
+# expected to run in Docker, this is just the CLI to talk to it.
+postgresql
+
+# Redis-protocol client. Arch dropped the official `redis` package after
+# Redis's 2024 relicensing; valkey is the actively-maintained fork Arch
+# ships instead. Same story as postgresql above — server unused, this is
+# just for `valkey-cli` to talk to a container.
+valkey
+
+# Per-directory environment variables (.envrc), auto-loaded/unloaded on cd.
+direnv

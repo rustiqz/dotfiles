@@ -1,0 +1,14 @@
+# AUR packages, installed by bootstrap.sh via paru.
+# One per line. Blank lines and # comments are ignored — same parser as
+# pacman.txt (see install_list() in bootstrap.sh).
+
+# --- Phase 3: dev toolchain ---------------------------------------------------
+
+# Temporal workflow engine CLI. Not in the official repos.
+temporal-cli
+
+# API client (Postman/Insomnia alternative), Electron-based. -bin variant:
+# prebuilt binary, avoids an Electron/Node build from source at install
+# time (same reasoning as paru-bin, minus the libalpm ABI risk that made
+# us avoid paru-bin specifically — see CLAUDE.md gotchas).
+bruno-bin

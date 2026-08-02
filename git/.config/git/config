@@ -1,8 +1,22 @@
 # ~/.config/git/config
 #
-# Phase 2 scope only: delta as the diff/log pager, themed to match the
-# rest of the terminal. Identity (user.name/email), aliases and SSH
-# signing land here too in Phase 3 — this file is extended, not replaced.
+# Identity (user.name/email) deliberately isn't here: this file is
+# public (pushed to GitHub), and an email address doesn't belong in a
+# public repo just because the rest of the config can be. It lives in
+# config.local instead — untracked, seeded once by hooks/50-git-identity.sh
+# — and included below. `[include]` with a path that doesn't exist yet
+# is silently skipped, so this is safe before that hook has ever run.
+
+[include]
+	path = ~/.config/git/config.local
+
+[init]
+	defaultBranch = main
+
+[push]
+	# `git push` on a new branch creates+tracks the remote branch instead
+	# of erroring and telling you to pass --set-upstream every time.
+	autoSetupRemote = true
 
 [core]
 	pager = delta
