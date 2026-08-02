@@ -9,7 +9,8 @@ second. Built on one laptop, then replayed on other machines.
   iGPU, ~8GB RAM, ext4, systemd-boot with a UKI, no discrete GPU.
 - **Session:** GNOME. Hyprland is not installed yet. GNOME stays installed
   permanently as a fallback session.
-- **Phase 1 complete and verified.** Phase 2 is next.
+- **Shell:** zsh (login shell switched in `hooks/40-shell.sh`).
+- **Phase 2 complete and verified.** Phase 3 is next.
 
 ## Phases
 
@@ -18,7 +19,7 @@ second. Built on one laptop, then replayed on other machines.
 - [x] **1 — Base system.** pacman.conf tuning, reflector mirrors, zram,
       PipeWire + rtkit, bluetooth, fonts, Intel graphics stack, microcode,
       thermald, power-profiles-daemon, maintenance timers.
-- [ ] **2 — Shell & terminal.** kitty, zsh + plugins, starship, core CLI
+- [x] **2 — Shell & terminal.** kitty, zsh + plugins, starship, core CLI
       (fzf, ripgrep, fd, bat, eza, zoxide, delta, btop, lazygit, jq).
       TokyoNight theming. *First phase with actual stow packages.*
 - [ ] **3 — Dev toolchain.** git config, SSH keys, Node via fnm/mise,
@@ -41,7 +42,7 @@ packages/
 hooks/                post-install scripts, run in filename order
 host/<hostname>/      per-machine config fragments, stowed separately
 scripts/
-  verify-phase1.sh    read-only assertions; exit criterion per phase
+  verify-phase<N>.sh  read-only assertions; exit criterion per phase
   dump-repo.sh        dump structure + contents for handoff
 <app>/                stow packages, e.g. kitty/.config/kitty/kitty.conf
 ```
@@ -90,3 +91,22 @@ scripts/
   bootloader entry. No loader edits needed.
 - PipeWire services are socket-activated: `is-enabled` reports `disabled`
   while the service is active. That's correct.
+- In verify scripts, never pipe a producer straight into `grep -q` under
+  `set -o pipefail`: `grep -q` exits on first match and closes the pipe,
+  SIGPIPE-ing the producer, and pipefail reports that as pipeline
+  failure even though the match succeeded. Capture into a variable first
+  and grep the variable.
+- Same scripts: use `PASS=$((PASS+1))`, not `((PASS++))`, for the
+  pass/fail/warn counters. Postfix `++` evaluates to the *old* value, so
+  the first increment (0 -> 1) evaluates to 0, which `((...))` reports
+  as failure — silently flipping whichever `&&`/`||` chain called it.
+- `stow` tree-folds: a brand-new target directory gets one symlink for
+  the whole directory, not one per file inside it. Don't assert `-L` on
+  individual file paths — resolve with `realpath` and check it lands
+  inside the repo instead.
+- bat indexes custom (non-bundled) themes by **filename stem**, not the
+  `name` key inside the `.tmTheme` XML. The downloaded TokyoNight file's
+  internal name is `TokyoNight`, but `bat --list-themes` / `--theme=`
+  and delta's `syntax-theme` both need `tokyonight_night` (the filename).
+  Confirmed by actually installing it and running `--list-themes`, not
+  by reading the XML.

@@ -1,0 +1,33 @@
+# ~/.config/lazygit/config.yml
+#
+# TokyoNight-themed, and piped through the same delta config as the CLI
+# (git/.config/git/config) so `git diff` looks identical whether it's
+# run directly or viewed inside lazygit.
+
+gui:
+  nerdFontsVersion: "3"
+  theme:
+    activeBorderColor:
+      - "#7aa2f7"
+      - bold
+    inactiveBorderColor:
+      - "#414868"
+    optionsTextColor:
+      - "#7aa2f7"
+    selectedLineBgColor:
+      - "#283457"
+    selectedRangeBgColor:
+      - "#283457"
+    cherryPickedCommitBgColor:
+      - "#e0af68"
+    cherryPickedCommitFgColor:
+      - "#1a1b26"
+    unstagedChangesColor:
+      - "#f7768e"
+    defaultFgColor:
+      - "#c0caf5"
+
+git:
+  paging:
+    colorArg: always
+    pager: delta --dark --paging=never
