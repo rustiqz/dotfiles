@@ -1,0 +1,84 @@
+# ~/.config/starship.toml
+#
+# Two-line prompt: context (path, git, language versions) on line one,
+# a bare `❯` on line two so command output never starts flush against
+# a long prompt line. Colors are the TokyoNight (Night) palette, matched
+# to kitty.conf/tokyonight.conf so the prompt doesn't clash with the
+# terminal it's rendered in.
+
+format = """
+$directory\
+$git_branch\
+$git_status\
+$nodejs\
+$python\
+$rust\
+$golang\
+$docker_context\
+$cmd_duration\
+$line_break\
+$character"""
+
+# Fully custom prompt, so nothing from the default config leaks in.
+add_newline = false
+
+[directory]
+style = "bold #7aa2f7"
+truncation_length = 4
+truncate_to_repo = true
+read_only = " 󰌾"
+
+[character]
+success_symbol = "[❯](bold #9ece6a)"
+error_symbol = "[❯](bold #f7768e)"
+vimcmd_symbol = "[❮](bold #bb9af7)"
+
+[git_branch]
+symbol = " "
+style = "bold #bb9af7"
+format = "[on](#565f89) [$symbol$branch]($style) "
+
+[git_status]
+style = "#e0af68"
+format = "([$all_status$ahead_behind]($style)) "
+conflicted = "󰞇"
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+untracked = "?${count}"
+stashed = "*${count}"
+modified = "!${count}"
+staged = "+${count}"
+renamed = "»${count}"
+deleted = "✘${count}"
+
+[nodejs]
+symbol = " "
+style = "bold #9ece6a"
+format = "[$symbol$version]($style) "
+
+[python]
+symbol = " "
+style = "bold #e0af68"
+format = "[$symbol$version]($style) "
+
+[rust]
+symbol = " "
+style = "bold #f7768e"
+format = "[$symbol$version]($style) "
+
+[golang]
+symbol = " "
+style = "bold #7dcfff"
+format = "[$symbol$version]($style) "
+
+[docker_context]
+symbol = " "
+style = "bold #7aa2f7"
+format = "[$symbol$context]($style) "
+only_with_files = true
+
+[cmd_duration]
+min_time = 2000
+style = "#565f89"
+format = "[took $duration]($style) "

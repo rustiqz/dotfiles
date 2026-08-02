@@ -20,9 +20,13 @@ HOST="$(hostnamectl --static 2>/dev/null || hostname)"
 # --- reporting helpers -------------------------------------------------------
 # ok/no/wa print a coloured status line and tally the result. `wa` is for
 # things that are suboptimal but not broken (e.g. missing optional driver).
-ok() { printf '  \033[1;32m✓\033[0m %s\n' "$*"; ((PASS++)); }
-no() { printf '  \033[1;31m✗\033[0m %s\n' "$*"; ((FAIL++)); }
-wa() { printf '  \033[1;33m!\033[0m %s\n' "$*"; ((WARN++)); }
+# Plain assignment, not `((PASS++))`: the postfix form evaluates to the
+# *old* value, so the very first increment (0 -> 1) evaluates to 0 --
+# which `((...))` reports as command failure, flipping any &&/|| chain
+# the caller built around ok/no/wa and double-firing the other branch.
+ok() { printf '  \033[1;32m✓\033[0m %s\n' "$*"; PASS=$((PASS+1)); }
+no() { printf '  \033[1;31m✗\033[0m %s\n' "$*"; FAIL=$((FAIL+1)); }
+wa() { printf '  \033[1;33m!\033[0m %s\n' "$*"; WARN=$((WARN+1)); }
 hdr() { printf '\n\033[1;34m== %s\033[0m\n' "$*"; }
 
 # Assert a package is installed.

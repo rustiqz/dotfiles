@@ -68,3 +68,38 @@ rtkit
 # Diagnostic only, but the first thing you want when a compositor
 # misbehaves.
 mesa-utils
+
+
+# --- Phase 2: shell & terminal -----------------------------------------------
+
+# Terminal emulator. GPU-accelerated, config is a single plain-text file —
+# no GUI settings to lose track of.
+kitty
+
+# Shell. Login shell is switched to this in hooks/40-shell.sh; the config
+# itself lives in the zsh/ stow package.
+zsh
+zsh-autosuggestions        # ghost-text completion from history as you type
+zsh-syntax-highlighting    # must be sourced last in .zshrc — see zsh/.zshrc
+zsh-history-substring-search  # up/down arrow filters history by what's typed
+
+# Prompt. Single static binary, config is TOML — no shell-specific prompt
+# logic to maintain per-shell if the login shell ever changes.
+starship
+
+# Core CLI replacements/additions, all referenced from zsh/.zshrc aliases
+# or shell init:
+fzf                        # fuzzy finder — powers Ctrl-R history search
+ripgrep                    # rg: grep replacement, respects .gitignore
+fd                         # find replacement, sane defaults + .gitignore
+bat                        # cat replacement: syntax highlighting, git gutter
+eza                        # ls replacement: icons, git status, tree view
+zoxide                     # cd replacement: jumps to frecent directories
+git-delta                  # git diff/log pager, configured in git's stow pkg
+btop                       # process/resource monitor, mouse + theme support
+lazygit                    # terminal git UI, config themed to match the rest
+jq                         # JSON query/pretty-print, used constantly at a CLI
+
+# Not otherwise guaranteed on a minimal Arch install; hooks/41-bat-theme.sh
+# needs it to fetch the TokyoNight theme.
+curl

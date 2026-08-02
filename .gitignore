@@ -15,3 +15,12 @@ id_*                 # SSH private keys
 # Editor / OS noise
 .DS_Store
 *.swp
+
+# hooks/41-bat-theme.sh downloads this at bootstrap time (see that hook
+# for why: it's a third-party XML blob, not something worth hand-editing
+# or vendoring). It has to be written to bat/.config/bat/themes/ because
+# stow tree-folds ~/.config/bat into a single symlink back to this repo
+# dir — there's no runtime path for it outside the repo — but git
+# shouldn't track a file we didn't author and that re-downloads identically
+# on every bootstrap run.
+bat/.config/bat/themes/

@@ -1,0 +1,12 @@
+# ~/.config/bat/config
+#
+# The theme itself isn't shipped here — .tmTheme files are XML and don't
+# merit hand-editing, so hooks/41-bat-theme.sh downloads it straight from
+# upstream (folke/tokyonight.nvim) and builds bat's cache.
+#
+# Name is the filename stem (tokyonight_night.tmTheme), not the theme's
+# internal `name` key ("TokyoNight") — bat's cache indexes custom themes
+# by filename, confirmed via `bat --list-themes` after installing it.
+--theme="tokyonight_night"
+--style="numbers,changes,header"
+--italic-text=always

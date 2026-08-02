@@ -1,0 +1,41 @@
+# ~/.config/git/config
+#
+# Phase 2 scope only: delta as the diff/log pager, themed to match the
+# rest of the terminal. Identity (user.name/email), aliases and SSH
+# signing land here too in Phase 3 — this file is extended, not replaced.
+
+[core]
+	pager = delta
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true          # n/N jump between diff hunks, like a pager search
+	line-numbers = true
+	side-by-side = false
+	# Reuses the same TokyoNight theme bat installs (hooks/41-bat-theme.sh);
+	# delta looks in bat's theme directory automatically. Name is the
+	# filename stem, not the theme's internal `name` key — see
+	# bat/.config/bat/config for how that was confirmed.
+	syntax-theme = tokyonight_night
+	plus-style                = "syntax #1e2f24"
+	plus-emph-style            = "syntax #2c4a37"
+	minus-style               = "syntax #35222b"
+	minus-emph-style           = "syntax #55293a"
+	file-style                = "#7aa2f7 bold"
+	file-decoration-style     = "#7aa2f7 ul"
+	hunk-header-style         = "file line-number syntax"
+	hunk-header-decoration-style = "#565f89 box"
+	commit-style              = "raw"
+	commit-decoration-style   = "#e0af68 box"
+	line-numbers-left-color   = "#414868"
+	line-numbers-right-color  = "#414868"
+	line-numbers-minus-style  = "#f7768e"
+	line-numbers-plus-style   = "#9ece6a"
+
+[merge]
+	conflictstyle = diff3
+
+[diff]
+	colorMoved = default
