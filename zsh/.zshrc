@@ -4,6 +4,19 @@
 # oh-my-zsh/zinit) — plugins are Arch packages sourced directly from
 # /usr/share/zsh/plugins, so there's nothing here to update or vendor.
 
+# --- PATH ----------------------------------------------------------------------
+# Personal scripts (bin/bin/work — the tmux sessionizer). Not something
+# Arch adds to PATH by default the way it does ~/.local/bin for some
+# packages, so it needs to be explicit here.
+export PATH="$HOME/bin:$PATH"
+
+# pnpm global installs (hooks/61-node-globals.sh, e.g. prettier) land in
+# $PNPM_HOME/bin — confirmed by actually running `pnpm add -g` and
+# reading its error, not from pnpm's docs, which are ambiguous about
+# whether PNPM_HOME itself or PNPM_HOME/bin is the right PATH entry.
+export PNPM_HOME="$HOME/.local/share/pnpm"
+export PATH="$PNPM_HOME/bin:$PATH"
+
 # --- History -------------------------------------------------------------------
 HISTFILE=~/.zsh_history
 HISTSIZE=50000

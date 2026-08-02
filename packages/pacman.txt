@@ -136,3 +136,21 @@ valkey
 
 # Per-directory environment variables (.envrc), auto-loaded/unloaded on cd.
 direnv
+
+
+# --- Phase 4: editor -----------------------------------------------------------
+
+# Editor itself. LSP servers (vtsls, lua_ls, eslint) are NOT system
+# packages — mason.nvim installs those into ~/.local/share/nvim/mason on
+# first launch. See nvim/.config/nvim/lua/plugins/lsp.lua.
+neovim
+
+# Terminal multiplexer. Plugins (tmux-resurrect/continuum) are bootstrapped
+# by hooks/60-tmux-plugins.sh via TPM, not this manifest — TPM itself is
+# git-cloned there since it isn't a pacman package.
+tmux
+
+# Wayland clipboard tool. tmux's copy-mode `y` binding pipes selections
+# through `wl-copy` (tmux/.tmux.conf) rather than tmux's own paste buffer,
+# so yanked text is available to every other app too.
+wl-clipboard

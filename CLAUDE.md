@@ -16,7 +16,12 @@ second. Built on one laptop, then replayed on other machines.
   `docker` works without `sudo` — see `hooks/52-docker.sh`.
 - **Git identity** lives in untracked `~/.config/git/config.local`, not
   in this repo — see `hooks/50-git-identity.sh`.
-- **Phase 3 complete and verified.** Phase 4 is next.
+- **Editor:** Neovim/lazy.nvim, plugin specs under `nvim/.config/nvim/lua/plugins/`.
+  Mason installs LSP binaries (vtsls, lua_ls, eslint) on nvim's first
+  real launch, not at bootstrap time — needs mise's node active in the
+  launching shell (npm-based installs fail silently otherwise).
+- **`~/bin/work`** — tmux project sessionizer, searches `~/projects`.
+- **Phase 4 complete and verified.** Phase 5 is next.
 
 ## Phases
 
@@ -31,8 +36,10 @@ second. Built on one laptop, then replayed on other machines.
 - [x] **3 — Dev toolchain.** git config, SSH keys, Node via mise, pnpm,
       Docker, psql (postgresql), valkey-cli (redis-cli's Arch successor),
       Temporal CLI, direnv, Bruno.
-- [ ] **4 — Editor.** Neovim + lazy.nvim, LSP (vtsls/ts_ls, eslint,
-      prettier, lua_ls), tmux, `~/bin/work` launcher.
+- [x] **4 — Editor.** Neovim + lazy.nvim, LSP (vtsls, eslint, prettier,
+      lua_ls) via mason, blink.cmp completion, fzf-lua finder
+      (reuses the real `fzf`/`rg` binaries), tmux (TPM: resurrect +
+      continuum), `~/bin/work` launcher.
 - [ ] **5 — Hyprland.** Compositor, waybar, launcher, notifications,
       hyprlock/hypridle, clipboard, screenshots, portals, polkit agent,
       GTK/Qt theming. **This is where the session switch happens.**
@@ -126,3 +133,14 @@ scripts/
   `git config <key>`, not `--global`, when verifying it actually
   resolves — `--global` is still the right flag for confirming
   `~/.gitconfig` itself stays clean, since that's specifically what it reads.
+- pnpm global installs (`pnpm add -g`) go to `$PNPM_HOME/bin`, and pnpm
+  refuses to install at all if that exact directory isn't on `$PATH` —
+  confirmed by actually running it and reading the error, not from docs
+  (which are ambiguous about whether `PNPM_HOME` itself or `PNPM_HOME/bin`
+  is the right entry). Set in zsh/.zshrc and hooks/61-node-globals.sh.
+- mason.nvim's npm-based LSP installs (vtsls, eslint-lsp) spawn `npm` as
+  a subprocess and fail silently-ish ("could not find executable npm")
+  if the shell that launched Neovim never activated mise — lua_ls has no
+  such dependency (standalone binary asset, not an npm package), which
+  is why only two of the three servers failed the first time this was
+  tried headless without `eval "$(mise activate bash)"` first.
