@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#
+# work — tmux project sessionizer (the ThePrimeagen tmux-sessionizer
+# pattern). fzf-pick a directory under ~/projects, then create-or-attach
+# a tmux session named after it. Run it from inside or outside tmux;
+# either way you end up attached to that project's session.
+#
+# Usage:
+#   work            interactive fzf picker over ~/projects/*
+#   work <path>      skip the picker, use <path> directly
+
+set -euo pipefail
+
+PROJECTS_DIR="$HOME/projects"
+mkdir -p "$PROJECTS_DIR"
+
+if [[ $# -eq 1 ]]; then
+  selected=$1
+else
+  selected=$(find "$PROJECTS_DIR" -mindepth 1 -maxdepth 1 -type d | fzf --prompt="project> ")
+fi
+
+# Empty means Esc/Ctrl-C out of fzf — quit quietly rather than erroring.
+[[ -z ${selected:-} ]] && exit 0
+
+# tmux target names treat `.` as a session:window.pane separator, so a
+# dotted directory name (e.g. "my.project") would otherwise get parsed
+# as three tmux targets instead of one session name.
+session_name=$(basename "$selected" | tr . _)
+
+if ! tmux has-session -t "$session_name" 2>/dev/null; then
+  tmux new-session -ds "$session_name" -c "$selected"
+fi
+
+if [[ -z ${TMUX:-} ]]; then
+  exec tmux attach -t "$session_name"
+else
+  exec tmux switch-client -t "$session_name"
+fi
