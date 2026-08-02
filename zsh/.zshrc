@@ -62,6 +62,19 @@ export FZF_DEFAULT_OPTS="
 # "foo" instead of requiring a full path.
 eval "$(zoxide init zsh)"
 
+# --- mise --------------------------------------------------------------------
+# Puts the mise-managed Node (version pinned in
+# mise/.config/mise/config.toml) on PATH and hooks `cd` to switch
+# versions per-project. Installing the pinned versions themselves
+# happens once, at bootstrap time, in hooks/51-mise-tools.sh.
+eval "$(mise activate zsh)"
+
+# --- direnv ------------------------------------------------------------------
+# Auto-loads/unloads .envrc on `cd`. A project has to be explicitly
+# `direnv allow`-ed once before its .envrc takes effect — that's direnv
+# refusing to blind-execute shell code from a directory you just entered.
+eval "$(direnv hook zsh)"
+
 # --- starship ----------------------------------------------------------------
 # Must be the last shell-init line — starship's own docs call this out,
 # since it needs to observe the prompt state other inits may have set.

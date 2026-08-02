@@ -10,7 +10,13 @@ second. Built on one laptop, then replayed on other machines.
 - **Session:** GNOME. Hyprland is not installed yet. GNOME stays installed
   permanently as a fallback session.
 - **Shell:** zsh (login shell switched in `hooks/40-shell.sh`).
-- **Phase 2 complete and verified.** Phase 3 is next.
+- **Node:** managed by mise, not a system package — see
+  `mise/.config/mise/config.toml`.
+- **Docker group membership** requires a re-login on this machine before
+  `docker` works without `sudo` — see `hooks/52-docker.sh`.
+- **Git identity** lives in untracked `~/.config/git/config.local`, not
+  in this repo — see `hooks/50-git-identity.sh`.
+- **Phase 3 complete and verified.** Phase 4 is next.
 
 ## Phases
 
@@ -22,8 +28,9 @@ second. Built on one laptop, then replayed on other machines.
 - [x] **2 — Shell & terminal.** kitty, zsh + plugins, starship, core CLI
       (fzf, ripgrep, fd, bat, eza, zoxide, delta, btop, lazygit, jq).
       TokyoNight theming. *First phase with actual stow packages.*
-- [ ] **3 — Dev toolchain.** git config, SSH keys, Node via fnm/mise,
-      pnpm, Docker, psql, redis-cli, Temporal CLI, direnv, Bruno.
+- [x] **3 — Dev toolchain.** git config, SSH keys, Node via mise, pnpm,
+      Docker, psql (postgresql), valkey-cli (redis-cli's Arch successor),
+      Temporal CLI, direnv, Bruno.
 - [ ] **4 — Editor.** Neovim + lazy.nvim, LSP (vtsls/ts_ls, eslint,
       prettier, lua_ls), tmux, `~/bin/work` launcher.
 - [ ] **5 — Hyprland.** Compositor, waybar, launcher, notifications,
@@ -110,3 +117,12 @@ scripts/
   and delta's `syntax-theme` both need `tokyonight_night` (the filename).
   Confirmed by actually installing it and running `--list-themes`, not
   by reading the XML.
+- `git config --global --get <key>` only reads the literal `~/.gitconfig`
+  file — it does *not* follow into `~/.config/git/config` (the XDG
+  fallback) even though that file is genuinely part of the "global"
+  precedence tier for normal, unscoped resolution. This is why
+  `git/.config/git/config`'s identity `[include]` (see
+  `hooks/50-git-identity.sh`) has to be checked with unscoped
+  `git config <key>`, not `--global`, when verifying it actually
+  resolves — `--global` is still the right flag for confirming
+  `~/.gitconfig` itself stays clean, since that's specifically what it reads.
