@@ -21,7 +21,10 @@ second. Built on one laptop, then replayed on other machines.
   real launch, not at bootstrap time — needs mise's node active in the
   launching shell (npm-based installs fail silently otherwise).
 - **`~/bin/work`** — tmux project sessionizer, searches `~/projects`.
-- **Phase 4 complete and verified.** Phase 5 is next.
+- **Phase 4 complete and verified.** Phase 5 in progress: compositor
+  (Hyprland + UWSM session), waybar, rofi launcher done and tested.
+  Remaining: notifications (swaync), hyprlock/hypridle, clipboard,
+  screenshots, polkit agent, GTK/Qt theming.
 
 ## Phases
 
