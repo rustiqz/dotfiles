@@ -1,0 +1,87 @@
+/* ~/dotfiles/rofi/.config/rofi/config.rasi
+ *
+ * App launcher only (drun mode) for now — window switcher / other modes
+ * are easy to add later (`modi` list, or a second keybind with -show
+ * window) but weren't asked for, so kept out rather than guessed in.
+ *
+ * TokyoNight palette, same hex values as kitty/.config/kitty/tokyonight.conf
+ * and waybar's style.css, so the launcher reads as the same surface as
+ * everything else rather than a differently-themed overlay. Icons come
+ * from the system icon theme via freedesktop lookup (show-icons below),
+ * not a Nerd Font glyph, so there's no PUA codepoint to get wrong.
+ *
+ * Note: on Wayland, rofi can't reliably detect clicks outside its own
+ * window (a rofi 2.0 Wayland-backend limitation, not a bug in this
+ * config) — Escape is the reliable way to dismiss it, not click-away.
+ */
+
+configuration {
+  modi: "drun,run";
+  show-icons: true;
+  font: "JetBrainsMono Nerd Font 11";
+  display-drun: "Apps";
+}
+
+* {
+  background:         #1a1b26;
+  background-alt:      #292e42;
+  foreground:         #c0caf5;
+  selected:           #283457;   /* kitty's selection_background */
+  accent:             #7aa2f7;   /* same accent as active window border */
+
+  background-color:   @background;
+  text-color:         @foreground;
+}
+
+window {
+  width: 600px;
+  border: 2px;
+  border-color: @accent;
+  border-radius: 6px;   /* matches decoration.rounding in hypr/look.conf */
+}
+
+mainbox {
+  padding: 8px;
+}
+
+inputbar {
+  background-color: @background-alt;
+  text-color: @foreground;
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+
+listview {
+  margin: 8px 0 0 0;
+  lines: 8;
+  scrollbar: false;
+}
+
+/* Rofi's stock theme alternates row backgrounds (normal vs. alternate
+ * state) using its own default (light) colors. A bare `element { }` rule
+ * doesn't override the `alternate` state specifically — it's a more
+ * specific selector than `element` in rofi's cascade, so it was still
+ * winning and showing through as an unreadably light stripe every other
+ * row. Setting all three states explicitly kills that entirely — flat,
+ * one background color throughout, matching the rest of this repo's
+ * "no alternating/pill styling" preference.
+ */
+element {
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+element normal.normal,
+element alternate.normal {
+  background-color: @background;
+  text-color: @foreground;
+}
+
+element selected.normal {
+  background-color: @selected;
+  text-color: @foreground;
+}
+
+element-icon {
+  size: 20px;
+}

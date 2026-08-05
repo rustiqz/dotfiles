@@ -1,0 +1,107 @@
+// ~/dotfiles/waybar/.config/waybar/config.jsonc
+//
+// Modules deliberately favour plain text over icon glyphs. Several waybar
+// modules (idle_inhibitor, power-profiles-daemon) default to Nerd Font
+// private-use-area icon codepoints in every example config floating
+// around online, but those are exactly the kind of thing that silently
+// renders as a tofu box if the codepoint gets mistyped or lost in
+// copy/paste — and it matches the flat/minimal style chosen for this bar
+// anyway (no per-module icon zoo, text reads the same as everything else
+// in this repo's terminal-first theming).
+{
+  "layer": "top",
+  "position": "top",
+  "height": 32,
+  "spacing": 4,
+
+  "modules-left": ["hyprland/workspaces"],
+  "modules-center": ["clock"],
+  "modules-right": [
+    "idle_inhibitor",
+    "cpu",
+    "memory",
+    "network",
+    "pulseaudio",
+    "power-profiles-daemon",
+    "battery"
+  ],
+
+  "hyprland/workspaces": {
+    "on-click": "activate",
+    // Always show workspaces 1-9 even when empty, matching the
+    // SUPER+1..9 binds in hypr/keybinds.conf — otherwise an empty
+    // workspace just doesn't appear in the bar at all, which makes the
+    // numbered keybinds feel disconnected from what's on screen.
+    "persistent-workspaces": {
+      "*": [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    }
+  },
+
+  "clock": {
+    "format": "{:%H:%M}",
+    "format-alt": "{:%Y-%m-%d}",
+    "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
+  },
+
+  // "Caffeine" toggle: prevents the screen from idling/locking (relevant
+  // once hypridle is added later in Phase 5). Standard Unicode emoji
+  // (already covered by Noto Color Emoji, installed in Phase 1) rather
+  // than a Nerd Font glyph — verifiably correct without guessing a PUA
+  // codepoint, and the coffee/moon pairing reads unambiguously at a
+  // glance without needing a tooltip.
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "☕",
+      "deactivated": "🌙"
+    },
+    "tooltip-format-activated": "Idle inhibit: ON (screen won't lock/sleep)",
+    "tooltip-format-deactivated": "Idle inhibit: off"
+  },
+
+  // Click either opens btop (installed in Phase 2) rather than duplicating
+  // a graph/history view waybar itself would have to render — reuses the
+  // tool already in this repo instead of adding a second system monitor.
+  "cpu": {
+    "format": "CPU {usage}%",
+    "on-click": "kitty --hold -e btop"
+  },
+  "memory": {
+    "format": "MEM {percentage}%",
+    "on-click": "kitty --hold -e btop"
+  },
+
+  "network": {
+    "format-wifi": "{essid} ({signalStrength}%)",
+    "format-ethernet": "Wired",
+    "format-disconnected": "Disconnected",
+    "tooltip-format": "{ifname} via {gwaddr}"
+  },
+
+  // Right-click opens pavucontrol (installed in Phase 1) for anything
+  // beyond a volume nudge — per-app routing, input device selection.
+  // Left-click mute uses the same wpctl @DEFAULT_AUDIO_SINK@ target as
+  // the XF86AudioMute bind in hypr/keybinds.conf, so both paths agree.
+  "pulseaudio": {
+    "format": "VOL {volume}%",
+    "format-muted": "VOL muted",
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-click-right": "pavucontrol"
+  },
+
+  // Text-only profile name, no icons — see file header. Click cycles
+  // performance -> balanced -> power-saver, built into the module itself.
+  "power-profiles-daemon": {
+    "format": "{profile}",
+    "tooltip-format": "Power profile: {profile}\nDriver: {driver}"
+  },
+
+  "battery": {
+    "format": "BAT {capacity}%",
+    "format-charging": "BAT {capacity}% (charging)",
+    "states": {
+      "warning": 20,
+      "critical": 10
+    }
+  }
+}
