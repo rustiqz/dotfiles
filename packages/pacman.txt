@@ -154,3 +154,37 @@ tmux
 # through `wl-copy` (tmux/.tmux.conf) rather than tmux's own paste buffer,
 # so yanked text is available to every other app too.
 wl-clipboard
+
+# --- Phase 5: Hyprland ---------------------------------------------------------
+
+# The compositor itself. Installing this package alone is what makes a
+# "Hyprland" session appear on the GDM login screen — no separate login
+# manager needed, GNOME's GDM enumerates any *.desktop file under
+# /usr/share/wayland-sessions.
+hyprland
+
+# Lets Wayland apps request things the compositor itself doesn't implement:
+# screen share/recording (browsers, Discord), the GTK/Qt "open file" dialog,
+# etc. Without it those either hang or silently fail. Hyprland-specific
+# because the generic xdg-desktop-portal-wlr doesn't know Hyprland's
+# IPC protocol for window/output listing.
+xdg-desktop-portal-hyprland
+
+# Qt apps render through XWayland (blurry, no native Wayland input) without
+# these. Most of this repo's apps are GTK or Electron, but installing both
+# now avoids a surprise later when some Qt-based tool gets added.
+qt5-wayland
+qt6-wayland
+
+# Status bar: workspaces, clock, network, volume, battery, power profile.
+# Hyprland draws windows only — no bar, tray, or clock without this.
+# Native Wayland layer-shell client, which is why it docks properly
+# instead of floating like an X11 panel would.
+waybar
+
+# App launcher (replaces GNOME's Activities overview). Plain `rofi`, not
+# the old `rofi-wayland` AUR fork — as of rofi 2.0.0 the Wayland backend
+# was merged into upstream itself, and this package `Provides`/`Replaces`
+# rofi-wayland outright (confirmed via `pacman -Si rofi`; the AUR fork no
+# longer exists). No AUR package needed for this at all.
+rofi

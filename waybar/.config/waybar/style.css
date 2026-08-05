@@ -1,0 +1,79 @@
+/* ~/dotfiles/waybar/.config/waybar/style.css
+ *
+ * TokyoNight palette, copied from kitty/.config/kitty/tokyonight.conf so
+ * the bar reads as the same surface as the terminal rather than a
+ * separately-themed panel. Flat/minimal: no per-module pill backgrounds,
+ * just subtle 1px separators — matches kitty/tmux's understated look.
+ */
+
+* {
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 13px;
+  min-height: 0;
+}
+
+window#waybar {
+  background-color: #15161e;  /* kitty's tab_bar_background — one shade
+                                  darker than the main #1a1b26, enough to
+                                  read as a distinct strip without a hard
+                                  border */
+  color: #c0caf5;
+  border-bottom: 2px solid #292e42;
+}
+
+#workspaces button {
+  padding: 0 8px;
+  color: #545c7e;              /* inactive workspace: muted, same tone
+                                   kitty uses for inactive tabs */
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+#workspaces button.active {
+  color: #7aa2f7;               /* accent blue — matches active window
+                                    border in look.conf and kitty's
+                                    active-tab/border color */
+  border-bottom: 2px solid #7aa2f7;
+}
+
+#workspaces button:hover {
+  color: #c0caf5;
+  background: transparent;
+}
+
+#clock,
+#idle_inhibitor,
+#cpu,
+#memory,
+#network,
+#pulseaudio,
+#power-profiles-daemon,
+#battery {
+  padding: 0 10px;
+  color: #c0caf5;
+}
+
+/* Subtle separators between the right-hand modules instead of individual
+   pill backgrounds — the module group reads as one strip, not a row of
+   separate buttons. */
+#cpu,
+#memory,
+#network,
+#pulseaudio,
+#power-profiles-daemon,
+#battery {
+  border-left: 1px solid #292e42;
+}
+
+#battery.warning {
+  color: #e0af68;   /* yellow */
+}
+
+#battery.critical {
+  color: #f7768e;   /* red */
+}
+
+#pulseaudio.muted {
+  color: #545c7e;
+}
