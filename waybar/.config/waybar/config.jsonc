@@ -1,13 +1,20 @@
 // ~/dotfiles/waybar/.config/waybar/config.jsonc
 //
-// Modules deliberately favour plain text over icon glyphs. Several waybar
-// modules (idle_inhibitor, power-profiles-daemon) default to Nerd Font
-// private-use-area icon codepoints in every example config floating
-// around online, but those are exactly the kind of thing that silently
-// renders as a tofu box if the codepoint gets mistyped or lost in
-// copy/paste — and it matches the flat/minimal style chosen for this bar
-// anyway (no per-module icon zoo, text reads the same as everything else
-// in this repo's terminal-first theming).
+// Icons here are Nerd Font glyphs (JetBrainsMono Nerd Font, installed
+// Phase 1), sourced by exact codepoint from nerd-fonts' own
+// glyphnames.json rather than typed from memory or copy-pasted through a
+// web page — earlier attempts at this lost/mangled the actual bytes in
+// transit (private-use-area codepoints don't survive most HTML/markdown
+// pipelines), so this rebuild generates each character programmatically
+// from a verified hex codepoint instead. See scripts/ for how — this
+// file is the output, already substituted, safe to read/edit directly.
+//
+// Several modules (pulseaudio, bluetooth, network) now use a real GTK
+// dropdown menu (`menu-file`) instead of just a click-to-open-app command
+// — see the sibling *-menu.xml files. power-profiles-daemon does NOT get
+// one: its C++ module overrides click handling itself to cycle profiles
+// directly, bypassing the generic menu mechanism entirely (confirmed by
+// reading its source) — a menu-file on it would just silently do nothing.
 {
   "layer": "top",
   "position": "top",
@@ -17,24 +24,52 @@
   "modules-left": ["hyprland/workspaces"],
   "modules-center": ["clock"],
   "modules-right": [
+    "custom/notification",
     "idle_inhibitor",
     "cpu",
     "memory",
     "network",
+    "bluetooth",
     "pulseaudio",
     "power-profiles-daemon",
-    "battery"
+    "battery",
+    "custom/clipboard",
+    "tray"
   ],
 
   "hyprland/workspaces": {
     "on-click": "activate",
-    // Always show workspaces 1-9 even when empty, matching the
-    // SUPER+1..9 binds in hypr/keybinds.conf — otherwise an empty
-    // workspace just doesn't appear in the bar at all, which makes the
-    // numbered keybinds feel disconnected from what's on screen.
     "persistent-workspaces": {
       "*": [1, 2, 3, 4, 5, 6, 7, 8, 9]
     }
+  },
+
+  // Straight from swaync's own README waybar example (v0.12.6) —
+  // exec-if guards against the module erroring out if swaync isn't
+  // installed, {0} is the unread count, left-click toggles the panel,
+  // right-click toggles Do Not Disturb. Icon codepoints copied from
+  // that same doc, verified by extracting them programmatically rather
+  // than trusting rendered text (they're Material Design Icons glyphs,
+  // easy to mis-copy by hand).
+  "custom/notification": {
+    "tooltip": true,
+    "format": "{icon} {0}",
+    "format-icons": {
+      "notification": "󱅫",
+      "none": "󰂜",
+      "dnd-notification": "󰂠",
+      "dnd-none": "󰪓",
+      "inhibited-notification": "󰂛",
+      "inhibited-none": "󰪑",
+      "dnd-inhibited-notification": "󰂛",
+      "dnd-inhibited-none": "󰪑"
+    },
+    "return-type": "json",
+    "exec-if": "which swaync-client",
+    "exec": "swaync-client -swb",
+    "on-click": "swaync-client -t -sw",
+    "on-click-right": "swaync-client -d -sw",
+    "escape": true
   },
 
   "clock": {
@@ -43,12 +78,6 @@
     "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
   },
 
-  // "Caffeine" toggle: prevents the screen from idling/locking (relevant
-  // once hypridle is added later in Phase 5). Standard Unicode emoji
-  // (already covered by Noto Color Emoji, installed in Phase 1) rather
-  // than a Nerd Font glyph — verifiably correct without guessing a PUA
-  // codepoint, and the coffee/moon pairing reads unambiguously at a
-  // glance without needing a tooltip.
   "idle_inhibitor": {
     "format": "{icon}",
     "format-icons": {
@@ -59,49 +88,152 @@
     "tooltip-format-deactivated": "Idle inhibit: off"
   },
 
-  // Click either opens btop (installed in Phase 2) rather than duplicating
-  // a graph/history view waybar itself would have to render — reuses the
-  // tool already in this repo instead of adding a second system monitor.
+  // fa-microchip (f2db). Click still opens btop (Phase 2) for the full
+  // picture — the bar icon is just a glance, not a replacement for it.
   "cpu": {
-    "format": "CPU {usage}%",
+    "format": " {usage}%",
     "on-click": "kitty --hold -e btop"
   },
+  // fa-memory (efc5).
   "memory": {
-    "format": "MEM {percentage}%",
+    "format": " {percentage}%",
     "on-click": "kitty --hold -e btop"
   },
 
+  // fa-wifi (f1eb) / fa-ethernet (ef44) / fa-ban (f05e) disconnected /
+  // md-wifi_off (f05aa) disabled. format-disabled must NOT be empty: an
+  // empty format hides the module entirely (the exact bug that made it
+  // vanish with no way back — rfkill-soft-blocking wlan is exactly what
+  // the dropdown's "Wi-Fi Off" does, so hiding the only clickable
+  // surface that could undo it would strand you every time).
   "network": {
-    "format-wifi": "{essid} ({signalStrength}%)",
-    "format-ethernet": "Wired",
-    "format-disconnected": "Disconnected",
-    "tooltip-format": "{ifname} via {gwaddr}"
+    "format-wifi": " {signalStrength}%",
+    "format-ethernet": "",
+    "format-disconnected": "",
+    "format-disabled": "󰖪",
+    "tooltip-format": "{ifname} via {gwaddr}",
+    "tooltip-format-disabled": "Wi-Fi off — click to turn back on",
+    "menu": "on-click",
+    "menu-file": "~/.config/waybar/network-menu.xml",
+    "menu-actions": {
+      "wifi-on": "nmcli radio wifi on",
+      "wifi-off": "nmcli radio wifi off",
+      "editor": "nm-connection-editor"
+    }
   },
 
-  // Right-click opens pavucontrol (installed in Phase 1) for anything
-  // beyond a volume nudge — per-app routing, input device selection.
-  // Left-click mute uses the same wpctl @DEFAULT_AUDIO_SINK@ target as
-  // the XF86AudioMute bind in hypr/keybinds.conf, so both paths agree.
+  // fa-bluetooth_b (f294) connected/on, md-bluetooth_off (f00b2) off.
+  // Same reasoning as network: paired-device list isn't static, so the
+  // dropdown offers a power toggle + the full manager (blueman, Phase 5)
+  // rather than trying to fake a live device list.
+  "bluetooth": {
+    "format": "{status}",
+    "format-disabled": "",
+    "format-off": "󰂲",
+    "format-on": "",
+    "format-connected": " {device_alias}",
+    "format-connected-battery": " {device_alias} ({device_battery_percentage}%)",
+    "tooltip-format": "{controller_alias}\t{controller_address}",
+    "tooltip-format-connected": "{controller_alias}\t{controller_address}\n\n{device_enumerate}",
+    "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}",
+    "tooltip-format-enumerate-connected-battery": "{device_alias}\t{device_address}\t{device_battery_percentage}%",
+    "menu": "on-click",
+    "menu-file": "~/.config/waybar/bluetooth-menu.xml",
+    "menu-actions": {
+      "power-on": "bluetoothctl power on",
+      "power-off": "bluetoothctl power off",
+      "manager": "blueman-manager"
+    }
+  },
+
+  // fa-volume_high/low/off (f028/f027/f026), selected automatically by
+  // {icon} based on volume level via format-icons (waybar's own
+  // low-to-high array convention, not a manual per-branch string).
+  // Dropdown replaces the old plain left-click-to-mute: quick-set levels
+  // plus mute plus the full mixer, all in one place instead of split
+  // across left/right click.
   "pulseaudio": {
-    "format": "VOL {volume}%",
-    "format-muted": "VOL muted",
-    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
-    "on-click-right": "pavucontrol"
+    "format": "{icon} {volume}%",
+    "format-muted": " muted",
+    "format-icons": {
+      "default": ["", ""]
+    },
+    "menu": "on-click",
+    "menu-file": "~/.config/waybar/pulseaudio-menu.xml",
+    "menu-actions": {
+      "mute": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+      "vol25": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 25%",
+      "vol50": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 50%",
+      "vol75": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 75%",
+      "vol100": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 100%",
+      "mixer": "pavucontrol"
+    }
   },
 
-  // Text-only profile name, no icons — see file header. Click cycles
-  // performance -> balanced -> power-saver, built into the module itself.
+  // fa-bolt / fa-balance_scale / fa-leaf (f0e7/f24e/f06c). No dropdown —
+  // see file header. Left-click cycles forward, right-click (or any
+  // other button) cycles backward, both built into the module itself.
   "power-profiles-daemon": {
-    "format": "{profile}",
-    "tooltip-format": "Power profile: {profile}\nDriver: {driver}"
+    "format": "{icon}",
+    "format-icons": {
+      "default": "",
+      "performance": "",
+      "balanced": "",
+      "power-saver": ""
+    },
+    "tooltip-format": "Power profile: {profile} (left-click: next, right-click: previous)\nDriver: {driver}"
   },
 
+  // fa-battery_empty/quarter/half/three_quarters/full (f244/f243/f242/
+  // f241/f240), low-to-high array — same {icon}-from-format-icons
+  // mechanism as pulseaudio above, selected by current charge level.
   "battery": {
-    "format": "BAT {capacity}%",
-    "format-charging": "BAT {capacity}% (charging)",
+    "format": "{icon} {capacity}%",
+    "format-charging": "{icon} {capacity}% ",
+    "format-icons": ["", "", "", "", ""],
     "states": {
       "warning": 20,
       "critical": 10
     }
+  },
+
+  // Live Wi-Fi switching (actual SSID list, connect/disconnect) needs a
+  // proper SNI tray client -- a static menu-file can't regenerate itself
+  // per click. nm-applet (network-manager-applet, already installed)
+  // gives that; its icon lands here once autostarted (both nm-applet and
+  // blueman-applet self-autostart via their own /etc/xdg/autostart
+  // entries, no exec-once needed -- see hypr/autostart.conf).
+  //
+  // blueman-applet's icon lands here too, but NOT for a live device
+  // list: confirmed by reading its source (StatusIcon.py) that its
+  // click handler is hardwired to open the full blueman-manager window
+  // directly, same as the "Devices..." entry in its own right-click
+  // menu -- blueman's tray UX model is "click opens the one window
+  // where you manage everything," not an inline dropdown. That's fine;
+  // the manager itself is one click away and handles connect/disconnect.
+  //
+  // show-passive-items: true because both usually report SNI status
+  // "Passive" during normal operation, not "Active" -- the default
+  // (false) would hide them except when something needs attention.
+  // fa-clipboard (f0ea). No dynamic state to poll (unlike the
+  // notification bell) so this is a plain one-shot custom module, same
+  // shape as cpu/memory above -- left-click opens the picker (same
+  // pipeline as the SUPER+CTRL+V bind in hypr/keybinds.conf), right-click
+  // wipes the whole history. Placed right before "tray" specifically --
+  // cliphist has no GUI process of its own to put an actual SNI icon in
+  // the tray, this is the nearest equivalent, positioned where a tray
+  // icon for it would have gone.
+  "custom/clipboard": {
+    "format": "",
+    "tooltip": true,
+    "tooltip-format": "Clipboard history\nLeft-click: open picker\nRight-click: wipe history",
+    "on-click": "sh -c 'cliphist list | rofi -dmenu -display-columns 2 | cliphist decode | wl-copy'",
+    "on-click-right": "cliphist wipe"
+  },
+
+  "tray": {
+    "icon-size": 16,
+    "spacing": 8,
+    "show-passive-items": true
   }
 }

@@ -188,3 +188,29 @@ waybar
 # rofi-wayland outright (confirmed via `pacman -Si rofi`; the AUR fork no
 # longer exists). No AUR package needed for this at all.
 rofi
+
+# GTK Bluetooth manager (pairing, trust, device list) — the GUI behind
+# waybar's bluetooth module click, same role pavucontrol plays for the
+# pulseaudio module. bluez/bluez-utils (bluetoothctl, the daemon itself)
+# already installed in Phase 1; this is just the front-end.
+blueman
+
+# nm-connection-editor — the GUI behind waybar's network module dropdown
+# ("Open Network Settings…"). Was already present on this machine (pulled
+# in some other way, likely as a GNOME dependency) but was never actually
+# tracked here — a fresh bootstrap elsewhere would have silently missed
+# it and that menu item would just fail.
+network-manager-applet
+
+# Notification daemon + panel (config: swaync/.config/swaync/). Conflicts
+# on the org.freedesktop.Notifications D-Bus name with any other
+# notification daemon — this machine had a stray, untracked dunst.service
+# claiming it (masked in hooks/70-swaync.sh) before swaync could start.
+swaync
+
+# Clipboard history for Wayland — GNOME's clipboard history lives in a
+# Shell extension, which has no equivalent under Hyprland. Stores
+# whatever wl-paste --watch feeds it (hypr/autostart.conf); picking an
+# entry goes through rofi (already installed) via a plain pipe, per
+# cliphist's own "no concept of a picker, only pipes" design.
+cliphist

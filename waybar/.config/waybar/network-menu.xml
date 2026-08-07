@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ~/dotfiles/waybar/.config/waybar/network-menu.xml
+
+     No SSID list here for the same reason as bluetooth-menu.xml: nearby
+     networks change constantly and aren't something a static GtkBuilder
+     file can usefully enumerate. Radio toggle + the full editor covers
+     everything else without faking a live scan. -->
+<interface>
+  <object class="GtkMenu" id="menu">
+    <child>
+      <object class="GtkMenuItem" id="wifi-on">
+        <property name="label">Wi-Fi On</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="wifi-off">
+        <property name="label">Wi-Fi Off</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkSeparatorMenuItem">
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="editor">
+        <property name="label">Open Network Settings…</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+  </object>
+</interface>

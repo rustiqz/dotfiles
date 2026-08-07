@@ -43,15 +43,22 @@ window#waybar {
 }
 
 #clock,
+#custom-notification,
 #idle_inhibitor,
 #cpu,
 #memory,
 #network,
+#bluetooth,
 #pulseaudio,
 #power-profiles-daemon,
-#battery {
+#battery,
+#custom-clipboard {
   padding: 0 10px;
   color: #c0caf5;
+}
+
+#tray {
+  padding: 0 10px;
 }
 
 /* Subtle separators between the right-hand modules instead of individual
@@ -60,9 +67,12 @@ window#waybar {
 #cpu,
 #memory,
 #network,
+#bluetooth,
 #pulseaudio,
 #power-profiles-daemon,
-#battery {
+#battery,
+#custom-clipboard,
+#tray {
   border-left: 1px solid #292e42;
 }
 
@@ -76,4 +86,24 @@ window#waybar {
 
 #pulseaudio.muted {
   color: #545c7e;
+}
+
+/* Dropdown menus (pulseaudio/bluetooth/network menu-file popups). Without
+ * this, GTK falls back to its stock light theme for these — same failure
+ * mode the rofi launcher hit initially (unreadable light-on-light), just
+ * via a different widget kind (GtkMenu, not rofi's own theming DSL). */
+menu {
+  background-color: #1a1b26;
+  border: 1px solid #292e42;
+  padding: 4px 0;
+}
+
+menuitem {
+  color: #c0caf5;
+  padding: 6px 14px;
+}
+
+menuitem:hover {
+  background-color: #283457;   /* kitty's selection_background */
+  color: #c0caf5;
 }

@@ -12,3 +12,9 @@ temporal-cli
 # time (same reasoning as paru-bin, minus the libalpm ABI risk that made
 # us avoid paru-bin specifically — see CLAUDE.md gotchas).
 bruno-bin
+
+# --- Phase 5: Hyprland ---------------------------------------------------------
+
+# Bitmap pixel font, used for notification titles/timestamps in swaync's
+# F1 theme (swaync/.config/swaync/style.css) — not in the official repos.
+ttf-press-start-2p
