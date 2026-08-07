@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ~/dotfiles/waybar/.config/waybar/pulseaudio-menu.xml
+
+     GtkBuilder menu popped up by config.jsonc's pulseaudio "menu-file".
+     Each <object id="..."> here must match a key in that module's
+     "menu-actions" map — waybar wires each item's "activate" signal to
+     the shell command at that key. The id="menu" root object is required
+     verbatim; waybar looks it up by that exact name. -->
+<interface>
+  <object class="GtkMenu" id="menu">
+    <child>
+      <object class="GtkMenuItem" id="mute">
+        <property name="label">Mute / Unmute</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkSeparatorMenuItem">
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="vol25">
+        <property name="label">Volume: 25%</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="vol50">
+        <property name="label">Volume: 50%</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="vol75">
+        <property name="label">Volume: 75%</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="vol100">
+        <property name="label">Volume: 100%</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkSeparatorMenuItem">
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="mixer">
+        <property name="label">Open Mixer…</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+  </object>
+</interface>

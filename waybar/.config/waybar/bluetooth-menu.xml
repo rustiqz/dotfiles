@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ~/dotfiles/waybar/.config/waybar/bluetooth-menu.xml
+
+     No paired-device list here on purpose — that's per-machine, changing
+     state, and exactly the kind of thing that doesn't belong baked into
+     a tracked config file (see CLAUDE.md: machine differences live in
+     host/<hostname>/, not hardcoded into shared configs). Power toggle +
+     the full manager (blueman) covers everything else. -->
+<interface>
+  <object class="GtkMenu" id="menu">
+    <child>
+      <object class="GtkMenuItem" id="power-on">
+        <property name="label">Power On</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="power-off">
+        <property name="label">Power Off</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkSeparatorMenuItem">
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="manager">
+        <property name="label">Open Bluetooth Manager…</property>
+        <property name="visible">True</property>
+      </object>
+    </child>
+  </object>
+</interface>

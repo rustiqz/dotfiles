@@ -22,8 +22,9 @@ second. Built on one laptop, then replayed on other machines.
   launching shell (npm-based installs fail silently otherwise).
 - **`~/bin/work`** — tmux project sessionizer, searches `~/projects`.
 - **Phase 4 complete and verified.** Phase 5 in progress: compositor
-  (Hyprland + UWSM session), waybar, rofi launcher done and tested.
-  Remaining: notifications (swaync), hyprlock/hypridle, clipboard,
+  (Hyprland + UWSM session), waybar (icons, dropdown menus, tray),
+  rofi launcher, notifications (swaync, F1-themed), and clipboard
+  history (cliphist) all done and tested. Remaining: hyprlock/hypridle,
   screenshots, polkit agent, GTK/Qt theming.
 
 ## Phases
@@ -46,6 +47,8 @@ second. Built on one laptop, then replayed on other machines.
 - [ ] **5 — Hyprland.** Compositor, waybar, launcher, notifications,
       hyprlock/hypridle, clipboard, screenshots, portals, polkit agent,
       GTK/Qt theming. **This is where the session switch happens.**
+      Optional follow-up: fingerprint login (see Known gotchas — no
+      official package, AUR `libfprint-ft9201` is the option).
 - [ ] **6 — Finalize.** Prove `bootstrap.sh` on a clean VM. Write README.
 
 ## Repo layout
@@ -147,3 +150,9 @@ scripts/
   such dependency (standalone binary asset, not an npm package), which
   is why only two of the three servers failed the first time this was
   tried headless without `eval "$(mise activate bash)"` first.
+- The laptop's fingerprint sensor is a FocalTech FT9201 (USB `2808:9338`,
+  visible via `/sys/bus/usb/devices/*/product` since `lsusb`/`usbutils`
+  isn't installed) with no official Arch package and no upstream
+  libfprint support. AUR `libfprint-ft9201` (proprietary TOD driver,
+  drop-in `libfprint-2-2` replacement) is the only option — it conflicts
+  with `extra/libfprint` on install. Deferred; see Phase 5 follow-up.
