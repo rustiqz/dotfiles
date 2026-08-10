@@ -1,0 +1,26 @@
+[Default]
+# save_dir is only used by swappy's own standalone save (Ctrl+S with no
+# -o target); bin/bin/screenshot always passes -o explicitly, so this is
+# a fallback for launching swappy directly, not the primary save path.
+save_dir=$HOME/Pictures/Screenshots
+save_filename_format=swappy-%Y%m%d-%H%M%S.png
+show_panel=true
+line_size=5
+text_size=20
+text_font=JetBrainsMono Nerd Font
+paint_mode=brush
+
+# Ctrl+S/Ctrl+C inside swappy are its OWN save/copy actions — separate
+# from bin/bin/screenshot's `-o "$FILE"` pipe, which only writes once the
+# swappy window actually exits. Without this, pressing Ctrl+S silently
+# writes a swappy-*.png duplicate (the save_filename_format above) and
+# leaves the window open, so the script's clipboard-copy/notification
+# step (which waits for swappy to exit) never runs — looks exactly like
+# the button did nothing. early_exit makes Ctrl+S/Ctrl+C close the
+# window immediately after saving/copying, so -o actually fires.
+early_exit=true
+
+# TokyoNight accent blue, matching the border color used everywhere
+# else (hypr/look.conf, rofi, waybar) — the one swappy setting that's
+# actually a color rather than a behavior default.
+custom_color=rgba(122,162,247,1)

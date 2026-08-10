@@ -10,7 +10,15 @@ id_*                 # SSH private keys
 # Convention: any config that needs an untracked local tweak sources a
 # sibling *.local file, e.g. .zshrc ends with:
 #     [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
-*.local
+#
+# ?*.local (not *.local): requires at least one character before the
+# extension, e.g. matches "config.local" but not a bare ".local" —
+# plain *.local also matches a directory literally named ".local" (the
+# whole name trivially "ends with .local"), which silently swallowed
+# the wallpapers/.local/ stow package (targets ~/.local/share/...) the
+# first time something used that XDG directory. Verified the fix with
+# `git check-ignore -v`, not just re-read the pattern.
+?*.local
 
 # Editor / OS noise
 .DS_Store
@@ -24,3 +32,11 @@ id_*                 # SSH private keys
 # shouldn't track a file we didn't author and that re-downloads identically
 # on every bootstrap run.
 bat/.config/bat/themes/
+
+# Runtime state, not config: hooks/71-wallpaper.sh creates this symlink
+# once (pointing at the default wallpaper), and ~/bin/wallpaper repoints
+# it every time you pick a different one. Same reasoning as bat's theme
+# above — has to live inside the stow-managed tree (no runtime path
+# outside the repo), but tracking it would fight both the hook's
+# idempotent creation and every future wallpaper pick with a git diff.
+wallpapers/.local/share/wallpapers/.current
