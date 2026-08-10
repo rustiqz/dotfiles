@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#
+# wallpaper — rofi picker over ~/.local/share/wallpapers/*. Selecting one
+# repoints the .current symlink (hyprpaper.conf and hyprlock.conf both
+# read through it, see hooks/71-wallpaper.sh) and tells the already-
+# running hyprpaper to switch live via its IPC socket — no restart, and
+# the lock screen picks up the same choice next time it's shown.
+#
+# Usage:
+#   wallpaper       interactive rofi picker over the wallpaper directory
+
+set -euo pipefail
+
+WALLPAPER_DIR="$HOME/.local/share/wallpapers"
+CURRENT_LINK="$WALLPAPER_DIR/.current"
+
+# -L: WALLPAPER_DIR is itself a symlink (stow, into the dotfiles repo) —
+# plain find does not descend into a symlinked root path at all, so
+# without this the picker would silently list nothing every time.
+# .current is naturally excluded below regardless (it has no image
+# extension), so this can't turn it into a duplicate entry.
+selected=$(find -L "$WALLPAPER_DIR" -maxdepth 1 -type f \
+  \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) \
+  -printf '%f\n' | sort | rofi -dmenu -p "Wallpaper")
+
+[[ -z $selected ]] && exit 0
+
+ln -sf "$WALLPAPER_DIR/$selected" "$CURRENT_LINK"
+hyprctl hyprpaper wallpaper ",$CURRENT_LINK,cover"

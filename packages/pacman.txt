@@ -214,3 +214,48 @@ swaync
 # entry goes through rofi (already installed) via a plain pipe, per
 # cliphist's own "no concept of a picker, only pipes" design.
 cliphist
+
+# Screen lock (hyprlock), idle daemon (hypridle), and wallpaper daemon
+# (hyprpaper) — all three from the Hyprland team specifically, same
+# config-fragment convention as the compositor itself. hypridle's
+# lock_cmd is hyprlock; hyprlock's background and hyprpaper's wallpaper
+# both read through the same ~/.local/share/wallpapers/.current symlink
+# (hooks/71-wallpaper.sh), so picking a new wallpaper (~/bin/wallpaper)
+# updates both together.
+hyprlock
+hypridle
+hyprpaper
+
+# Screenshots. grim captures a Wayland output/region to a PNG; slurp
+# drives the interactive drag-to-select box grim's -g geometry flag
+# consumes; swappy is the annotate/crop/arrow editor that grim's output
+# gets piped into before saving (bin/bin/screenshot's --edit path).
+# grim and slurp were already present on this machine (pulled in some
+# other way, likely a GNOME dependency) but untracked here; swappy is
+# genuinely new.
+grim
+slurp
+swappy
+
+# Polkit authentication agent — GNOME's own is tied to gnome-shell, so
+# nothing puts a password dialog on screen for privileged D-Bus actions
+# under Hyprland without this running (checked this machine's actual
+# /usr/share/polkit-1/{actions,rules.d}/ to see what that covers in
+# practice — most of it, like NetworkManager system-connection edits,
+# is auto-granted to wheel-group users by local rules and never
+# prompts at all; timedate1/hostname1 changes are the realistic case).
+# Hyprland team's own agent (Qt/QML), chosen for consistency with
+# hyprlock/hypridle/hyprpaper over GTK (polkit-gnome, unmaintained
+# upstream) or KDE/LXQt, which drag in much heavier dependency chains.
+hyprpolkitagent
+
+# Tried as the fix for hyprpolkitagent's "QQuickStyle::setStyle() must
+# be called before loading QML" warning (hyprwm/hyprpolkitagent#10),
+# based on that issue's discussion. Turned out to likely be a red
+# herring on this version: hyprpolkitagent actually requests its own
+# style, org.hyprland.style, which already ships on disk via
+# hyprland-qt-support (a hard dependency, confirmed via `pacman -Ql`)
+# — installing this didn't change the dialog's plain appearance.
+# Harmless to keep installed; the actual fix is the Qt theming setup
+# (qt6ct + QT_QPA_PLATFORMTHEME) still pending as its own phase item.
+qqc2-desktop-style

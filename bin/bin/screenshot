@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+#
+# screenshot — grim+slurp capture, in three modes, each with a direct-save
+# and an annotate (swappy) variant. Files land in ~/Pictures/Screenshots
+# (GNOME's existing default directory on this machine, reused rather than
+# inventing a new path) as region-YYYYmmdd-HHMMSS.png etc.
+#
+# Usage:
+#   screenshot region [--edit]      drag-select an area (slurp)
+#   screenshot screen  [--edit]     full active monitor
+#   screenshot window   [--edit]    focused window's bounds (hyprctl)
+#
+# --edit pipes into swappy for annotation before saving (Ctrl+S there,
+# or just close the window to discard). Without --edit, saves straight
+# to disk and fires a notification (swaync, Phase 5) so there's still
+# feedback that it worked.
+#
+# The --edit path deliberately does NOT use swappy's `-o` flag. Traced
+# through swappy's own source (application.c, v1.8.0): `-o` is only
+# written from the `on_destroy` GTK signal handler, but
+# swappy/.config/swappy/config's early_exit=true (needed so Ctrl+S
+# actually closes the window instead of leaving it open with no
+# feedback) calls `gtk_main_quit()` directly on save, which skips that
+# signal entirely — confirmed by testing: `-o "$FILE"` never appeared
+# on disk when early_exit fired via Ctrl+S. Relying on swappy's own
+# save_dir/save_filename_format (which did reliably write) instead, then
+# picking up whatever new file appeared there, is what actually works.
+
+set -euo pipefail
+
+MODE=${1:?"usage: screenshot {region|screen|window} [--edit]"}
+EDIT=false
+[[ ${2:-} == --edit ]] && EDIT=true
+
+SAVE_DIR="$HOME/Pictures/Screenshots"
+mkdir -p "$SAVE_DIR"
+FILE="$SAVE_DIR/${MODE}-$(date +%Y%m%d-%H%M%S).png"
+
+case "$MODE" in
+  region)
+    geometry=$(slurp) || exit 0   # empty on Escape/cancel — exit quietly
+    ;;
+  screen)
+    geometry=""                   # grim with no -g captures the focused output
+    ;;
+  window)
+    # hyprctl's `at`/`size` are independent [x,y]/[w,h] arrays; grim wants
+    # a single "X,Y WxH" geometry string, so this assembles it from JSON
+    # rather than trying to get hyprctl to emit that format directly.
+    geometry=$(hyprctl activewindow -j | python3 -c '
+import json, sys
+w = json.load(sys.stdin)
+x, y = w["at"]
+width, height = w["size"]
+print(f"{x},{y} {width}x{height}")
+')
+    ;;
+  *)
+    echo "unknown mode: $MODE" >&2
+    exit 1
+    ;;
+esac
+
+grim_args=()
+[[ -n $geometry ]] && grim_args=(-g "$geometry")
+
+if $EDIT; then
+  # Snapshot which files already exist so the post-swappy diff below
+  # can identify exactly the one new file it wrote (swappy's own
+  # save_filename_format, swappy/.config/swappy/config), without
+  # depending on -o at all.
+  before=$(find "$SAVE_DIR" -maxdepth 1 -name 'swappy-*.png')
+
+  grim "${grim_args[@]}" - | swappy -f -
+
+  after=$(find "$SAVE_DIR" -maxdepth 1 -name 'swappy-*.png')
+  new_file=$(comm -13 <(sort <<<"$before") <(sort <<<"$after") | head -1)
+
+  # Escape/close-without-saving: no new file, nothing to rename/report.
+  [[ -z $new_file ]] && exit 0
+
+  mv "$new_file" "$FILE"
+else
+  grim "${grim_args[@]}" "$FILE"
+fi
+
+wl-copy < "$FILE"
+command -v notify-send &>/dev/null && notify-send -i "$FILE" "Screenshot saved" "$FILE"
