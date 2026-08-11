@@ -288,3 +288,11 @@ qt5ct
 # so it automatically inherits rofi/.config/rofi/active-theme.rasi with
 # no styling of its own needed.
 rofimoji
+
+# Browser, bound to $mod+B. Was already installed outside this repo
+# (like dolphin/network-manager-applet before it) — tracked now since
+# the keybind depends on it; a clean-VM bootstrap would otherwise not
+# have it. Store-installed themes (Nighttime, Scuderia Ferrari F1) live
+# in the profile itself, not this repo — see CLAUDE.md's Current state
+# for why that's left alone rather than reproduced here.
+firefox
