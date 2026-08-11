@@ -90,15 +90,25 @@ install_list "$DOTFILES/packages/host-$HOST.txt"  paru          # this machine o
 # ---------------------------------------------------------------------------
 # 4. Stow config packages
 # ---------------------------------------------------------------------------
-# Every top-level directory is treated as a stow package, except the three
-# non-config dirs. New app configs are picked up automatically — you never
-# have to edit this script to add one.
+# Every top-level directory is treated as a stow package, except the
+# non-config dirs. New app configs are picked up automatically — you
+# never have to edit this script to add one.
+#
+# themes/ added here alongside the original three: its inner structure
+# (themes/<name>/kitty.conf etc.) doesn't mirror $HOME at all — it's
+# data bin/bin/theme reads from, not something to symlink in directly.
+# Stowing it would create bogus top-level symlinks like ~/tokyonight.
+# scripts/ also added: CLAUDE.md's own documented repo layout already
+# listed it as a non-package dir alongside these three, but it was
+# missing from this exclusion list — same bogus-symlink risk (would
+# have created e.g. ~/verify-phase1.sh directly in $HOME), just never
+# hit because scripts/ happened not to be tried until now.
 log "Stowing configs"
 mkdir -p "$HOME/.config"     # stow links INTO this; it must exist first
 cd "$DOTFILES"
 for pkg in */; do
-  pkg=${pkg%/}                                       # strip trailing slash
-  case $pkg in packages|hooks|host) continue ;; esac  # not config packages
+  pkg=${pkg%/}                                                # strip trailing slash
+  case $pkg in packages|hooks|host|themes|scripts) continue ;; esac  # not config packages
   stow -R -t "$HOME" "$pkg"                          # -R = idempotent restow
 done
 

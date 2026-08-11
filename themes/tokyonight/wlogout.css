@@ -1,0 +1,15 @@
+/* themes/tokyonight/wlogout.css
+ *
+ * Same TokyoNight hex values as themes/tokyonight/waybar.css — the
+ * power menu reads as the same surface as the rest of the desktop, not
+ * a separately-themed overlay. Symlinked in as wlogout/.config/wlogout/
+ * active-theme.css (bin/bin/theme); style.css imports it and is
+ * otherwise pure layout, no hardcoded colors of its own — same split
+ * as waybar/.config/waybar/style.css + this same file's waybar.css
+ * counterpart.
+ */
+@define-color bg #1a1b26;
+@define-color fg #c0caf5;
+@define-color border #292e42;
+@define-color accent #7aa2f7;
+@define-color hover #283457;      /* kitty's selection_background */

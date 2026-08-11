@@ -1,10 +1,13 @@
 /* ~/dotfiles/waybar/.config/waybar/style.css
  *
- * TokyoNight palette, copied from kitty/.config/kitty/tokyonight.conf so
- * the bar reads as the same surface as the terminal rather than a
- * separately-themed panel. Flat/minimal: no per-module pill backgrounds,
- * just subtle 1px separators — matches kitty/tmux's understated look.
+ * Pure layout/structure — no hardcoded colors here. active-theme.css is
+ * a symlink (bin/bin/theme repoints it, see themes/<name>/waybar.css)
+ * defining the @bg/@fg/etc. colors (GTK3's @define-color, not CSS
+ * custom properties — see that file for why) used throughout below.
+ * Flat/minimal: no per-module pill backgrounds, just subtle 1px
+ * separators — matches kitty/tmux's understated look.
  */
+@import url("active-theme.css");
 
 * {
   font-family: "JetBrainsMono Nerd Font";
@@ -13,32 +16,26 @@
 }
 
 window#waybar {
-  background-color: #15161e;  /* kitty's tab_bar_background — one shade
-                                  darker than the main #1a1b26, enough to
-                                  read as a distinct strip without a hard
-                                  border */
-  color: #c0caf5;
-  border-bottom: 2px solid #292e42;
+  background-color: @bg;
+  color: @fg;
+  border-bottom: 2px solid @border;
 }
 
 #workspaces button {
   padding: 0 8px;
-  color: #545c7e;              /* inactive workspace: muted, same tone
-                                   kitty uses for inactive tabs */
+  color: @muted;
   background: transparent;
   border: none;
   border-radius: 0;
 }
 
 #workspaces button.active {
-  color: #7aa2f7;               /* accent blue — matches active window
-                                    border in look.conf and kitty's
-                                    active-tab/border color */
-  border-bottom: 2px solid #7aa2f7;
+  color: @accent;
+  border-bottom: 2px solid @accent;
 }
 
 #workspaces button:hover {
-  color: #c0caf5;
+  color: @fg;
   background: transparent;
 }
 
@@ -54,7 +51,7 @@ window#waybar {
 #battery,
 #custom-clipboard {
   padding: 0 10px;
-  color: #c0caf5;
+  color: @fg;
 }
 
 #tray {
@@ -73,19 +70,19 @@ window#waybar {
 #battery,
 #custom-clipboard,
 #tray {
-  border-left: 1px solid #292e42;
+  border-left: 1px solid @border;
 }
 
 #battery.warning {
-  color: #e0af68;   /* yellow */
+  color: @warning;
 }
 
 #battery.critical {
-  color: #f7768e;   /* red */
+  color: @critical;
 }
 
 #pulseaudio.muted {
-  color: #545c7e;
+  color: @muted;
 }
 
 /* Dropdown menus (pulseaudio/bluetooth/network menu-file popups). Without
@@ -93,17 +90,17 @@ window#waybar {
  * mode the rofi launcher hit initially (unreadable light-on-light), just
  * via a different widget kind (GtkMenu, not rofi's own theming DSL). */
 menu {
-  background-color: #1a1b26;
-  border: 1px solid #292e42;
+  background-color: @menu_bg;
+  border: 1px solid @border;
   padding: 4px 0;
 }
 
 menuitem {
-  color: #c0caf5;
+  color: @fg;
   padding: 6px 14px;
 }
 
 menuitem:hover {
-  background-color: #283457;   /* kitty's selection_background */
-  color: #c0caf5;
+  background-color: @menu_hover;
+  color: @fg;
 }

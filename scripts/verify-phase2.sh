@@ -62,7 +62,10 @@ done
 hdr "Stow links"
 # ---------------------------------------------------------------------------
 chk_link "$HOME/.config/kitty/kitty.conf"
-chk_link "$HOME/.config/kitty/tokyonight.conf"
+# kitty's color file moved out to the cross-cutting theme system in
+# Phase 5 (themes/tokyonight/kitty.conf, symlinked in as
+# active-theme.conf) — no longer kitty-specific enough to belong in
+# this phase's checks. Covered by a future verify-phase5.sh instead.
 chk_link "$HOME/.zshrc"
 chk_link "$HOME/.config/starship.toml"
 chk_link "$HOME/.config/bat/config"
