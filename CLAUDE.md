@@ -7,8 +7,8 @@ second. Built on one laptop, then replayed on other machines.
 
 - **Machine:** `rustiq` — laptop, Intel Comet Lake-U, UHD Graphics (Gen9.5)
   iGPU, ~8GB RAM, ext4, systemd-boot with a UKI, no discrete GPU.
-- **Session:** GNOME. Hyprland is not installed yet. GNOME stays installed
-  permanently as a fallback session.
+- **Session:** Hyprland (uwsm-managed, `hyprland-uwsm.desktop` in GDM) is
+  now the primary session. GNOME stays installed permanently as a fallback.
 - **Shell:** zsh (login shell switched in `hooks/40-shell.sh`).
 - **Node:** managed by mise, not a system package — see
   `mise/.config/mise/config.toml`.
@@ -21,17 +21,25 @@ second. Built on one laptop, then replayed on other machines.
   real launch, not at bootstrap time — needs mise's node active in the
   launching shell (npm-based installs fail silently otherwise).
 - **`~/bin/work`** — tmux project sessionizer, searches `~/projects`.
-- **Phase 4 complete and verified.** Phase 5 functionally complete, not
-  yet formally closed out: every checklist item (compositor, waybar,
-  rofi launcher, notifications, hyprlock/hypridle/hyprpaper, clipboard,
-  screenshots, portals, polkit agent, GTK/Qt/icon/cursor theming) is
-  built and individually tested. What's actually left is
-  scripts/verify-phase5.sh itself (this repo's own exit criterion for
-  calling a phase done — see the working agreement) plus a full
-  logout/login to confirm session-start-only things (cursor theme,
-  QT_QPA_PLATFORMTHEME) survive a cold start, not just a live reload.
-  Notifications ship two switchable themes (bin/bin/theme tokyonight|f1)
-  — TokyoNight by default, F1 pixel-art as a deliberate breakaway.
+- **Phase 4 and Phase 5 complete and verified** (`scripts/verify-phase4.sh`,
+  `scripts/verify-phase5.sh`, 0 failures each). Confirmed via a full
+  logout/login, not just a live reload, that session-start-only state
+  (cursor theme, `QT_QPA_PLATFORMTHEME`, `PATH` in Hyprland's own
+  environment) survives a cold start.
+- Whole-desktop theme switcher (`bin/bin/theme`) covers kitty, waybar,
+  rofi, Hyprland, swaync, Qt, GTK, cursor, uwsm-env, and wlogout.
+  `themes/tokyonight/` is the full default; `themes/f1/` is a
+  deliberately partial pixel-art breakaway (swaync only so far —
+  `bin/bin/theme f1` leaves everything else on TokyoNight's styling
+  until the rest of f1/ is filled in).
+- Quick-access keybinds added on top of Phase 5: theme picker
+  (`$mod shift+T`), app launchers (`$mod+B` Firefox, `$mod+E` nautilus),
+  power menu (`$mod+P`, wlogout, TokyoNight-styled), emoji picker
+  (`$mod+.`, rofimoji), window cycling (`$mod+Tab`).
+- Known small gaps, none blocking: `firefox` isn't yet tracked in
+  `packages/pacman.txt` despite `$mod+B` depending on it (installed
+  outside this repo); `dolphin` is installed but unused (`nautilus` won
+  the `$mod+E` decision).
 
 ## Phases
 
@@ -50,9 +58,12 @@ second. Built on one laptop, then replayed on other machines.
       lua_ls) via mason, blink.cmp completion, fzf-lua finder
       (reuses the real `fzf`/`rg` binaries), tmux (TPM: resurrect +
       continuum), `~/bin/work` launcher.
-- [ ] **5 — Hyprland.** Compositor, waybar, launcher, notifications,
-      hyprlock/hypridle, clipboard, screenshots, portals, polkit agent,
-      GTK/Qt theming. **This is where the session switch happens.**
+- [x] **5 — Hyprland.** Compositor, waybar, rofi launcher, notifications,
+      hyprlock/hypridle/hyprpaper, clipboard, screenshots, portals,
+      polkit agent, GTK/Qt/icon/cursor theming, whole-desktop theme
+      switcher (`bin/bin/theme`), quick-access keybinds (theme picker,
+      app launchers, power menu, emoji picker, window cycling).
+      **Session switch complete: Hyprland is primary, GNOME is fallback.**
       Optional follow-up: fingerprint login (see Known gotchas — no
       official package, AUR `libfprint-ft9201` is the option).
 - [ ] **6 — Finalize.** Prove `bootstrap.sh` on a clean VM. Write README.
