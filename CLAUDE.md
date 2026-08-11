@@ -36,10 +36,8 @@ second. Built on one laptop, then replayed on other machines.
   (`$mod shift+T`), app launchers (`$mod+B` Firefox, `$mod+E` nautilus),
   power menu (`$mod+P`, wlogout, TokyoNight-styled), emoji picker
   (`$mod+.`, rofimoji), window cycling (`$mod+Tab`).
-- Known small gaps, none blocking: `firefox` isn't yet tracked in
-  `packages/pacman.txt` despite `$mod+B` depending on it (installed
-  outside this repo); `dolphin` is installed but unused (`nautilus` won
-  the `$mod+E` decision).
+- Known small gap, not blocking: `dolphin` is installed but unused
+  (`nautilus` won the `$mod+E` decision).
 
 ## Phases
 
