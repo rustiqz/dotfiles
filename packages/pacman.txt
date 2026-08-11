@@ -256,6 +256,35 @@ hyprpolkitagent
 # style, org.hyprland.style, which already ships on disk via
 # hyprland-qt-support (a hard dependency, confirmed via `pacman -Ql`)
 # — installing this didn't change the dialog's plain appearance.
-# Harmless to keep installed; the actual fix is the Qt theming setup
-# (qt6ct + QT_QPA_PLATFORMTHEME) still pending as its own phase item.
+# Harmless to keep installed; the actual fix was the Qt theming setup
+# below (qt6ct + QT_QPA_PLATFORMTHEME) — confirmed working once that
+# was in place.
 qqc2-desktop-style
+
+# --- Phase 5: whole-desktop theme switcher --------------------------------
+
+# TokyoNight-consistent icon set. Folder-color tinting via
+# papirus-folders wasn't set up — the default blue already reads close
+# enough to the TokyoNight accent without adding another moving part.
+papirus-icon-theme
+
+# Qt5/Qt6 settings apps + the platform-theme bridge that actually makes
+# Qt apps read them (QT_QPA_PLATFORMTHEME=qt6ct, themes/tokyonight/
+# uwsm-env.sh) — without this, Qt apps (hyprpolkitagent included) ignore
+# qt6ct/qt5ct entirely regardless of how their .conf files are set up.
+# Both own and rewrite their own config file on every launch (confirmed
+# by testing — a hand-written comment survived exactly one launch
+# before being mangled), which is why qt6ct.conf/qt5ct.conf/
+# themes/tokyonight/qt-colors.conf carry no comments of their own; the
+# reasoning lives here and in the commit message instead.
+qt6ct
+qt5ct
+
+# --- Phase 5: quick-access keybinds ---------------------------------------
+
+# Emoji/unicode/character picker, bound to $mod+period (matches the
+# Windows-key-plus-period muscle memory this shortcut is named after).
+# Drives its picker window through the already-installed `rofi` binary,
+# so it automatically inherits rofi/.config/rofi/active-theme.rasi with
+# no styling of its own needed.
+rofimoji

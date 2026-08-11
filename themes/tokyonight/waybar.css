@@ -1,0 +1,28 @@
+/* themes/tokyonight/waybar.css
+ *
+ * Same TokyoNight hex values as themes/tokyonight/kitty.conf — the bar
+ * reads as the same surface as the terminal, not a separately-themed
+ * panel. Symlinked in as waybar/.config/waybar/active-theme.css
+ * (bin/bin/theme); style.css imports it and is otherwise pure layout,
+ * no hardcoded colors of its own.
+ *
+ * @define-color, not `:root { --name: ... }` + var(): waybar links GTK3
+ * (confirmed via `ldd /usr/bin/waybar` — libgtk-3.so.0, not libgtk-4),
+ * and GTK3's CSS engine has no :root/custom-property support at all —
+ * that's a GTK4 addition (swaync links GTK4, which is why the same
+ * :root pattern worked fine there but errored here with "Invalid name
+ * of pseudo-class" the first time this was tried).
+ */
+@define-color bg #15161e;          /* kitty's tab_bar_background — one
+                                       shade darker than #1a1b26, enough
+                                       to read as a distinct strip
+                                       without a hard border */
+@define-color fg #c0caf5;
+@define-color border #292e42;      /* separators between modules */
+@define-color muted #545c7e;       /* inactive workspace / muted text */
+@define-color accent #7aa2f7;      /* active workspace, matches
+                                       look.conf's active window border */
+@define-color warning #e0af68;
+@define-color critical #f7768e;
+@define-color menu_bg #1a1b26;     /* dropdown menu background */
+@define-color menu_hover #283457;  /* kitty's selection_background */

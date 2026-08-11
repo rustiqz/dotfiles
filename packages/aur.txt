@@ -16,5 +16,28 @@ bruno-bin
 # --- Phase 5: Hyprland ---------------------------------------------------------
 
 # Bitmap pixel font, used for notification titles/timestamps in swaync's
-# F1 theme (swaync/.config/swaync/style.css) — not in the official repos.
+# F1 theme (themes/f1/swaync.css) — not in the official repos.
 ttf-press-start-2p
+
+# TokyoNight-colored GTK3/4 widget theme (buttons, scrollbars,
+# selection) — packages the well-established Fausto-Korpsvart/
+# Tokyo-Night-GTK-Theme project. Installs as "Tokyonight-Dark"
+# (confirmed via `ls /usr/share/themes/` — not assumed from the
+# package name), which is the actual value themes/tokyonight/meta.sh
+# passes to gsettings.
+tokyonight-gtk-theme-git
+
+# Cursor theme. -bin variant (see bruno-bin above for the same
+# reasoning) — cursor themes are just data assets, no reason to build
+# from source. Bibata-Modern-Ice specifically (of several variants this
+# package installs) for its cool blue tint, closer to the TokyoNight
+# accent than Amber/Classic.
+bibata-cursor-theme-bin
+
+# --- Phase 5: quick-access keybinds ---------------------------------------
+
+# Power menu (lock/logout/suspend/reboot/shutdown grid), bound to
+# $mod+P. Not in the official repos (confirmed via `pacman -Si wlogout`
+# — AUR only). Styled per-theme like waybar/rofi/swaync — see
+# wlogout/.config/wlogout/ and themes/tokyonight/wlogout.css.
+wlogout

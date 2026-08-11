@@ -1,0 +1,10 @@
+# ~/dotfiles/uwsm/.config/uwsm/env-hyprland
+#
+# UWSM's own convention: HYPR_*/AQ_* environment variables go here,
+# separate from ~/.config/uwsm/env (theming/xcursor/toolkit variables —
+# see themes/<name>/uwsm-env.sh, symlinked in as that file). Empty for
+# now — nothing in this repo needs a Hyprland/Aquamarine-specific env
+# var yet — but tracked anyway: without at least one real file, this
+# directory wouldn't exist in a fresh clone at all (git doesn't track
+# empty directories), and stow would have nothing to fold for the whole
+# uwsm/ package, including the env file above that genuinely matters.

@@ -30,7 +30,7 @@
   "transition-time": 200,
   "hide-on-clear": false,
   "hide-on-action": true,
-  "text-empty": "GRID CLEAR — no notifications",
+  "text-empty": "No Notifications",
   "script-fail-notify": true,
   "widgets": [
     "inhibitors",
@@ -48,7 +48,7 @@
       "clear-all-button": true
     },
     "title": {
-      "text": "RACE CONTROL",
+      "text": "Notifications",
       "clear-all-button": true,
       "button-text": "Clear All"
     },

@@ -4,16 +4,18 @@
  * are easy to add later (`modi` list, or a second keybind with -show
  * window) but weren't asked for, so kept out rather than guessed in.
  *
- * TokyoNight palette, same hex values as kitty/.config/kitty/tokyonight.conf
- * and waybar's style.css, so the launcher reads as the same surface as
- * everything else rather than a differently-themed overlay. Icons come
- * from the system icon theme via freedesktop lookup (show-icons below),
- * not a Nerd Font glyph, so there's no PUA codepoint to get wrong.
+ * No hardcoded colors in this file — active-theme.rasi is a symlink
+ * (bin/bin/theme repoints it, see themes/<name>/rofi.rasi) defining
+ * @background/@foreground/etc., imported below. Icons come from the
+ * system icon theme via freedesktop lookup (show-icons below), not a
+ * Nerd Font glyph, so there's no PUA codepoint to get wrong.
  *
  * Note: on Wayland, rofi can't reliably detect clicks outside its own
  * window (a rofi 2.0 Wayland-backend limitation, not a bug in this
  * config) — Escape is the reliable way to dismiss it, not click-away.
  */
+
+@import "active-theme.rasi"
 
 configuration {
   modi: "drun,run";
@@ -23,12 +25,6 @@ configuration {
 }
 
 * {
-  background:         #1a1b26;
-  background-alt:      #292e42;
-  foreground:         #c0caf5;
-  selected:           #283457;   /* kitty's selection_background */
-  accent:             #7aa2f7;   /* same accent as active window border */
-
   background-color:   @background;
   text-color:         @foreground;
 }

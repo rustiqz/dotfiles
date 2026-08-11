@@ -1,0 +1,22 @@
+# ~/dotfiles/uwsm/.config/uwsm/env
+#
+# Permanent, tracked as a real file (NOT symlinked like every other
+# active-theme.* target in this repo) — PATH isn't theme-specific, so
+# it can't live in the swappable themes/<name>/uwsm-env.sh, which gets
+# fully replaced on every `bin/bin/theme` switch. Same split as
+# .zshrc's own convention (sourcing a local/override file).
+#
+# UWSM launches things (uwsm app -- ...) through the systemd --user
+# manager, which has its own PATH that does NOT include ~/bin —
+# confirmed via `systemctl --user show-environment`. .zshrc's own PATH
+# addition only applies to interactive shells, never to processes
+# spawned this way, which is why keybinds like `$mod, W, exec, uwsm
+# app -- wallpaper` failed with "command not found: wallpaper" despite
+# the script existing, being executable, and working fine from a
+# terminal.
+export PATH="$HOME/bin:$PATH"
+
+# env-theme is a symlink bin/bin/theme repoints (see
+# themes/<name>/uwsm-env.sh) — XCURSOR_*, QT_QPA_PLATFORMTHEME, and any
+# other genuinely theme-specific env vars live there instead of here.
+[ -f "$HOME/.config/uwsm/env-theme" ] && source "$HOME/.config/uwsm/env-theme"

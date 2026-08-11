@@ -1,0 +1,14 @@
+/* themes/tokyonight/rofi.rasi
+ *
+ * Same TokyoNight hex values as themes/tokyonight/kitty.conf. Symlinked
+ * in as rofi/.config/rofi/active-theme.rasi (bin/bin/theme); config.rasi
+ * imports it and only ever references these via @name, no hex values
+ * of its own.
+ */
+* {
+  background:         #1a1b26;
+  background-alt:      #292e42;
+  foreground:         #c0caf5;
+  selected:           #283457;   /* kitty's selection_background */
+  accent:             #7aa2f7;   /* same accent as active window border */
+}

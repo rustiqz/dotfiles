@@ -1,0 +1,54 @@
+/* themes/tokyonight/swaync.css
+ *
+ * TokyoNight, matching kitty/waybar/rofi/hyprlock rather than F1's
+ * deliberate breakaway (themes/f1/swaync.css) — same mechanism, though:
+ * this just redeclares the :root variables the base style.css's
+ * structural rules already read from (CSS cascade, later wins), no
+ * rewrite of that ~570 lines of real stock CSS needed.
+ *
+ * Deliberately restrained relative to F1: standard rounded corners (not
+ * overridden, so the base file's own 12px default just applies), no
+ * pixel font, no empty-state graphic, and only critical urgency gets a
+ * stripe rather than every notification — matches the flat/minimal
+ * preference already established for waybar rather than F1's
+ * always-a-stripe telemetry look.
+ */
+
+:root {
+  --cc-bg: rgba(26, 27, 38, 0.92);              /* #1a1b26 */
+  --noti-border-color: rgba(41, 46, 66, 0.6);   /* #292e42, subtle */
+  --noti-bg: 31, 35, 53;                        /* #1f2335 */
+  --noti-bg-alpha: 0.92;
+  --noti-bg-darker: rgb(22, 22, 30);            /* #16161e, kitty's tab_bar_background */
+  --noti-bg-hover: rgb(41, 46, 66);             /* #292e42 */
+  --noti-bg-focus: rgba(40, 52, 87, 0.6);       /* #283457, kitty's selection_background */
+  --noti-close-bg: rgb(41, 46, 66);             /* #292e42 */
+  --noti-close-bg-hover: rgb(247, 118, 142);    /* red — close is a destructive-ish action */
+  --text-color: rgb(192, 202, 245);             /* #c0caf5 */
+  --text-color-disabled: rgb(84, 92, 126);      /* #545c7e */
+  --bg-selected: rgb(122, 162, 247);            /* #7aa2f7 accent */
+}
+
+* {
+  font-family: "JetBrainsMono Nerd Font", monospace;
+}
+
+/* Only critical gets a stripe — a stripe on every normal/low message
+   would just be noise, same reasoning as waybar's "no pill background
+   on every module" choice. */
+.notification-row .notification-background .notification.critical {
+  border-left: 3px solid #f7768e;
+}
+
+.widget-title {
+  border-bottom: 2px solid #7aa2f7;
+  padding-bottom: 8px;
+}
+
+.widget-dnd switch:checked {
+  background-color: #7aa2f7;
+}
+
+.widget-dnd switch:checked slider {
+  background-color: #1a1b26;
+}

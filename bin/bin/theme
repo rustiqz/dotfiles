@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+#
+# theme — whole-desktop theme switcher. Repoints each themeable app's
+# active-theme.* symlink at themes/<name>/<file> and reloads whatever
+# can reload live.
+#
+# Themes can be partial: every step below is individually skipped if
+# the theme directory doesn't define that particular file — f1/, for
+# example, currently only defines swaync.css and swaync-config.json,
+# so switching to it leaves kitty/waybar/rofi/hyprland/GTK/Qt exactly
+# as they were. Nothing breaks; those components just don't change.
+#
+# Usage:
+#   theme <name>       e.g. theme tokyonight, theme f1
+#   theme              interactive picker over themes/*/ (rofi)
+
+set -uo pipefail   # deliberately not -e: one missing/failed step
+                    # (e.g. waybar not running to restart) shouldn't
+                    # abort the rest of the switch
+
+DOTFILES="$HOME/dotfiles"
+THEMES_DIR="$DOTFILES/themes"
+
+if [[ $# -eq 1 ]]; then
+  NAME=$1
+else
+  NAME=$(find "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort \
+    | rofi -dmenu -p "Theme")
+  [[ -z $NAME ]] && exit 0
+fi
+
+THEME_DIR="$THEMES_DIR/$NAME"
+if [[ ! -d $THEME_DIR ]]; then
+  echo "no such theme: $NAME (looked in $THEME_DIR)" >&2
+  exit 1
+fi
+
+echo "Applying theme: $NAME"
+
+link() {
+  # link <theme-file> <target-symlink-path>
+  local src="$THEME_DIR/$1" dst="$2"
+  [[ -f $src ]] || return 0
+  ln -sfr "$src" "$dst"
+}
+
+# --- kitty -------------------------------------------------------------------
+link "kitty.conf" "$DOTFILES/kitty/.config/kitty/active-theme.conf"
+
+# --- waybar --------------------------------------------------------------------
+if link "waybar.css" "$DOTFILES/waybar/.config/waybar/active-theme.css"; then
+  UNIT=$(systemctl --user list-units 'app-Hyprland-waybar-*' --no-legend 2>/dev/null | awk '{print $1}')
+  if [[ -n $UNIT ]]; then
+    systemctl --user stop "$UNIT"
+    setsid uwsm app -- waybar >/dev/null 2>&1 &
+    disown
+  fi
+fi
+
+# --- rofi ------------------------------------------------------------------
+# No daemon to reload — picked up next time it's launched.
+link "rofi.rasi" "$DOTFILES/rofi/.config/rofi/active-theme.rasi"
+
+# --- Hyprland (compositor borders + hyprlock) -------------------------------
+if link "hyprland.conf" "$DOTFILES/hypr/.config/hypr/active-theme.conf"; then
+  command -v hyprctl &>/dev/null && hyprctl reload &>/dev/null
+fi
+
+# --- wlogout (power menu) -----------------------------------------------------
+# No daemon to reload — layer-shell CSS is re-read fresh every time
+# wlogout is launched (it's not a persistent background process).
+link "wlogout.css" "$DOTFILES/wlogout/.config/wlogout/active-theme.css"
+
+# --- swaync --------------------------------------------------------------------
+if link "swaync.css" "$DOTFILES/swaync/.config/swaync/active-theme.css"; then
+  command -v swaync-client &>/dev/null && swaync-client --reload-css &>/dev/null
+fi
+if [[ -f $THEME_DIR/swaync-config.json ]]; then
+  cp "$THEME_DIR/swaync-config.json" "$DOTFILES/swaync/.config/swaync/config.json"
+  command -v swaync-client &>/dev/null && swaync-client -R &>/dev/null
+fi
+
+# --- Qt (qt6ct + qt5ct share the same color scheme file) -------------------
+link "qt-colors.conf" "$DOTFILES/qt6ct/.config/qt6ct/colors/active-theme.conf"
+link "qt-colors.conf" "$DOTFILES/qt5ct/.config/qt5ct/colors/active-theme.conf"
+
+# --- uwsm env (XCURSOR_*, QT_QPA_PLATFORMTHEME) -----------------------------
+# env-theme, not env: env itself is a permanent tracked file (PATH,
+# not theme-specific) that sources env-theme — see
+# uwsm/.config/uwsm/env. Symlink updates immediately; the env vars
+# themselves only take effect for anything started after the *next*
+# full session login (UWSM reads this file once, at session start) —
+# not something this script can force live.
+link "uwsm-env.sh" "$DOTFILES/uwsm/.config/uwsm/env-theme"
+
+# --- GTK theme / icon theme / cursor theme ----------------------------------
+if [[ -f $THEME_DIR/meta.sh ]]; then
+  # shellcheck source=/dev/null
+  source "$THEME_DIR/meta.sh"
+  [[ -n ${GTK_THEME_NAME:-} ]] && gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME_NAME"
+  [[ -n ${ICON_THEME_NAME:-} ]] && gsettings set org.gnome.desktop.interface icon-theme "$ICON_THEME_NAME"
+  [[ -n ${CURSOR_THEME_NAME:-} ]] && gsettings set org.gnome.desktop.interface cursor-theme "$CURSOR_THEME_NAME"
+  [[ -n ${CURSOR_SIZE:-} ]] && gsettings set org.gnome.desktop.interface cursor-size "$CURSOR_SIZE"
+fi
+
+# --- Wallpaper (optional per-theme default) ---------------------------------
+if [[ -f $THEME_DIR/wallpaper.png ]]; then
+  CURRENT_LINK="$HOME/.local/share/wallpapers/.current"
+  ln -sfr "$THEME_DIR/wallpaper.png" "$CURRENT_LINK"
+  command -v hyprctl &>/dev/null && hyprctl hyprpaper wallpaper ",$CURRENT_LINK,cover" &>/dev/null
+fi
+
+echo "Done. (cursor theme and Qt's QT_QPA_PLATFORMTHEME need a full session relogin to fully take effect everywhere — GTK theme/icons and everything else above is already live.)"

@@ -1,0 +1,60 @@
+/* ~/dotfiles/wlogout/.config/wlogout/style.css
+ *
+ * Pure layout/structure — no hardcoded colors here. active-theme.css is
+ * a symlink (bin/bin/theme repoints it, see themes/<name>/wlogout.css)
+ * defining the @bg/@fg/etc. colors (GTK3's @define-color — wlogout
+ * links GTK3 via gtk-layer-shell, same engine as waybar, so no
+ * :root/custom-property support — see waybar/.config/waybar/style.css
+ * for the same reasoning) used below.
+ *
+ * Icons are the already-installed Papirus-Dark theme's own system-*
+ * action SVGs (themes/tokyonight/meta.sh's ICON_THEME_NAME) — reused
+ * as-is rather than vendoring separate icon assets, same reasoning as
+ * this repo's other icon/cursor packages. Without an icon, each button
+ * is otherwise just a small label centered in a large empty box —
+ * confirmed by actually launching it without these rules first: the
+ * icon isn't decorative here, it's what fills that space.
+ */
+@import url("active-theme.css");
+
+window {
+  background-color: alpha(@bg, 0.85);
+}
+
+button {
+  background-color: @bg;
+  background-repeat: no-repeat;
+  background-position: center 30%;
+  background-size: 22%;
+  border: 2px solid @border;
+  border-radius: 12px;
+  color: @fg;
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 16px;
+  margin: 12px;
+  transition: 80ms ease-out;
+}
+
+button:focus,
+button:active,
+button:hover {
+  background-color: @hover;
+  border-color: @accent;
+  color: @accent;
+}
+
+#lock {
+  background-image: image(url("/usr/share/icons/Papirus-Dark/24x24/actions/system-lock-screen.svg"));
+}
+#logout {
+  background-image: image(url("/usr/share/icons/Papirus-Dark/24x24/actions/system-log-out.svg"));
+}
+#suspend {
+  background-image: image(url("/usr/share/icons/Papirus-Dark/24x24/actions/system-suspend.svg"));
+}
+#reboot {
+  background-image: image(url("/usr/share/icons/Papirus-Dark/24x24/actions/system-reboot.svg"));
+}
+#shutdown {
+  background-image: image(url("/usr/share/icons/Papirus-Dark/24x24/actions/system-shutdown.svg"));
+}

@@ -40,3 +40,17 @@ bat/.config/bat/themes/
 # outside the repo), but tracking it would fight both the hook's
 # idempotent creation and every future wallpaper pick with a git diff.
 wallpapers/.local/share/wallpapers/.current
+
+# Same reasoning again, for the whole-desktop theme switcher (bin/bin/
+# theme): each themeable app keeps a symlink named active-theme.<ext>
+# that the switcher repoints at themes/<name>/<file> — the app's real
+# config statically imports/sources that symlink once and never needs
+# editing again, but which theme is *currently* active is runtime
+# state, not something to track or diff in git.
+active-theme.*
+
+# env-theme, not env: env itself is a permanent tracked file (PATH,
+# not theme-specific — see uwsm/.config/uwsm/env for why it had to be
+# split out) that sources env-theme, which IS the swappable symlink —
+# see themes/<name>/uwsm-env.sh.
+uwsm/.config/uwsm/env-theme

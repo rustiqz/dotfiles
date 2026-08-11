@@ -21,11 +21,17 @@ second. Built on one laptop, then replayed on other machines.
   real launch, not at bootstrap time — needs mise's node active in the
   launching shell (npm-based installs fail silently otherwise).
 - **`~/bin/work`** — tmux project sessionizer, searches `~/projects`.
-- **Phase 4 complete and verified.** Phase 5 in progress: compositor
-  (Hyprland + UWSM session), waybar (icons, dropdown menus, tray),
-  rofi launcher, notifications (swaync, F1-themed), and clipboard
-  history (cliphist) all done and tested. Remaining: hyprlock/hypridle,
-  screenshots, polkit agent, GTK/Qt theming.
+- **Phase 4 complete and verified.** Phase 5 functionally complete, not
+  yet formally closed out: every checklist item (compositor, waybar,
+  rofi launcher, notifications, hyprlock/hypridle/hyprpaper, clipboard,
+  screenshots, portals, polkit agent, GTK/Qt/icon/cursor theming) is
+  built and individually tested. What's actually left is
+  scripts/verify-phase5.sh itself (this repo's own exit criterion for
+  calling a phase done — see the working agreement) plus a full
+  logout/login to confirm session-start-only things (cursor theme,
+  QT_QPA_PLATFORMTHEME) survive a cold start, not just a live reload.
+  Notifications ship two switchable themes (bin/bin/theme tokyonight|f1)
+  — TokyoNight by default, F1 pixel-art as a deliberate breakaway.
 
 ## Phases
 
