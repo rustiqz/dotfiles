@@ -83,7 +83,7 @@ done
 hdr "Packages — theming & quick-access"
 # ---------------------------------------------------------------------------
 for p in papirus-icon-theme qt6ct qt5ct tokyonight-gtk-theme-git \
-         bibata-cursor-theme-bin ttf-press-start-2p wlogout rofimoji; do
+         bibata-cursor-theme-bin ttf-press-start-2p wlogout rofimoji matugen; do
   chk_pkg "$p"
 done
 
@@ -133,6 +133,23 @@ chk_link "$HOME/.config/wlogout/active-theme.css"
 chk_link "$HOME/.config/qt6ct/colors/active-theme.conf"
 chk_link "$HOME/.config/qt5ct/colors/active-theme.conf"
 chk_link "$HOME/.config/uwsm/env-theme"
+
+# ---------------------------------------------------------------------------
+hdr "Wallpaper-driven theme (matugen)"
+# ---------------------------------------------------------------------------
+# matugen/ is generation input (bin/bin/theme reads it via `matugen
+# --config`), not a stow package — not a symlink into $HOME, so a plain
+# -f check, not chk_link. Not invoking `bin/bin/theme wallpaper` itself
+# here: that has real side effects (restarts waybar, reloads Hyprland,
+# repoints active-theme.* symlinks), which breaks this script's own
+# read-only contract.
+[[ -f $DOTFILES/matugen/config.toml ]] && ok "matugen/config.toml present" \
+                                        || no "matugen/config.toml missing"
+for t in kitty.conf waybar.css rofi.rasi hyprland.conf swaync.css \
+         wlogout.css qt-colors.conf; do
+  [[ -f $DOTFILES/matugen/templates/$t.tpl ]] && ok "template: $t.tpl" \
+                                               || no "template missing: $t.tpl"
+done
 
 # Which theme is active, by resolving one of the symlinks above back to
 # its themes/<name>/ parent dir — kitty's is picked arbitrarily, every
