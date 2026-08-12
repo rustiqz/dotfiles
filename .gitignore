@@ -54,3 +54,10 @@ active-theme.*
 # split out) that sources env-theme, which IS the swappable symlink —
 # see themes/<name>/uwsm-env.sh.
 uwsm/.config/uwsm/env-theme
+
+# Generated, not authored: bin/bin/theme regenerates themes/wallpaper/
+# from matugen/templates/*.tpl every time `theme wallpaper` runs (see
+# that script), from whatever wallpaper happens to be current. Tracking
+# it would just be a git diff on every wallpaper change for content
+# that's fully reproducible from the templates + the image itself.
+themes/wallpaper/

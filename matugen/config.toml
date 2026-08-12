@@ -1,0 +1,52 @@
+# ~/dotfiles/matugen/config.toml
+#
+# Template -> output mappings for the wallpaper-driven theme. Not a
+# stow package (bootstrap.sh excludes matugen/, same reasoning as
+# themes/ and scripts/) — this is generation input, read directly by
+# `matugen --config` from bin/bin/theme, never symlinked into $HOME.
+#
+# Deliberately doesn't set scheme type/mode/contrast here even though
+# matugen's config format allows some of that: bin/bin/theme passes
+# those explicitly on the command line (-t scheme-tonal-spot -m dark)
+# so the actual generation parameters live in one place, in version
+# control, next to the rest of the switcher logic — not split across
+# two files.
+#
+# [config] is a required top-level table even when empty — matugen
+# errors on "missing field `config`" without it (confirmed by testing).
+#
+# __DOTFILES__ below: TOML has no environment-variable expansion, and
+# matugen needs literal paths — bin/bin/theme sed-substitutes this
+# placeholder for $DOTFILES into a temp copy before passing --config,
+# rather than hardcoding /home/rustiq here, so the repo stays portable
+# to a different username on another machine (same as every other
+# script here using $HOME/$DOTFILES instead of a literal path).
+[config]
+
+[templates.kitty]
+input_path = "__DOTFILES__/matugen/templates/kitty.conf.tpl"
+output_path = "__DOTFILES__/themes/wallpaper/kitty.conf"
+
+[templates.waybar]
+input_path = "__DOTFILES__/matugen/templates/waybar.css.tpl"
+output_path = "__DOTFILES__/themes/wallpaper/waybar.css"
+
+[templates.rofi]
+input_path = "__DOTFILES__/matugen/templates/rofi.rasi.tpl"
+output_path = "__DOTFILES__/themes/wallpaper/rofi.rasi"
+
+[templates.hyprland]
+input_path = "__DOTFILES__/matugen/templates/hyprland.conf.tpl"
+output_path = "__DOTFILES__/themes/wallpaper/hyprland.conf"
+
+[templates.swaync]
+input_path = "__DOTFILES__/matugen/templates/swaync.css.tpl"
+output_path = "__DOTFILES__/themes/wallpaper/swaync.css"
+
+[templates.wlogout]
+input_path = "__DOTFILES__/matugen/templates/wlogout.css.tpl"
+output_path = "__DOTFILES__/themes/wallpaper/wlogout.css"
+
+[templates.qt_colors]
+input_path = "__DOTFILES__/matugen/templates/qt-colors.conf.tpl"
+output_path = "__DOTFILES__/themes/wallpaper/qt-colors.conf"

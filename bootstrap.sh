@@ -103,12 +103,15 @@ install_list "$DOTFILES/packages/host-$HOST.txt"  paru          # this machine o
 # missing from this exclusion list — same bogus-symlink risk (would
 # have created e.g. ~/verify-phase1.sh directly in $HOME), just never
 # hit because scripts/ happened not to be tried until now.
+# matugen/ same reasoning as themes/: matugen/config.toml and
+# matugen/templates/*.tpl are generation input bin/bin/theme reads
+# from directly (via `matugen --config`), never symlinked into $HOME.
 log "Stowing configs"
 mkdir -p "$HOME/.config"     # stow links INTO this; it must exist first
 cd "$DOTFILES"
 for pkg in */; do
   pkg=${pkg%/}                                                # strip trailing slash
-  case $pkg in packages|hooks|host|themes|scripts) continue ;; esac  # not config packages
+  case $pkg in packages|hooks|host|themes|scripts|matugen) continue ;; esac  # not config packages
   stow -R -t "$HOME" "$pkg"                          # -R = idempotent restow
 done
 

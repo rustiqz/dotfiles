@@ -296,3 +296,13 @@ rofimoji
 # in the profile itself, not this repo — see CLAUDE.md's Current state
 # for why that's left alone rather than reproduced here.
 firefox
+
+# --- Phase 5: wallpaper-driven theme (matugen) ------------------------------
+
+# Material You palette generator: extracts a seed color from the
+# current wallpaper and fills in matugen/templates/*.tpl to produce
+# themes/wallpaper/* — a theme like tokyonight/f1, except generated
+# instead of hand-written. Triggered by `bin/bin/theme wallpaper`
+# (matugen/config.toml), never run automatically on a wallpaper pick —
+# see CLAUDE.md for why that stayed a deliberate separate step.
+matugen

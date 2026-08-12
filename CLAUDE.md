@@ -36,8 +36,18 @@ second. Built on one laptop, then replayed on other machines.
   (`$mod shift+T`), app launchers (`$mod+B` Firefox, `$mod+E` nautilus),
   power menu (`$mod+P`, wlogout, TokyoNight-styled), emoji picker
   (`$mod+.`, rofimoji), window cycling (`$mod+Tab`).
-- Known small gap, not blocking: `dolphin` is installed but unused
-  (`nautilus` won the `$mod+E` decision).
+- Wallpaper-driven theme: `theme wallpaper` is a third theme alongside
+  tokyonight/f1, except generated instead of hand-written —
+  `matugen/config.toml` + `matugen/templates/*.tpl` (Material You
+  scheme-tonal-spot, dark mode) regenerate `themes/wallpaper/*`
+  (gitignored, derived data) from whatever wallpaper is currently set,
+  every time that command runs. Never automatic on a wallpaper pick —
+  a deliberate separate step. The 16-color ANSI terminal palette isn't
+  extracted from the image directly (matugen's base16 backend
+  degenerates to near-monochrome on low-chroma wallpapers, confirmed
+  by testing) — it's synthesized by hue-rotating the generated
+  `primary` color to fixed target hues instead, guaranteeing 6
+  distinguishable colors regardless of source image.
 
 ## Phases
 

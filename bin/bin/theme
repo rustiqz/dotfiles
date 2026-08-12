@@ -11,8 +11,19 @@
 # as they were. Nothing breaks; those components just don't change.
 #
 # Usage:
-#   theme <name>       e.g. theme tokyonight, theme f1
-#   theme              interactive picker over themes/*/ (rofi)
+#   theme <name>       e.g. theme tokyonight, theme f1, theme wallpaper
+#   theme              interactive picker over themes/*/ (rofi) — always
+#                       includes "wallpaper" even before it's ever been
+#                       generated once (themes/wallpaper/ doesn't exist
+#                       on disk until then; it's gitignored, generated
+#                       output, not a hand-authored theme)
+#
+# "wallpaper" is special-cased below: unlike every other entry (a fixed
+# hand-written themes/<name>/ directory), it's regenerated from
+# whatever ~/.local/share/wallpapers/.current currently is, via matugen
+# (matugen/config.toml + matugen/templates/*.tpl), every single time
+# `theme wallpaper` runs — never automatically on a wallpaper pick, a
+# deliberate separate step (see CLAUDE.md).
 
 set -uo pipefail   # deliberately not -e: one missing/failed step
                     # (e.g. waybar not running to restart) shouldn't
@@ -24,9 +35,34 @@ THEMES_DIR="$DOTFILES/themes"
 if [[ $# -eq 1 ]]; then
   NAME=$1
 else
-  NAME=$(find "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort \
-    | rofi -dmenu -p "Theme")
+  NAME=$( { find "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n'; echo wallpaper; } \
+    | sort -u | rofi -dmenu -p "Theme")
   [[ -z $NAME ]] && exit 0
+fi
+
+if [[ $NAME == wallpaper ]]; then
+  WALLPAPER_IMG=$(readlink -f "$HOME/.local/share/wallpapers/.current")
+  if [[ ! -f $WALLPAPER_IMG ]]; then
+    echo "no current wallpaper set (~/.local/share/wallpapers/.current) — pick one with 'wallpaper' first" >&2
+    exit 1
+  fi
+
+  mkdir -p "$THEMES_DIR/wallpaper"
+
+  # matugen needs a literal path in config.toml (TOML has no env-var
+  # expansion) — sed the __DOTFILES__ placeholder into a throwaway
+  # copy rather than hardcoding a username into the tracked config, so
+  # this still works if the repo ever lives under a different $HOME.
+  TMP_CONFIG=$(mktemp --suffix=.toml)
+  trap 'rm -f "$TMP_CONFIG"' EXIT
+  sed "s|__DOTFILES__|$DOTFILES|g" "$DOTFILES/matugen/config.toml" > "$TMP_CONFIG"
+
+  echo "Generating palette from $(basename "$WALLPAPER_IMG")..."
+  if ! matugen image "$WALLPAPER_IMG" --config "$TMP_CONFIG" \
+      -m dark -t scheme-tonal-spot --prefer saturation; then
+    echo "matugen failed — leaving themes/wallpaper/ as it was" >&2
+    exit 1
+  fi
 fi
 
 THEME_DIR="$THEMES_DIR/$NAME"
