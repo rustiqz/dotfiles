@@ -41,3 +41,10 @@ bibata-cursor-theme-bin
 # — AUR only). Styled per-theme like waybar/rofi/swaync — see
 # wlogout/.config/wlogout/ and themes/tokyonight/wlogout.css.
 wlogout
+
+# --- Phase 5 follow-up: coding/media tooling --------------------------------
+
+# Music client — not in the official repos (confirmed via `pacman -Si
+# spotify`). MPRIS control comes from playerctl (packages/pacman.txt),
+# not from Spotify itself.
+spotify

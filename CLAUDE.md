@@ -48,6 +48,21 @@ second. Built on one laptop, then replayed on other machines.
   by testing) — it's synthesized by hue-rotating the generated
   `primary` color to fixed target hues instead, guaranteeing 6
   distinguishable colors regardless of source image.
+- Coding/media tooling (shared across every machine, not host-specific
+  — see below): `playerctl`, `spotify`, `lazydocker`, `k9s`, `stern`,
+  `pgcli`, `kubectl`. waybar gained two modules: `mpris` (now-playing,
+  works the same for Spotify or a YouTube Music browser tab — no
+  per-player config) and `custom/docker` (running-container count,
+  click opens `lazydocker`). `bin/bin/ssh-connect` (`$mod+S`) is a rofi
+  picker over `~/.ssh/config` `Host` entries — real hostnames/IPs live
+  in untracked `~/.ssh/config.local` (`ssh/.ssh/config`'s tracked base
+  just has an `Include`), same `*.local` pattern as git identity.
+- A work PC is planned but not yet bootstrapped from this repo — no
+  `host-<hostname>.txt`/`host/<hostname>/` exists for it yet since
+  nothing added so far has turned out to be genuinely host-specific
+  (everything above is wanted on every machine). That mechanism is
+  still there for whenever something actually does differ machine to
+  machine (see Conventions).
 
 ## Phases
 
