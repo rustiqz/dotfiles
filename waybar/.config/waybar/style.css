@@ -41,9 +41,11 @@ window#waybar {
 
 #clock,
 #custom-notification,
+#mpris,
 #idle_inhibitor,
 #cpu,
 #memory,
+#custom-docker,
 #network,
 #bluetooth,
 #pulseaudio,
@@ -63,6 +65,7 @@ window#waybar {
    separate buttons. */
 #cpu,
 #memory,
+#custom-docker,
 #network,
 #bluetooth,
 #pulseaudio,
@@ -83,6 +86,14 @@ window#waybar {
 
 #pulseaudio.muted {
   color: @muted;
+}
+
+/* Highlighted only while actually playing — same "accent marks the
+   live/active state" convention as #workspaces button.active. Paused
+   and stopped stay plain @fg (stopped is hidden entirely, see
+   config.jsonc's format-stopped). */
+#mpris.playing {
+  color: @accent;
 }
 
 /* Dropdown menus (pulseaudio/bluetooth/network menu-file popups). Without

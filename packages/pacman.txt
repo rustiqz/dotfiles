@@ -297,6 +297,40 @@ rofimoji
 # for why that's left alone rather than reproduced here.
 firefox
 
+# --- Phase 5 follow-up: coding/media tooling --------------------------------
+# Wanted on every machine (laptop and work PC alike), not host-specific
+# — see CLAUDE.md for why this isn't split into a host-<hostname>.txt.
+
+# MPRIS control, powers waybar's "mpris" module (config.jsonc). Bundles
+# playerctld (D-Bus-activatable daemon, no exec-once needed — same
+# pattern as swaync) which "always follows the currently active
+# player," so this covers Spotify and a YouTube Music browser tab with
+# the same config, no per-player setup.
+playerctl
+
+# TUI for docker (containers/logs/exec/compose) — same "lazygit for X"
+# shape as lazygit itself (Phase 2). Bound to waybar's custom/docker
+# module click.
+lazydocker
+
+# TUI for kubectl — pods/logs/exec across namespaces, reads whatever
+# kubeconfig is already on $KUBECONFIG/~/.kube/config. The actual
+# kubeconfig content is never tracked here (see hooks/50-git-identity.sh
+# for the same untracked-secret pattern) — bringing your own.
+k9s
+
+# Multi-pod, multi-container log tailing with colour-coded pod names —
+# the thing kubectl logs -f can't do across replicas at once.
+stern
+
+# psql replacement: autocomplete + syntax highlighting on the exact
+# same connection strings/flags psql already takes.
+pgcli
+
+# The kubectl binary itself — k9s/stern both need it on $PATH even
+# though neither shells out to it directly for their own TUI rendering.
+kubectl
+
 # --- Phase 5: wallpaper-driven theme (matugen) ------------------------------
 
 # Material You palette generator: extracts a seed color from the

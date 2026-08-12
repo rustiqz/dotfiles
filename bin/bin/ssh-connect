@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+#
+# ssh-connect — rofi picker over ~/.ssh/config Host entries. Opens the
+# selection in a new kitty window running ssh.
+#
+# Named ssh-connect, not ssh: a plain `ssh` on $PATH ahead of
+# /usr/bin/ssh would silently break every other tool that shells out to
+# the real ssh binary (git over ssh, rsync, VS Code remote, etc.) — not
+# worth the risk for a one-key mnemonic.
+#
+# Reads Host entries from both ~/.ssh/config (tracked, near-empty) and
+# ~/.ssh/config.local (untracked, the actual real entries — see
+# ssh/.ssh/config's own comment for why) directly, rather than trying
+# to make ssh itself enumerate them: ssh has no "list configured hosts"
+# subcommand, only per-host resolution (`ssh -G <host>`), so grepping
+# the files' own `Host` lines is the only way to build a picker list.
+#
+# Usage:
+#   ssh-connect       interactive rofi picker over configured Host entries
+
+set -euo pipefail
+
+# -h on grep: suppress filenames in output since two files are searched
+# at once. [*?] excluded: wildcard/pattern entries (e.g. `Host *`, used
+# for blanket options like ServerAliveInterval) aren't real connectable
+# targets, just config-application patterns.
+#
+# || true on the whole pipeline: under `set -e`, a command substitution
+# assignment aborts the script immediately if the pipeline's last stage
+# exits non-zero — and grep legitimately exits 1 for "no lines
+# matched," not just for a real error, which is exactly the (very
+# reachable) case of no Host entries existing yet. Without this, that
+# case skipped the graceful message below entirely and just silently
+# died here instead (confirmed by testing before this line was added).
+HOSTS=$( { grep -h "^Host " "$HOME/.ssh/config" "$HOME/.ssh/config.local" 2>/dev/null \
+  | cut -d' ' -f2- | tr ' ' '\n' | grep -v '[*?]' | sort -u; } || true)
+
+if [[ -z $HOSTS ]]; then
+  echo "no Host entries found in ~/.ssh/config or ~/.ssh/config.local" >&2
+  exit 1
+fi
+
+SELECTED=$(echo "$HOSTS" | rofi -dmenu -p "SSH")
+[[ -z $SELECTED ]] && exit 0
+
+# setsid + uwsm app + disown: launches the new kitty window as its own
+# scoped systemd unit rather than a child of this already-scoped script
+# process — same pattern bin/bin/theme uses to restart waybar.
+setsid uwsm app -- kitty --title "ssh: $SELECTED" -e ssh "$SELECTED" >/dev/null 2>&1 &
+disown
