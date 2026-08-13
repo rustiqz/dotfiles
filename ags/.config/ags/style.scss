@@ -1,0 +1,228 @@
+// ~/dotfiles/ags/.config/ags/style.scss
+//
+// Pure layout/structure - no hardcoded colors here. active-theme.scss
+// is a symlink (bin/bin/theme repoints it, see themes/<name>/ags.css)
+// defining the color custom properties used below - GTK4 supports
+// :root/var() (this app links libastal-4/gtk4, unlike waybar's GTK3 -
+// see waybar/.config/waybar/style.css for that distinction), same
+// mechanism as swaync.
+//
+// .scss extension on the symlink, not .css like every other app's
+// active-theme target: SCSS's own spec passes a literal `@import
+// "foo.css"` straight through as a browser-style runtime import
+// rather than inlining it - fine for a real CSS engine loading real
+// files, but ags bundles the compiled CSS into a JS string with no
+// file path left at runtime to resolve against (confirmed by testing:
+// "Could not resolve active-theme.css to a valid URL" at startup).
+// Importing it as .scss makes Sass actually inline the content at
+// compile time instead. The underlying theme file is still plain CSS
+// (themes/<name>/ags.css) - Sass accepts plain CSS as valid input
+// regardless of what extension the importing symlink uses.
+//
+// @use, not @import: @import is deprecated as of Dart Sass (removal
+// planned for 3.0.0). @use's namespacing only affects Sass variables/
+// mixins/functions, not plain CSS rules like :root {}, so the actual
+// color custom properties still land in the compiled output the same
+// way.
+@use "active-theme";
+
+// Every alpha(...) call below is wrapped as #{"alpha(...)"} — Sass has
+// its own built-in alpha() color function (1 argument only), which
+// intercepts and errors on GTK's different 2-argument alpha(color,
+// factor) syntax used throughout this file ("Only 1 argument allowed,
+// but 2 were passed" — confirmed by testing). Wrapping the whole call
+// in a Sass string interpolation passes it through to the compiled
+// CSS output completely literally instead of letting Sass try to
+// evaluate it as its own function.
+window.Sidebar {
+  background: transparent;
+}
+
+// The panel itself: fixed width, full height (window's TOP|BOTTOM|
+// RIGHT anchor in Sidebar.tsx already spans top-to-bottom). A flat
+// slab reads as dull on its own, per the original complaint here — a
+// faint top-to-bottom gradient (barely perceptible, just enough to
+// stop it looking like a single solid rectangle) plus the border does
+// most of the work of separating it from the rest of the screen.
+.sidebar {
+  background-image: linear-gradient(
+    180deg,
+    #{"alpha(var(--bg), 0.98)"},
+    #{"alpha(var(--bg), 0.9)"}
+  );
+  border-left: 1px solid var(--border);
+  min-width: 340px;
+  padding: 20px 14px;
+}
+
+// Small uppercase section label above each widget card - the panel's
+// original flat "just two boxes stacked" layout had no hierarchy at
+// all; this is what actually reads as "a designed panel" rather than
+// "unstyled debug output."
+.eyebrow {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  margin-left: 4px;
+}
+
+.card {
+  background-image: linear-gradient(
+    160deg,
+    #{"alpha(var(--hover), 1)"},
+    #{"alpha(var(--hover), 0.75)"}
+  );
+  border: 1px solid #{"alpha(var(--border), 0.6)"};
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 4px 12px #{"#{"alpha(black, 0.25)"}"};
+}
+
+button.card {
+  padding: 12px 14px;
+}
+
+button.card:hover {
+  background-image: linear-gradient(
+    160deg,
+    #{"alpha(var(--hover), 1)"},
+    #{"alpha(var(--hover), 0.85)"}
+  );
+  border-color: #{"alpha(var(--accent), 0.5)"};
+}
+
+.music-card {
+  min-width: 220px;
+  transition: border-color 150ms ease;
+}
+
+// Accent-tinted left edge only while something's actually playing -
+// same "accent marks the live state" convention waybar already uses
+// for its active workspace indicator, now with somewhere to put it
+// since this card has a real border to color.
+.music-card.playing {
+  border-color: #{"alpha(var(--accent), 0.6)"};
+}
+
+.music-card.empty {
+  padding: 20px 14px;
+}
+
+button {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--fg);
+}
+
+button:hover {
+  background-color: var(--hover);
+}
+
+// Circular tinted container behind icons (docker whale, music-note
+// fallback) instead of bare glyphs floating in empty space - gives
+// every icon a consistent footprint and a spot of color.
+.icon-chip {
+  background-color: #{"alpha(var(--accent), 0.15)"};
+  border-radius: 999px;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.icon {
+  color: var(--accent);
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 18px;
+}
+
+.cover-fallback .icon {
+  font-size: 20px;
+}
+
+.cover {
+  border-radius: 10px;
+  box-shadow: 0 2px 8px #{"#{"alpha(black, 0.35)"}"};
+}
+
+.count {
+  color: var(--fg);
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.title {
+  color: var(--fg);
+  font-weight: bold;
+}
+
+.artist,
+.subtext {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+// No min-height on the outer <slider> itself — setting it smaller
+// than the handle's own min-height (14px, below) made GTK log
+// "reported min height -12, but sizes must be >= 0" (confirmed by
+// testing); the outer widget's height should come from its tallest
+// child (the handle), not be forced down independently of it.
+slider trough {
+  background-color: var(--border);
+  border-radius: 4px;
+  min-height: 4px;
+}
+
+slider highlight {
+  background-image: linear-gradient(90deg, var(--accent), #{"alpha(var(--accent), 0.7)"});
+  border-radius: 4px;
+  min-height: 4px;
+}
+
+slider slider {
+  background-color: var(--fg);
+  border-radius: 999px;
+  min-width: 12px;
+  min-height: 12px;
+  box-shadow: 0 1px 4px #{"#{"alpha(black, 0.4)"}"};
+}
+
+// Transport controls: circular buttons instead of bare click targets,
+// with the play/pause button visually the "primary" action (filled,
+// larger) and prev/next as secondary (outline only, ghost until
+// hovered) - same primary/secondary button hierarchy convention as a
+// real media player UI, rather than three identical-looking buttons.
+.transport {
+  border-radius: 999px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+}
+
+.transport .icon,
+.transport label {
+  color: var(--fg);
+  font-family: "JetBrainsMono Nerd Font";
+}
+
+.transport:hover {
+  background-color: var(--hover);
+}
+
+.transport:disabled {
+  opacity: 0.35;
+}
+
+.transport.play {
+  background-color: var(--accent);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.transport.play label {
+  color: var(--bg);
+}
+
+.transport.play:hover {
+  background-color: #{"alpha(var(--accent), 0.85)"};
+}

@@ -333,6 +333,15 @@ kubectl
 
 # --- Phase 5: wallpaper-driven theme (matugen) ------------------------------
 
+# --- Phase 5: desktop widgets (docker + music, ags/astal) -------------------
+
+# Sass compiler — ags/.config/ags/style.scss needs this on $PATH to
+# build at all (confirmed by testing: `ags run` fails outright with
+# "executable sass not found" without it). Listed as an *optional* dep
+# of aylurs-gtk-shell (packages/aur.txt) but is not actually optional
+# for this setup, since it's what compiles the theming.
+dart-sass
+
 # Material You palette generator: extracts a seed color from the
 # current wallpaper and fills in matugen/templates/*.tpl to produce
 # themes/wallpaper/* — a theme like tokyonight/f1, except generated

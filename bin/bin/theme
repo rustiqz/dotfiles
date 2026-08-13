@@ -107,6 +107,20 @@ fi
 # wlogout is launched (it's not a persistent background process).
 link "wlogout.css" "$DOTFILES/wlogout/.config/wlogout/active-theme.css"
 
+# --- ags (docker/music desktop widgets) -------------------------------------
+# Same restart-in-place pattern as waybar above — ags has no live
+# "reload css" IPC command (unlike swaync-client --reload-css), and the
+# process is lightweight enough that a full restart is the simplest
+# reliable option.
+if link "ags.css" "$DOTFILES/ags/.config/ags/active-theme.scss"; then
+  UNIT=$(systemctl --user list-units 'app-Hyprland-ags-*' --no-legend 2>/dev/null | awk '{print $1}')
+  if [[ -n $UNIT ]]; then
+    systemctl --user stop "$UNIT"
+    setsid uwsm app -- ags run >/dev/null 2>&1 &
+    disown
+  fi
+fi
+
 # --- swaync --------------------------------------------------------------------
 if link "swaync.css" "$DOTFILES/swaync/.config/swaync/active-theme.css"; then
   command -v swaync-client &>/dev/null && swaync-client --reload-css &>/dev/null

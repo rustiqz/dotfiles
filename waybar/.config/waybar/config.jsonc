@@ -25,11 +25,9 @@
   "modules-center": ["clock"],
   "modules-right": [
     "custom/notification",
-    "mpris",
     "idle_inhibitor",
     "cpu",
     "memory",
-    "custom/docker",
     "network",
     "bluetooth",
     "pulseaudio",
@@ -78,43 +76,6 @@
     "format": "{:%H:%M}",
     "format-alt": "{:%Y-%m-%d}",
     "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
-  },
-
-  // fa-music (f001) / fa-play (f04b) / fa-pause (f04c) — codepoints
-  // verified against nerd-fonts' own glyphnames.json before use, same
-  // reasoning as this file's header comment (PUA characters get
-  // mangled easily if typed/copied by hand). player: defaults to
-  // playerctld (bundled in the playerctl package, D-Bus-activatable —
-  // no exec-once needed, same pattern as swaync), which "always
-  // follows the currently active player" per waybar's own docs, so
-  // this works the same whether the source is Spotify or a YouTube
-  // Music browser tab (Firefox exposes MPRIS for HTML5 media either
-  // way) with no per-player config. format-stopped is deliberately
-  // empty — unlike network's format-disabled (see that module's own
-  // comment), there's no "stranded with no way back" risk in just
-  // hiding this module when nothing is playing.
-  "mpris": {
-    "format": " {dynamic}",
-    "format-paused": " {dynamic}",
-    "format-playing": " {dynamic}",
-    "format-stopped": "",
-    "max-length": 40,
-    "tooltip-format": "{player} : {dynamic}"
-  },
-
-  // fa-docker (f21f). docker/docker-compose already installed on every
-  // machine (Phase 3) — no exec-if guard needed, unlike an optional
-  // dependency. Redirects stderr rather than guarding on the daemon
-  // being up: `docker ps` failing (daemon not running, permission
-  // denied) just produces empty stdout, so `wc -l` still returns a
-  // clean "0" instead of an error string leaking into the bar.
-  "custom/docker": {
-    "format": " {}",
-    "exec": "docker ps -q 2>/dev/null | wc -l",
-    "interval": 10,
-    "tooltip": true,
-    "tooltip-format": "Docker: {} container(s) running\nClick: open lazydocker",
-    "on-click": "kitty --hold -e lazydocker"
   },
 
   "idle_inhibitor": {
