@@ -1,0 +1,17 @@
+/* themes/tokyonight/ags.css
+ *
+ * Same TokyoNight hex values as themes/tokyonight/swaync.css - ags
+ * links libastal-4 (GTK4), same :root/var() support as swaync, unlike
+ * waybar's GTK3 @define-color. Symlinked in as
+ * ags/.config/ags/active-theme.css (bin/bin/theme); style.scss
+ * imports it and is otherwise pure layout, no hardcoded colors of its
+ * own - same split as waybar's and swaync's own theme files.
+ */
+:root {
+  --bg: rgba(26, 27, 38, 0.92);   /* #1a1b26 */
+  --fg: #c0caf5;
+  --border: #292e42;
+  --muted: #545c7e;
+  --accent: #7aa2f7;
+  --hover: #283457;               /* kitty's selection_background */
+}
