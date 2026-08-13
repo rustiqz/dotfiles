@@ -89,7 +89,12 @@ second. Built on one laptop, then replayed on other machines.
       **Session switch complete: Hyprland is primary, GNOME is fallback.**
       Optional follow-up: fingerprint login (see Known gotchas — no
       official package, AUR `libfprint-ft9201` is the option).
-- [ ] **6 — Finalize.** Prove `bootstrap.sh` on a clean VM. Write README.
+- [ ] **6 — Finalize.** `README.md` written. Clean-machine proof of
+      `bootstrap.sh` deliberately done by hand on a real second machine
+      instead of a disposable VM (no virtualization tooling on `rustiq`
+      yet, and a real clone is a more honest test of the actual
+      multi-machine goal anyway) — phase stays open until that's
+      actually happened once.
 
 ## Repo layout
 
