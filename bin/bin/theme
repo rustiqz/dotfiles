@@ -137,12 +137,43 @@ if link "ags.css" "$DOTFILES/ags/.config/ags/active-theme.scss"; then
 fi
 
 # --- swaync --------------------------------------------------------------------
+# swaync_reload <args...> — ask a *running* swaync to re-read its theme.
+#
+# `command -v swaync-client` is NOT a sufficient guard here, which is
+# what this used to use. When the daemon isn't running, swaync-client
+# doesn't fail: it tries to D-Bus-activate org.erikreider.swaync.cc,
+# gets "NameHasNoOwner ... startup job failed", prints "Could not
+# connect to CC service. Will wait for connection..." and then blocks
+# forever waiting for a daemon that is never going to appear.
+#
+# That is not a rare edge case — it is the normal state during
+# bootstrap. hooks/73-theme.sh calls this script, and on a machine
+# being provisioned for the first time the bootstrap is necessarily
+# being run from some *other* session (GNOME here), so swaync isn't up.
+# 73-theme.sh is also the last hook, so the hang parked bootstrap.sh
+# permanently one step from the end — long enough after the visible
+# work that it reads as "finished" and gets Ctrl-C'd. Every run
+# therefore skipped the remaining steps of this script (the Qt colour
+# links and the uwsm env-theme link below) while still looking
+# successful. Found by running this script under a timeout on a real
+# clean machine, not by reading it.
+#
+# So: check for an actual process first, and still wrap the call in a
+# timeout — the pidof check closes the race where swaync dies between
+# the two, and guarantees no future caller of this script can hang on
+# it regardless.
+swaync_reload() {
+  command -v swaync-client &>/dev/null || return 0
+  pidof swaync &>/dev/null || return 0
+  timeout 5 swaync-client "$@" &>/dev/null || true
+}
+
 if link "swaync.css" "$DOTFILES/swaync/.config/swaync/active-theme.css"; then
-  command -v swaync-client &>/dev/null && swaync-client --reload-css &>/dev/null
+  swaync_reload --reload-css
 fi
 if [[ -f $THEME_DIR/swaync-config.json ]]; then
   cp "$THEME_DIR/swaync-config.json" "$DOTFILES/swaync/.config/swaync/config.json"
-  command -v swaync-client &>/dev/null && swaync-client -R &>/dev/null
+  swaync_reload -R
 fi
 
 # --- Qt (qt6ct + qt5ct share the same color scheme file) -------------------
