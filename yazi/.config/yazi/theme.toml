@@ -1,0 +1,9 @@
+# ~/dotfiles/yazi/.config/yazi/theme.toml
+#
+# Static and tracked — unlike the flavor.toml files themselves, this
+# file just names which flavor directory to use and never changes.
+# bin/bin/theme repoints the actual ~/.config/yazi/flavors/active-theme.yazi
+# directory symlink (target: themes/<name>/yazi-flavor/); this always
+# just points at "active-theme".
+[flavor]
+dark = "active-theme"

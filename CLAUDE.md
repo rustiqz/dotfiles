@@ -50,13 +50,25 @@ second. Built on one laptop, then replayed on other machines.
   distinguishable colors regardless of source image.
 - Coding/media tooling (shared across every machine, not host-specific
   — see below): `playerctl`, `spotify`, `lazydocker`, `k9s`, `stern`,
-  `pgcli`, `kubectl`. waybar gained two modules: `mpris` (now-playing,
-  works the same for Spotify or a YouTube Music browser tab — no
-  per-player config) and `custom/docker` (running-container count,
-  click opens `lazydocker`). `bin/bin/ssh-connect` (`$mod+S`) is a rofi
-  picker over `~/.ssh/config` `Host` entries — real hostnames/IPs live
-  in untracked `~/.ssh/config.local` (`ssh/.ssh/config`'s tracked base
-  just has an `Include`), same `*.local` pattern as git identity.
+  `pgcli`, `kubectl`, `yazi` (+ `ffmpegthumbnailer`/`p7zip` for
+  previews). `bin/bin/ssh-connect` (`$mod+S`) is a rofi picker over
+  `~/.ssh/config` `Host` entries — real hostnames/IPs live in untracked
+  `~/.ssh/config.local` (`ssh/.ssh/config`'s tracked base just has an
+  `Include`), same `*.local` pattern as git identity.
+- Now-playing and Docker status live in the ags desktop widget sidebar
+  (`$mod+grave`), not waybar — waybar's `mpris`/`custom/docker` modules
+  were removed once the sidebar covered both in more detail (see the
+  "desktop widget sidebar" note below).
+- yazi (`$mod+Y`, opens in a kitty window) is themed through the same
+  switcher as everything else — flavors are looked up by *directory*
+  name (`~/.config/yazi/flavors/<name>.yazi/`), so `bin/bin/theme`
+  symlinks a whole directory here (`ln -sfrT`) rather than one file
+  like every other app. `themes/tokyonight/yazi-flavor/` was vendored
+  from the real `BennyOe/tokyo-night.yazi` flavor (installed via
+  `ya pkg add` into a scratch config to confirm the real schema first)
+  — its hex values already matched this repo's palette exactly, so
+  it's that file verbatim. `theme wallpaper` covers it too, via
+  `matugen/templates/yazi-flavor.toml.tpl`.
 - A work PC is planned but not yet bootstrapped from this repo — no
   `host-<hostname>.txt`/`host/<hostname>/` exists for it yet since
   nothing added so far has turned out to be genuinely host-specific

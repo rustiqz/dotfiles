@@ -107,6 +107,21 @@ fi
 # wlogout is launched (it's not a persistent background process).
 link "wlogout.css" "$DOTFILES/wlogout/.config/wlogout/active-theme.css"
 
+# --- yazi (file manager) -----------------------------------------------------
+# Directory symlink, not a single file via link(): yazi looks up
+# flavors by directory name under ~/.config/yazi/flavors/<name>.yazi/,
+# so active-theme.yazi has to be a whole directory pointing at
+# themes/<name>/yazi-flavor/, not one linked file like every other app
+# here. -T on ln is required, not cosmetic: without it, re-running this
+# against an *existing* directory symlink nests the new link inside the
+# old target instead of replacing it (confirmed by testing a second
+# `theme <name>` switch). No daemon to reload — flavor is read fresh on
+# next launch, same as wlogout/rofi.
+if [[ -d $THEME_DIR/yazi-flavor ]]; then
+  mkdir -p "$DOTFILES/yazi/.config/yazi/flavors"
+  ln -sfrT "$THEME_DIR/yazi-flavor" "$DOTFILES/yazi/.config/yazi/flavors/active-theme.yazi"
+fi
+
 # --- ags (docker/music desktop widgets) -------------------------------------
 # Same restart-in-place pattern as waybar above — ags has no live
 # "reload css" IPC command (unlike swaync-client --reload-css), and the
