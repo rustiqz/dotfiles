@@ -83,7 +83,8 @@ done
 hdr "Packages — theming & quick-access"
 # ---------------------------------------------------------------------------
 for p in papirus-icon-theme qt6ct qt5ct tokyonight-gtk-theme-git \
-         bibata-cursor-theme-bin ttf-press-start-2p wlogout rofimoji matugen; do
+         bibata-cursor-theme-bin ttf-press-start-2p wlogout rofimoji matugen \
+         yazi ffmpegthumbnailer p7zip; do
   chk_pkg "$p"
 done
 
@@ -110,6 +111,7 @@ chk_link "$HOME/.config/wlogout/layout"
 chk_link "$HOME/.config/wlogout/style.css"
 chk_link "$HOME/.config/qt6ct/qt6ct.conf"
 chk_link "$HOME/.config/qt5ct/qt5ct.conf"
+chk_link "$HOME/.config/yazi/theme.toml"
 chk_link "$HOME/.config/uwsm/env"
 chk_link "$HOME/.config/uwsm/env-hyprland"
 chk_link "$HOME/bin/theme"
@@ -132,6 +134,11 @@ chk_link "$HOME/.config/swaync/active-theme.css"
 chk_link "$HOME/.config/wlogout/active-theme.css"
 chk_link "$HOME/.config/qt6ct/colors/active-theme.conf"
 chk_link "$HOME/.config/qt5ct/colors/active-theme.conf"
+# Directory symlink, not a file — see bin/bin/theme's own comment on
+# why yazi needs this one (flavor lookup is by directory name). realpath
+# -e resolves through a directory symlink the same way it does a file
+# one, so chk_link's existing implementation covers this unmodified.
+chk_link "$HOME/.config/yazi/flavors/active-theme.yazi"
 chk_link "$HOME/.config/uwsm/env-theme"
 
 # ---------------------------------------------------------------------------
@@ -146,7 +153,7 @@ hdr "Wallpaper-driven theme (matugen)"
 [[ -f $DOTFILES/matugen/config.toml ]] && ok "matugen/config.toml present" \
                                         || no "matugen/config.toml missing"
 for t in kitty.conf waybar.css rofi.rasi hyprland.conf swaync.css \
-         wlogout.css qt-colors.conf; do
+         wlogout.css qt-colors.conf yazi-flavor.toml; do
   [[ -f $DOTFILES/matugen/templates/$t.tpl ]] && ok "template: $t.tpl" \
                                                || no "template missing: $t.tpl"
 done

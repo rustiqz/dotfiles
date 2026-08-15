@@ -349,3 +349,20 @@ dart-sass
 # (matugen/config.toml), never run automatically on a wallpaper pick —
 # see CLAUDE.md for why that stayed a deliberate separate step.
 matugen
+
+# --- Phase 5: file manager (yazi) -------------------------------------------
+
+# Terminal file manager, bound to $mod+Y (opens in a kitty window).
+# Hooked into the theme switcher like every other themed app here —
+# see yazi/.config/yazi/theme.toml and themes/<name>/yazi-flavor/.
+yazi
+
+# Video thumbnail generation in yazi's built-in previewer. Optional
+# upstream, tracked here anyway since it's the whole point of having
+# a file manager with previews at all.
+ffmpegthumbnailer
+
+# Archive preview/extraction (zip/7z/rar/...) inside yazi. Same
+# "optional upstream, not actually optional here" reasoning as
+# ffmpegthumbnailer above.
+p7zip
