@@ -43,6 +43,35 @@ command -v pacman >/dev/null || { echo "This script targets Arch Linux."; exit 1
 log "Base dependencies"
 sudo pacman -S --needed --noconfirm base-devel git stow
 
+# makepkg !debug, before anything ever calls makepkg: paru itself gets
+# built via makepkg two steps from here, and any AUR package installed
+# later also goes through it — both happen before hooks/ ever runs
+# (hooks are the *last* thing bootstrap.sh does), so this can't be a
+# hook the way pacman.conf tuning is (hooks/10-pacman-conf.sh). Without
+# it, a fresh machine builds a paru-debug package alongside paru, which
+# then collides with any stale -debug package still on disk from a
+# previous install attempt — hit for real on a second machine
+# bootstrapped from this exact repo ("paru-debug: .../paru.debug
+# exists in filesystem, owned by paru-bin-debug"). CLAUDE.md already
+# documented !debug as a known gotcha, but nothing actually enforced it
+# until now — it was just coincidentally already the case on rustiq.
+#
+# Three-way check instead of a single sed, since a truly fresh
+# /etc/makepkg.conf's default OPTIONS array isn't guaranteed to already
+# mention debug at all, and blindly substituting a token that might not
+# exist would silently no-op instead of fixing anything:
+#   1. !debug already present — nothing to do.
+#   2. bare `debug` present — flip it to `!debug`.
+#   3. neither present — append `!debug` before the closing paren.
+MAKEPKG_CONF=/etc/makepkg.conf
+if grep -qE '^OPTIONS=\([^)]*!debug' "$MAKEPKG_CONF"; then
+  :
+elif grep -qE '^OPTIONS=\([^)]*\bdebug\b' "$MAKEPKG_CONF"; then
+  sudo sed -i -E 's/^(OPTIONS=\([^)]*)\bdebug\b/\1!debug/' "$MAKEPKG_CONF"
+else
+  sudo sed -i -E 's/^(OPTIONS=\([^)]*)\)/\1 !debug)/' "$MAKEPKG_CONF"
+fi
+
 # ---------------------------------------------------------------------------
 # 2. AUR helper
 # ---------------------------------------------------------------------------
