@@ -122,6 +122,16 @@ if [[ -d $THEME_DIR/yazi-flavor ]]; then
   ln -sfrT "$THEME_DIR/yazi-flavor" "$DOTFILES/yazi/.config/yazi/flavors/active-theme.yazi"
 fi
 
+# --- k9s (kubernetes TUI) ----------------------------------------------------
+# Single-file link like everything else here (yazi's whole-directory
+# case is the odd one out) — but note k9s resolves the skin by the
+# symlink's *filename stem*, so this must stay `active-theme.yaml` to
+# match the `ui.skin: active-theme` that hooks/75-k9s-skin.sh writes
+# into config.yaml. No daemon to reload: k9s reads its skin once at
+# startup, so a running instance keeps the old colors until it's
+# restarted — same as rofi/wlogout, not a failure.
+link "k9s-skin.yaml" "$DOTFILES/k9s/.config/k9s/skins/active-theme.yaml"
+
 # --- ags (docker/music desktop widgets) -------------------------------------
 # Same restart-in-place pattern as waybar above — ags has no live
 # "reload css" IPC command (unlike swaync-client --reload-css), and the
