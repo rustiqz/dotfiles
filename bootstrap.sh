@@ -48,13 +48,30 @@ sudo pacman -S --needed --noconfirm base-devel git stow
 # ---------------------------------------------------------------------------
 # paru wraps pacman and adds AUR support with the same flags, which is why
 # install_list() below can call `pacman` and `paru` interchangeably.
-# paru-bin ships a prebuilt binary — avoids a multi-minute Rust compile.
-# Built in a temp dir because the source tree is disposable after install.
-if ! command -v paru >/dev/null; then
+# Source paru, NOT paru-bin: the prebuilt binary is linked against
+# whatever libalpm soname was current on the AUR build server at
+# packaging time, and breaks outright ("error while loading shared
+# libraries: libalpm.so.N: cannot open shared object file") the next
+# time pacman itself bumps that soname — hit for real on a second
+# machine bootstrapped from this exact repo. Source paru rebuilds
+# against whatever libalpm is actually installed, so it can't drift
+# out of sync the same way. Built in a temp dir because the source
+# tree is disposable after install.
+#
+# `paru --version` as the guard, not `command -v paru`: the latter
+# passes even for a binary with unresolvable shared libraries — which
+# is exactly how the libalpm breakage above went unnoticed by this
+# script (it saw *a* paru on $PATH and skipped straight past the
+# install step) — same reasoning already applied in verify-phase1.sh's
+# own AUR check, just never carried over to this one until now. This
+# also makes bootstrap.sh self-healing: re-running it on a machine
+# with a currently-broken paru rebuilds it instead of silently
+# skipping past the problem again.
+if ! paru --version &>/dev/null; then
   log "Installing paru (AUR helper)"
   tmp=$(mktemp -d)
-  git clone https://aur.archlinux.org/paru-bin.git "$tmp/paru-bin"
-  (cd "$tmp/paru-bin" && makepkg -si --noconfirm)
+  git clone https://aur.archlinux.org/paru.git "$tmp/paru"
+  (cd "$tmp/paru" && makepkg -si --noconfirm)
   rm -rf "$tmp"
 fi
 
