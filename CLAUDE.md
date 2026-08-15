@@ -164,6 +164,15 @@ scripts/
 - `paru-bin` breaks on libalpm soname bumps — use source `paru`.
 - `makepkg.conf` has `!debug` set; stale `-debug` packages caused file
   conflicts on reinstall.
+- Never partially upgrade — `bootstrap.sh` now runs `pacman -Syu`
+  before installing anything named, specifically because a second
+  machine hit "installing aquamarine breaks dependency
+  libaquamarine.so=12-64 required by hyprtoolkit": pacman tried to
+  pull in a newer `aquamarine` while the already-installed
+  `hyprtoolkit` (a dependency of the explicitly-tracked `hyprpaper`)
+  still needed the old soname, since neither package is named directly
+  in any manifest and each was only getting resolved against whatever
+  the local package database happened to say at that moment.
 - Microcode comes from the mkinitcpio `microcode` hook (UKI boot), not a
   bootloader entry. No loader edits needed.
 - PipeWire services are socket-activated: `is-enabled` reports `disabled`
