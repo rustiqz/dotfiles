@@ -69,6 +69,33 @@ second. Built on one laptop, then replayed on other machines.
   — its hex values already matched this repo's palette exactly, so
   it's that file verbatim. `theme wallpaper` covers it too, via
   `matugen/templates/yazi-flavor.toml.tpl`.
+- **Cluster access is local-only state, deliberately.**
+  `~/.config/digitalocean/` (0700, created by `hooks/54-do-config.sh`,
+  outside the repo) is the single home for DO cluster credentials, and
+  `~/.kube/config` is a **symlink** into it — swapping clusters is a
+  repoint, the same active-theme idiom used everywhere else here.
+  Deliberately a symlink and not a `KUBECONFIG` env var: `$mod+C` runs
+  `kitty -e k9s`, which execs k9s with no login shell, so nothing from
+  `.zshrc` exists at that point. Verified by running k9s under `env -i`
+  and confirming it still resolved the cluster. These files hold a
+  DigitalOcean admin bearer token, so they're never in this repo — same
+  class as `~/.ssh/config.local`, one directory up in scale. The DOKS
+  cluster is
+  `do-blr1-plankea-dev-cluster-1` (single node, blr1; app namespace
+  `plankea-dev`, also running argocd/cert-manager/ingress-nginx). A
+  The widely-repeated "kubeconfig expires in 7 days" applies to DO's
+  *legacy certificate* flow ("valid for 7 days that cannot be revoked");
+  a modern cluster like this one gets a **revocable OAuth token** with
+  no such clock, which is what this kubeconfig holds. `doctl` is
+  therefore convenience (auto-renewed credentials, easy re-add,
+  revocation) rather than a deadline — and it costs a long-lived DO API
+  token in plaintext at `~/.config/doctl/config.yaml`, i.e. *more* blast
+  radius than a cluster-scoped token unless that DO token is itself
+  scoped. Not installed, not in any manifest, deliberately.
+  The cluster has no metrics-server, so k9s's CPU/MEM columns read n/a
+  (logged as `Fail to locate metrics-server`, not a config problem).
+  ArgoCD manages the cluster, so anything edited live in k9s gets
+  reverted on next sync — k9s is a read/debug tool here.
 - A work PC is planned but not yet bootstrapped from this repo — no
   `host-<hostname>.txt`/`host/<hostname>/` exists for it yet since
   nothing added so far has turned out to be genuinely host-specific
