@@ -163,6 +163,27 @@ wl-clipboard
 # /usr/share/wayland-sessions.
 hyprland
 
+# Session manager. NOT optional, despite being easy to mistake for one:
+# every `exec-once` in hypr/autostart.conf (waybar, swaync, cliphist,
+# hyprpaper, hypridle, ags) and every application keybind in
+# hypr/keybinds.conf is written as `uwsm app -- <cmd>`, so without this
+# binary the compositor still starts and the config still parses — and
+# nothing else in the desktop works at all. No bar, no wallpaper, no
+# notifications, and every app keybind silently does nothing, which
+# looks exactly like "Hyprland came up unconfigured".
+#
+# Was missing from this manifest until a second machine was bootstrapped
+# from this repo for real and hit precisely that. It went unnoticed on
+# rustiq because uwsm had been installed there by hand while Phase 5 was
+# being built, so no manifest entry was ever needed locally.
+#
+# It also gates which session the login screen offers: hyprland ships
+# both hyprland.desktop and hyprland-uwsm.desktop, and the latter carries
+# `TryExec=uwsm` — so a display manager correctly hides the uwsm session
+# when this isn't installed, leaving only the plain one, which is how the
+# wrong session gets picked without the user ever making a choice.
+uwsm
+
 # Lets Wayland apps request things the compositor itself doesn't implement:
 # screen share/recording (browsers, Discord), the GTK/Qt "open file" dialog,
 # etc. Without it those either hang or silently fail. Hyprland-specific
@@ -225,6 +246,19 @@ cliphist
 hyprlock
 hypridle
 hyprpaper
+
+# Backlight control. Shared, not host-specific: hypridle.conf's
+# on-timeout/on-resume dim step and the XF86MonBrightness binds in
+# keybinds.conf both shell out to this unconditionally, and both of
+# those files are shared across every machine. It originally lived in
+# packages/host-rustiq.txt as a "laptop" package, which meant any other
+# machine stowed configs referencing a binary it had never installed —
+# brightness keys and idle-dim silently doing nothing. Any config in a
+# shared package must have its binaries in a shared manifest; a
+# host-*.txt entry can only ever cover packages that nothing shared
+# refers to. Harmless on a desktop with no backlight — the commands
+# just fail rather than being absent.
+brightnessctl
 
 # Screenshots. grim captures a Wayland output/region to a PNG; slurp
 # drives the interactive drag-to-select box grim's -g geometry flag
@@ -296,6 +330,36 @@ rofimoji
 # in the profile itself, not this repo — see CLAUDE.md's Current state
 # for why that's left alone rather than reproduced here.
 firefox
+
+# GUI file manager, bound to $mod+E. Exactly the same story as firefox
+# above — present on rustiq only because GNOME had already pulled it in,
+# so it was never tracked, and the keybind silently did nothing on the
+# first machine bootstrapped from a clean clone.
+nautilus
+
+# --- Phase 5: login manager + fallback session ------------------------------
+#
+# CLAUDE.md has described GDM as the login manager and GNOME as the
+# permanent fallback session since Phase 5, but neither was ever listed
+# here — both were already installed on rustiq, so nothing local ever
+# needed the entry. A clean machine bootstrapped from this repo would
+# get Hyprland and no way to log into it. Same class of bug as uwsm.
+#
+# GDM specifically, not sddm: it's what CLAUDE.md documents, it's what
+# the GNOME fallback expects, and it handles the uwsm session entry
+# correctly. hooks/20-services.sh makes it the active display manager
+# (and disables any other one it finds) rather than assuming a fresh
+# machine has none enabled.
+gdm
+
+# The fallback session itself. Deliberately gnome-shell rather than the
+# full `gnome` group: the group pulls in ~60 packages of applications
+# (games, weather, maps) that this repo has no interest in, when what
+# "fallback" actually needs is a session that reliably starts when
+# Hyprland can't. gnome-shell + gdm covers that; nautilus above is the
+# one GNOME application genuinely wanted, and it's tracked separately
+# for its own reason.
+gnome-shell
 
 # --- Phase 5 follow-up: coding/media tooling --------------------------------
 # Wanted on every machine (laptop and work PC alike), not host-specific
