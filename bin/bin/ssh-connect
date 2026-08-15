@@ -35,8 +35,18 @@ set -euo pipefail
 HOSTS=$( { grep -h "^Host " "$HOME/.ssh/config" "$HOME/.ssh/config.local" 2>/dev/null \
   | cut -d' ' -f2- | tr ' ' '\n' | grep -v '[*?]' | sort -u; } || true)
 
+# Failure has to be *visible*, not just logged. This script's only real
+# caller is a Hyprland keybind ($mod+S), and a bind's stderr goes
+# nowhere at all — so on a machine where config.local was never written
+# (i.e. any clean clone, since it's untracked by design) the key press
+# was indistinguishable from the keybind being broken. notify-send is
+# guarded the same way screenshot does it: it's an optional nicety, the
+# stderr line is the real contract when run from a terminal.
 if [[ -z $HOSTS ]]; then
-  echo "no Host entries found in ~/.ssh/config or ~/.ssh/config.local" >&2
+  MSG="Create ~/.ssh/config.local and add Host entries"
+  echo "ssh-connect: no Host entries found in ~/.ssh/config or ~/.ssh/config.local" >&2
+  echo "ssh-connect: $MSG" >&2
+  command -v notify-send &>/dev/null && notify-send -u critical "ssh-connect: no hosts configured" "$MSG"
   exit 1
 fi
 
