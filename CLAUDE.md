@@ -69,6 +69,24 @@ second. Built on one laptop, then replayed on other machines.
   — its hex values already matched this repo's palette exactly, so
   it's that file verbatim. `theme wallpaper` covers it too, via
   `matugen/templates/yazi-flavor.toml.tpl`.
+- k9s is themed through the switcher like everything else
+  (`themes/tokyonight/k9s-skin.yaml`, plus
+  `matugen/templates/k9s-skin.yaml.tpl` for `theme wallpaper`). k9s
+  resolves skins by *filename stem* — same indexing rule as bat's
+  themes — so the symlink has to stay `skins/active-theme.yaml`,
+  matching `ui.skin: active-theme`. That key is written by
+  `hooks/75-k9s-skin.sh` rather than tracked in a config file, because
+  **k9s reserialises its own `config.yaml` on exit**, expanding
+  defaults including a `screenDumpDir` under an absolute `/home/<user>/`
+  path — tracking it would replay the qt5ct/qt6ct username bug through
+  a different mechanism. So `k9s/.config/k9s/config.yaml` is gitignored
+  and the hook owns only the one key, exactly like `hooks/74-qt-conf.sh`
+  and `color_scheme_path`. Verified the skin actually loads by running
+  k9s at `-l debug` and reading `~/.local/state/k9s/k9s.log` for
+  `Loading skin file`, with a deliberately bogus skin name as the
+  negative control (it logs `No custom skin found. Using stock skin`
+  and otherwise says nothing at default log level — a broken skin is
+  silent).
 - **Cluster access is local-only state, deliberately.**
   `~/.config/digitalocean/` (0700, created by `hooks/54-do-config.sh`,
   outside the repo) is the single home for DO cluster credentials, and

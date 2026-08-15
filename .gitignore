@@ -58,6 +58,13 @@ active-theme.*
 qt5ct/.config/qt5ct/qt5ct.conf
 qt6ct/.config/qt6ct/qt6ct.conf
 
+# Same class of problem, different mechanism: k9s reserialises its own
+# config on exit, expanding every default — including a screenDumpDir
+# under an absolute /home/<user>/ path. Tracking it would push one
+# machine's username onto the next, so hooks/75-k9s-skin.sh owns just
+# the one key that matters (ui.skin) and the file itself stays local.
+k9s/.config/k9s/config.yaml
+
 # env-theme, not env: env itself is a permanent tracked file (PATH,
 # not theme-specific — see uwsm/.config/uwsm/env for why it had to be
 # split out) that sources env-theme, which IS the swappable symlink —
