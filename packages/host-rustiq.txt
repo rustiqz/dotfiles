@@ -35,9 +35,9 @@ libva-utils
 
 # --- Laptop ------------------------------------------------------------------
 
-# Backlight control. Hyprland has no built-in brightness handling, so the
-# XF86MonBrightness key bindings in Phase 5 will shell out to this.
-brightnessctl
+# brightnessctl moved to packages/pacman.txt — shared hypr configs
+# (hypridle.conf, keybinds.conf) reference it unconditionally, so it
+# can't be gated on the hostname. See the note there.
 
 # Power profile switching (power-saver / balanced / performance). GNOME's
 # power slider drives this today; under Hyprland you query it via
