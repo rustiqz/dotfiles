@@ -114,6 +114,18 @@ second. Built on one laptop, then replayed on other machines.
   (logged as `Fail to locate metrics-server`, not a config problem).
   ArgoCD manages the cluster, so anything edited live in k9s gets
   reverted on next sync — k9s is a read/debug tool here.
+- **`bin/bin/queues`** — BullMQ queue status over `valkey-cli`
+  (localhost:6379 by default, `REDIS_HOST`/`REDIS_PORT` to override).
+  `queues` prints every queue busiest-first, `queues <name>` adds recent
+  failures with their `failedReason`. BullMQ keeps no registry of
+  queues, so enumeration is a `SCAN` for `bull:*:meta` — the same thing
+  bull-board does internally. Job states span two Redis types and the
+  counts must match: `wait`/`active`/`paused` are lists (`LLEN`),
+  `delayed`/`failed`/`completed`/`prioritized` are sorted sets
+  (`ZCARD`). A never-used state has no key at all, so 0 always means
+  "none", never "wrong command". Counts are gathered by piping all
+  commands into a single `valkey-cli` rather than one process per
+  queue — 20+ queues makes that difference visible.
 - A work PC is planned but not yet bootstrapped from this repo — no
   `host-<hostname>.txt`/`host/<hostname>/` exists for it yet since
   nothing added so far has turned out to be genuinely host-specific

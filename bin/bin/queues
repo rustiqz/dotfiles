@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+#
+# queues — at-a-glance state of every BullMQ queue in a Redis/Valkey
+# instance, and failure detail for one queue.
+#
+# BullMQ doesn't keep a registry of queues, so there's no "list queues"
+# command to call. What it does keep is one `bull:<name>:meta` hash per
+# queue, created when the queue is first instantiated — scanning for
+# that pattern is the only way to enumerate them, and it's what every
+# dashboard (bull-board included) does under the hood.
+#
+# Job states map to different Redis types, which is why the counts
+# below use three different commands rather than one:
+#   wait / active / paused  -> lists  (LLEN)
+#   delayed / failed / completed / prioritized -> sorted sets (ZCARD)
+# Getting this wrong doesn't error, it just silently returns 0 — LLEN
+# on a zset is a WRONGTYPE error, but ZCARD on a missing key is 0, and
+# a queue that has simply never had a failure has no `:failed` key at
+# all. So "0" here always means "none", never "wrong command".
+#
+# Usage:
+#   queues              table of every queue, busiest first
+#   queues <name>       detail for one queue + why its jobs failed
+#
+# Env: REDIS_HOST / REDIS_PORT (default localhost:6379) — no hardcoded
+# host, same reason every other script here uses $HOME over a literal
+# path.
+
+set -uo pipefail
+
+R=(valkey-cli -h "${REDIS_HOST:-localhost}" -p "${REDIS_PORT:-6379}")
+
+if ! "${R[@]}" ping &>/dev/null; then
+  echo "queues: can't reach redis at ${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}" >&2
+  echo "queues: is the pk-redis container up? (docker ps)" >&2
+  exit 1
+fi
+
+# Colour only when stdout is a terminal — this gets piped into grep and
+# less often enough that unconditional escapes would be a nuisance.
+if [[ -t 1 ]]; then
+  BOLD=$'\e[1m'; RED=$'\e[31m'; YEL=$'\e[33m'; DIM=$'\e[2m'; OFF=$'\e[0m'
+else
+  BOLD=''; RED=''; YEL=''; DIM=''; OFF=''
+fi
+
+mapfile -t QUEUES < <("${R[@]}" --scan --pattern 'bull:*:meta' 2>/dev/null \
+  | sed -E 's/^bull:(.*):meta$/\1/' | sort)
+
+if [[ ${#QUEUES[@]} -eq 0 ]]; then
+  echo "queues: no BullMQ queues found (no bull:*:meta keys)" >&2
+  exit 1
+fi
+
+# --- detail mode -------------------------------------------------------------
+if [[ $# -ge 1 ]]; then
+  Q=$1
+  # shellcheck disable=SC2076
+  if [[ ! " ${QUEUES[*]} " =~ " $Q " ]]; then
+    echo "queues: no such queue: $Q" >&2
+    printf 'known: %s\n' "${QUEUES[*]}" >&2
+    exit 1
+  fi
+
+  echo "${BOLD}$Q${OFF}"
+  printf '  wait %s   active %s   delayed %s   failed %s   completed %s\n\n' \
+    "$("${R[@]}" llen "bull:$Q:wait")"      "$("${R[@]}" llen "bull:$Q:active")" \
+    "$("${R[@]}" zcard "bull:$Q:delayed")"  "$("${R[@]}" zcard "bull:$Q:failed")" \
+    "$("${R[@]}" zcard "bull:$Q:completed")"
+
+  # Most recent failures first. The failed zset is scored by the time
+  # the job moved to failed, so -1..-N walks newest-backwards.
+  mapfile -t FAILED < <("${R[@]}" zrange "bull:$Q:failed" -15 -1 2>/dev/null | tac)
+  if [[ ${#FAILED[@]} -eq 0 ]]; then
+    echo "  ${DIM}no failed jobs${OFF}"
+    exit 0
+  fi
+
+  echo "  ${BOLD}recent failures${OFF} (newest first)"
+  for id in "${FAILED[@]}"; do
+    # failedReason is the error *message* only; stacktrace is a separate
+    # JSON-array field, deliberately not printed here — this is a
+    # triage view, not a debugger.
+    reason=$("${R[@]}" hget "bull:$Q:$id" failedReason 2>/dev/null)
+    ts=$("${R[@]}" hget "bull:$Q:$id" finishedOn 2>/dev/null)
+    when=""
+    [[ -n $ts && $ts != "" ]] && when=$(date -d "@$((ts / 1000))" '+%Y-%m-%d %H:%M' 2>/dev/null)
+    printf '  %s%-19s%s %-38s %s\n' "$DIM" "$when" "$OFF" "$id" "${RED}${reason:0:70}${OFF}"
+  done
+  exit 0
+fi
+
+# --- table mode --------------------------------------------------------------
+# One valkey-cli process for the whole table, not five per queue: the
+# CLI reads newline-separated commands from stdin and emits one result
+# line each, in order, so the counts can be zipped back onto the queue
+# list afterwards. With 20+ queues the round-trip difference is the
+# difference between instant and visibly slow.
+mapfile -t COUNTS < <(
+  for q in "${QUEUES[@]}"; do
+    printf 'llen bull:%s:wait\nllen bull:%s:active\nzcard bull:%s:delayed\nzcard bull:%s:failed\nzcard bull:%s:completed\n' \
+      "$q" "$q" "$q" "$q" "$q"
+  done | "${R[@]}" 2>/dev/null
+)
+
+# Sort busiest-first (wait+active+delayed+failed, ignoring completed —
+# a big completed count is just history, not something to act on), so
+# whatever needs attention is at the top rather than wherever the
+# alphabet put it.
+{
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' QUEUE WAIT ACTIVE DELAYED FAILED COMPLETED
+  for i in "${!QUEUES[@]}"; do
+    b=$((i * 5))
+    w=${COUNTS[b]:-0}; a=${COUNTS[b+1]:-0}; d=${COUNTS[b+2]:-0}
+    f=${COUNTS[b+3]:-0}; c=${COUNTS[b+4]:-0}
+    printf '%d\t%s\t%s\t%s\t%s\t%s\t%s\n' "$((w + a + d + f))" "${QUEUES[i]}" "$w" "$a" "$d" "$f" "$c"
+  done | sort -k1,1nr -k2,2 | cut -f2-
+} | column -t | while IFS= read -r line; do
+  # Header stays plain; rows with failures go red, rows with a backlog
+  # but no failures go yellow, idle queues dim.
+  case "$line" in
+    QUEUE*) printf '%s%s%s\n' "$BOLD" "$line" "$OFF" ;;
+    *) if [[ $(awk '{print $5}' <<<"$line") -gt 0 ]]; then printf '%s%s%s\n' "$RED" "$line" "$OFF"
+       elif [[ $(awk '{print $2+$3+$4}' <<<"$line") -gt 0 ]]; then printf '%s%s%s\n' "$YEL" "$line" "$OFF"
+       else printf '%s%s%s\n' "$DIM" "$line" "$OFF"; fi ;;
+  esac
+done
