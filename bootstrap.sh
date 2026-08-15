@@ -8,12 +8,13 @@
 # Usage:  ./bootstrap.sh
 #
 # What it does, in order:
-#   1. installs base tooling (git, stow, build deps)
-#   2. installs the AUR helper (paru) if missing
-#   3. installs packages listed in packages/*.txt
-#   4. backs up any pre-existing real file that would conflict with stow
-#   5. symlinks every config package into $HOME via stow
-#   6. runs any scripts in hooks/
+#   1. full system sync + upgrade
+#   2. installs base tooling (git, stow, build deps)
+#   3. installs the AUR helper (paru) if missing
+#   4. installs packages listed in packages/*.txt
+#   5. backs up any pre-existing real file that would conflict with stow
+#   6. symlinks every config package into $HOME via stow
+#   7. runs any scripts in hooks/
 
 # -e  abort on the first failing command, so a broken step can't cascade
 # -u  treat unset variables as errors (catches typo'd var names)
@@ -35,7 +36,29 @@ log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 command -v pacman >/dev/null || { echo "This script targets Arch Linux."; exit 1; }
 
 # ---------------------------------------------------------------------------
-# 1. Base dependencies
+# 1. Full system sync + upgrade
+# ---------------------------------------------------------------------------
+# Arch's own rule, not just a nice-to-have: never partially upgrade.
+# Every later step here installs only the *specific* packages it names
+# (`pacman -S <pkgs> --needed`), never the whole system — if the local
+# package database is even slightly stale when that happens, pacman
+# can end up pulling in a newer version of some library while an
+# already-installed package that depends on the *old* one hasn't
+# moved yet, since neither side of that pair was named explicitly.
+# Hit for real on a second machine: pacman tried to install a newer
+# `aquamarine` while the already-installed `hyprtoolkit` (a dependency
+# of hyprpaper, which *is* explicitly tracked) still required the old
+# libaquamarine soname — "installing aquamarine breaks dependency
+# libaquamarine.so=12-64 required by hyprtoolkit". A full sync+upgrade
+# first means every package that resolves later in this script resolves
+# against one consistent, fully-updated snapshot instead of a mix of
+# "whatever was already installed" and "whatever's newest in the repos
+# today" — the exact combination that produced this conflict.
+log "Full system sync + upgrade"
+sudo pacman -Syu --noconfirm
+
+# ---------------------------------------------------------------------------
+# 2. Base dependencies
 # ---------------------------------------------------------------------------
 # base-devel: compilers + makepkg, required to build anything from the AUR
 # git:        cloning this repo and AUR packages
@@ -74,7 +97,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 2. AUR helper
+# 3. AUR helper
 # ---------------------------------------------------------------------------
 # paru wraps pacman and adds AUR support with the same flags, which is why
 # install_list() below can call `pacman` and `paru` interchangeably.
@@ -135,7 +158,7 @@ install_list "$DOTFILES/packages/aur.txt"         paru          # AUR
 install_list "$DOTFILES/packages/host-$HOST.txt"  paru          # this machine only
 
 # ---------------------------------------------------------------------------
-# 4. Back up pre-existing files that would conflict with stow
+# 5. Back up pre-existing files that would conflict with stow
 # ---------------------------------------------------------------------------
 # stow refuses to overwrite a real file with a symlink rather than
 # silently clobbering it — the right default, but it means bootstrap.sh
@@ -188,7 +211,7 @@ for pkg in */; do
 done
 
 # ---------------------------------------------------------------------------
-# 5. Stow config packages
+# 6. Stow config packages
 # ---------------------------------------------------------------------------
 # Every top-level directory is treated as a stow package, except the
 # non-config dirs. New app configs are picked up automatically — you
@@ -224,7 +247,7 @@ if [[ -d "$DOTFILES/host/$HOST" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 6. Post-install hooks
+# 7. Post-install hooks
 # ---------------------------------------------------------------------------
 # For state that isn't a file or a package: systemd units, chsh, gsettings.
 # Glob order = execution order, so prefix with numbers (10-, 20-) to sequence.
