@@ -1,0 +1,5 @@
+[Appearance]
+color_scheme_path=__HOME__/.config/qt6ct/colors/active-theme.conf
+custom_palette=true
+standard_dialogs=default
+style=qt6ct-style

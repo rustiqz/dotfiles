@@ -49,6 +49,15 @@ wallpapers/.local/share/wallpapers/.current
 # state, not something to track or diff in git.
 active-theme.*
 
+# Generated from the tracked .in templates by hooks/74-qt-conf.sh —
+# Qt's QSettings INI format can't expand $HOME, so color_scheme_path has
+# to be a literal absolute path, and a tracked copy would bake one
+# machine's username into every other machine (it did: /home/rustiq).
+# qt6ct also rewrites these itself whenever its GUI is used, so they're
+# runtime state as much as config. Templates are tracked; these aren't.
+qt5ct/.config/qt5ct/qt5ct.conf
+qt6ct/.config/qt6ct/qt6ct.conf
+
 # env-theme, not env: env itself is a permanent tracked file (PATH,
 # not theme-specific — see uwsm/.config/uwsm/env for why it had to be
 # split out) that sources env-theme, which IS the swappable symlink —

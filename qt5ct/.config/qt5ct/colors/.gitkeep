@@ -1,0 +1,11 @@
+# Placeholder so this directory survives a clean clone.
+#
+# The only other thing that ever lives here is active-theme.conf, a
+# symlink bin/bin/theme creates and .gitignore excludes — so without
+# this file git has nothing to track here and the directory simply
+# doesn't exist after `git clone`. bin/bin/theme's `ln -sfr` into a
+# non-existent directory then fails silently (that script is
+# deliberately `set -uo pipefail`, not -e, so one failed step doesn't
+# abort the switch), and Qt apps get no theme at all with nothing
+# logged anywhere. Existed on rustiq only because it had been created
+# by hand while Phase 5 was being built.
