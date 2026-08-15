@@ -1,18 +1,28 @@
 #!/usr/bin/env bash
 #
 # work — tmux project sessionizer (the ThePrimeagen tmux-sessionizer
-# pattern). fzf-pick a directory under ~/projects, then create-or-attach
+# pattern). fzf-pick a directory under ~/Projects, then create-or-attach
 # a tmux session named after it. Run it from inside or outside tmux;
 # either way you end up attached to that project's session.
 #
+# A project can define its own window layout by shipping an executable
+# `.tmux-session` or `scripts/dev-tmux.sh`; see the setup hook below.
+#
 # Usage:
-#   work            interactive fzf picker over ~/projects/*
+#   work            interactive fzf picker over ~/Projects/*
 #   work <path>      skip the picker, use <path> directly
 
 set -euo pipefail
 
-PROJECTS_DIR="$HOME/projects"
-mkdir -p "$PROJECTS_DIR"
+PROJECTS_DIR="$HOME/Projects"
+
+# Deliberately not `mkdir -p` — this used to create the directory if it
+# was missing, which turned "PROJECTS_DIR points somewhere wrong" into an
+# empty fzf list with no explanation rather than an error.
+if [[ ! -d $PROJECTS_DIR ]]; then
+  echo "work: no project directory at $PROJECTS_DIR" >&2
+  exit 1
+fi
 
 if [[ $# -eq 1 ]]; then
   selected=$1
@@ -28,8 +38,39 @@ fi
 # as three tmux targets instead of one session name.
 session_name=$(basename "$selected" | tr . _)
 
+# A one-empty-shell session is the right default, but most projects need
+# more than that — servers, log tails, a db client. If a layout script
+# exists for this project, hand the whole job to it; it knows the repo's
+# ports and dependencies, this script doesn't.
+#
+# Two places are checked, in order. `~/.tmux/sessions/<name>.sh` comes
+# first and is where personal layouts belong — a shared repo shouldn't
+# have to carry one person's window arrangement. A `.tmux-session` in
+# the repo itself is the fallback, for a layout the whole team wants.
+#
+# The hook creates the session rather than filling in one made here, so
+# that it can be run standalone too (a `has-session` guard inside it
+# would otherwise see this script's empty session and skip everything).
+# It must therefore name the session the same way — basename, dots to
+# underscores — and not attach, since attaching is handled below.
 if ! tmux has-session -t "$session_name" 2>/dev/null; then
-  tmux new-session -ds "$session_name" -c "$selected"
+  setup=""
+  for candidate in \
+    "$HOME/.tmux/sessions/$(basename "$selected").sh" \
+    "$selected/.tmux-session"
+  do
+    [[ -x $candidate ]] && { setup=$candidate; break; }
+  done
+
+  if [[ -n $setup ]]; then
+    "$setup" --no-attach
+  fi
+
+  # Covers both the no-hook case and a hook that named its session
+  # something unexpected — either way there's a session to attach to.
+  if ! tmux has-session -t "$session_name" 2>/dev/null; then
+    tmux new-session -ds "$session_name" -c "$selected"
+  fi
 fi
 
 if [[ -z ${TMUX:-} ]]; then
