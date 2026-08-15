@@ -109,3 +109,4 @@ alias diff='delta'
 # Untracked, machine-specific tweaks (work aliases, secrets loaded into
 # env, whatever). See .gitignore for the *.local convention.
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+export PATH="$HOME/.local/bin:$PATH"
