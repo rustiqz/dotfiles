@@ -11,8 +11,9 @@
 #   1. installs base tooling (git, stow, build deps)
 #   2. installs the AUR helper (paru) if missing
 #   3. installs packages listed in packages/*.txt
-#   4. symlinks every config package into $HOME via stow
-#   5. runs any scripts in hooks/
+#   4. backs up any pre-existing real file that would conflict with stow
+#   5. symlinks every config package into $HOME via stow
+#   6. runs any scripts in hooks/
 
 # -e  abort on the first failing command, so a broken step can't cascade
 # -u  treat unset variables as errors (catches typo'd var names)
@@ -134,7 +135,60 @@ install_list "$DOTFILES/packages/aur.txt"         paru          # AUR
 install_list "$DOTFILES/packages/host-$HOST.txt"  paru          # this machine only
 
 # ---------------------------------------------------------------------------
-# 4. Stow config packages
+# 4. Back up pre-existing files that would conflict with stow
+# ---------------------------------------------------------------------------
+# stow refuses to overwrite a real file with a symlink rather than
+# silently clobbering it — the right default, but it means bootstrap.sh
+# used to just abort on the first machine that already had its own
+# ~/bin/work or ~/.tmux.conf from before this repo existed (hit for
+# real cloning onto a second machine that had old manually-created
+# dotfiles lying around). This makes that self-healing instead of a
+# manual "inspect, mv aside, re-run" loop per file per machine.
+#
+# `stow -n` (simulate — no real changes yet) against every package
+# reports every conflict as a line shaped like:
+#   * cannot stow dotfiles/bin/bin/work over existing target bin/work
+#     since neither a link nor a directory and --adopt not specified
+# The path after "over existing target " and before " since" is the
+# conflicting path, relative to $HOME — same regardless of *why* stow
+# is refusing (unowned file, wrong-target symlink, etc.), since the
+# sed only anchors on the "over existing target ... since" wrapper
+# text common to all of them, not the specific reason.
+#
+# Backs up, never deletes — same reversible-by-default reasoning as
+# everywhere else this matters. .pre-dotfiles.bak, not .bak: specific
+# enough that a future you finds it and immediately knows why it's
+# there, rather than guessing what created a bare ".bak".
+#
+# NOT --adopt: that flag resolves the conflict the other direction —
+# it moves the machine's existing file *into* the repo, overwriting
+# whatever this repo already tracks at that path. This backs the old
+# file out of the way instead, so the repo's own tracked version is
+# what actually ends up live — the correct direction for "replay this
+# repo onto a new machine," not "merge whatever this machine already
+# had into the repo."
+log "Checking for pre-existing files that would conflict with stow"
+cd "$DOTFILES"
+for pkg in */; do
+  pkg=${pkg%/}
+  case $pkg in packages|hooks|host|themes|scripts|matugen) continue ;; esac
+  while IFS= read -r rel; do
+    [[ -z $rel ]] && continue
+    target="$HOME/$rel"
+    backup="$target.pre-dotfiles.bak"
+    if [[ -e $backup ]]; then
+      log "  $target already backed up as $backup — leaving both as-is"
+    else
+      log "  backing up $target -> $backup"
+      mv "$target" "$backup"
+    fi
+  done < <(stow -n -t "$HOME" "$pkg" 2>&1 \
+    | grep "cannot stow" \
+    | sed -E 's/.*over existing target ([^ ]+) since.*/\1/')
+done
+
+# ---------------------------------------------------------------------------
+# 5. Stow config packages
 # ---------------------------------------------------------------------------
 # Every top-level directory is treated as a stow package, except the
 # non-config dirs. New app configs are picked up automatically — you
@@ -170,7 +224,7 @@ if [[ -d "$DOTFILES/host/$HOST" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Post-install hooks
+# 6. Post-install hooks
 # ---------------------------------------------------------------------------
 # For state that isn't a file or a package: systemd units, chsh, gsettings.
 # Glob order = execution order, so prefix with numbers (10-, 20-) to sequence.
