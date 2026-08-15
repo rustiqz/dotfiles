@@ -69,3 +69,21 @@ aylurs-gtk-shell
 # actually running it, not assumed. aylurs-gtk-shell's own hard deps
 # (libastal, libastal-4) already cover everything else needed.
 libastal-mpris-git
+
+# --- Database GUI -----------------------------------------------------------
+
+# pgAdmin4, for the two things a terminal client genuinely can't do:
+# ERD diagrams and bulk editing of a results grid. Day-to-day querying
+# is pgcli (packages/pacman.txt) — this is the fallback, not the
+# default.
+#
+# The -bin variant specifically: the source package (pgadmin4-desktop)
+# was flagged out-of-date at the time this was added, and it's a large
+# Electron+Python build with no reason to compile locally. -bin has
+# fewer votes (5 vs 21), which is the trade accepted here.
+#
+# Added retroactively — this was installed by hand and was missing
+# from every manifest, so a clean machine would silently not have it.
+# Same class of gap as the gdm/gnome-shell/nautilus omission in the
+# clean-machine findings, just caught before it bit.
+pgadmin4-desktop-bin
