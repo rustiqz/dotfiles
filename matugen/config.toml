@@ -54,3 +54,7 @@ output_path = "__DOTFILES__/themes/wallpaper/qt-colors.conf"
 [templates.yazi]
 input_path = "__DOTFILES__/matugen/templates/yazi-flavor.toml.tpl"
 output_path = "__DOTFILES__/themes/wallpaper/yazi-flavor/flavor.toml"
+
+[templates.obsidian]
+input_path = "__DOTFILES__/matugen/templates/obsidian.css.tpl"
+output_path = "__DOTFILES__/themes/wallpaper/obsidian.css"

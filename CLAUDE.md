@@ -69,6 +69,27 @@ second. Built on one laptop, then replayed on other machines.
   — its hex values already matched this repo's palette exactly, so
   it's that file verbatim. `theme wallpaper` covers it too, via
   `matugen/templates/yazi-flavor.toml.tpl`.
+- Obsidian (notes): vault lives at `~/vault`, its own git repo — not a
+  stow package and not this repo, since it's synced separately via the
+  `obsidian-git` community plugin. `hooks/62-obsidian-vault.sh` creates
+  it (or clones it, if `~/.config/git/obsidian-vault.local` holds a
+  remote URL — same `*.local` escape hatch as git identity/ssh config)
+  and seeds `.obsidian/appearance.json` so the theme switcher's CSS
+  snippet is enabled by default, but only when that run is the one
+  creating `.obsidian/` in the first place — never clobbers a real
+  cloned vault's existing settings. Themed via a CSS *snippet*
+  (`.obsidian/snippets/active-theme.css`), not a full Obsidian theme
+  package (`.obsidian/themes/<name>/theme.css` + manifest) — matches
+  every other app's "one file, switcher repoints it" shape far better.
+  Since the vault isn't stow-managed, `bin/bin/theme` symlinks straight
+  into `~/vault/.obsidian/snippets/` instead of through the usual
+  `$DOTFILES/<app>/.config/...` stow hop — the one themed app that
+  skips that indirection. `theme wallpaper` covers it too, via
+  `matugen/templates/obsidian.css.tpl`. Installing the `obsidian-git`
+  plugin itself is a one-time manual step (Settings → Community
+  plugins → Browse) — community plugins can't be installed headlessly,
+  same reasoning as Mason installing LSP binaries on Neovim's first
+  real launch, not at bootstrap time.
 - A work PC is planned but not yet bootstrapped from this repo — no
   `host-<hostname>.txt`/`host/<hostname>/` exists for it yet since
   nothing added so far has turned out to be genuinely host-specific
