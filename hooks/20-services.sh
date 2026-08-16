@@ -40,7 +40,7 @@ enable_if_present power-profiles-daemon.service
 # running kills that session, including the terminal running bootstrap.sh.
 # The switch lands at the next boot instead.
 #
-# rustiq came up on GDM because that's what its GNOME install had already
+# The original machine came up on GDM because that's what its GNOME install had already
 # enabled; the second machine was on SDDM for the same accidental reason,
 # which is how it ended up offering the plain hyprland.desktop session
 # rather than the uwsm one. Neither was ever a decision this repo made,

@@ -49,10 +49,16 @@ wallpapers/.local/share/wallpapers/.current
 # state, not something to track or diff in git.
 active-theme.*
 
+# Same idea one level up: a theme file containing @DOTFILES@ is a template,
+# and bin/bin/theme's link() renders it per-machine to .rendered-<file>
+# before symlinking. The rendered copy holds a literal absolute home path,
+# so it is derived, machine-local state and never tracked.
+themes/*/.rendered-*
+
 # Generated from the tracked .in templates by hooks/74-qt-conf.sh —
 # Qt's QSettings INI format can't expand $HOME, so color_scheme_path has
 # to be a literal absolute path, and a tracked copy would bake one
-# machine's username into every other machine (it did: /home/rustiq).
+# machine's username into every other machine (it did: it baked in an absolute /home path).
 # qt6ct also rewrites these itself whenever its GUI is used, so they're
 # runtime state as much as config. Templates are tracked; these aren't.
 qt5ct/.config/qt5ct/qt5ct.conf

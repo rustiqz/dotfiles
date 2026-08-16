@@ -79,7 +79,7 @@ sudo pacman -S --needed --noconfirm base-devel git stow
 # bootstrapped from this exact repo ("paru-debug: .../paru.debug
 # exists in filesystem, owned by paru-bin-debug"). CLAUDE.md already
 # documented !debug as a known gotcha, but nothing actually enforced it
-# until now — it was just coincidentally already the case on rustiq.
+# until now — it was just coincidentally already the case on the original machine.
 #
 # Three-way check instead of a single sed, since a truly fresh
 # /etc/makepkg.conf's default OPTIONS array isn't guaranteed to already
@@ -272,7 +272,7 @@ done
 #
 # That is exactly how this repo shipped for several commits: `uwsm` was
 # never listed in packages/pacman.txt (it had been installed by hand on
-# rustiq while Phase 5 was being built, so nothing local ever needed the
+# the original machine while Phase 5 was being built, so nothing local ever needed the
 # entry), and every exec-once plus every app keybind is written as
 # `uwsm app -- <cmd>`. The first machine bootstrapped from a clean clone
 # got a compositor with no bar, no wallpaper, no notifications and no

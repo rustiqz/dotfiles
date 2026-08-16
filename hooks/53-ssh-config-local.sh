@@ -41,7 +41,7 @@ cat > "$LOCAL_CONF" <<'EOF'
 #
 # Host work
 #   HostName 10.0.0.5
-#   User rakshith
+#   User <your-username>
 #   IdentityFile ~/.ssh/id_ed25519
 EOF
 chmod 600 "$LOCAL_CONF"

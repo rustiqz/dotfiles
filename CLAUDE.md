@@ -5,7 +5,7 @@ second. Built on one laptop, then replayed on other machines.
 
 ## Current state
 
-- **Machine:** `rustiq` — laptop, Intel Comet Lake-U, UHD Graphics (Gen9.5)
+- **Machine:** primary laptop — Intel Comet Lake-U, UHD Graphics (Gen9.5)
   iGPU, ~8GB RAM, ext4, systemd-boot with a UKI, no discrete GPU.
 - **Session:** Hyprland (uwsm-managed, `hyprland-uwsm.desktop` in GDM) is
   now the primary session. GNOME stays installed permanently as a fallback.
@@ -97,10 +97,11 @@ second. Built on one laptop, then replayed on other machines.
   `.zshrc` exists at that point. Verified by running k9s under `env -i`
   and confirming it still resolved the cluster. These files hold a
   DigitalOcean admin bearer token, so they're never in this repo — same
-  class as `~/.ssh/config.local`, one directory up in scale. The DOKS
-  cluster is
-  `do-blr1-plankea-dev-cluster-1` (single node, blr1; app namespace
-  `plankea-dev`, also running argocd/cert-manager/ingress-nginx). A
+  class as `~/.ssh/config.local`, one directory up in scale. The specific
+  DOKS cluster name, region and namespaces are deliberately not recorded
+  here — this repo is public, and naming a live cluster and the platform
+  services running on it is reconnaissance, not documentation. It's a
+  single-node DOKS cluster running argocd behind an ingress controller. A
   The widely-repeated "kubeconfig expires in 7 days" applies to DO's
   *legacy certificate* flow ("valid for 7 days that cannot be revoked");
   a modern cluster like this one gets a **revocable OAuth token** with
@@ -156,11 +157,12 @@ second. Built on one laptop, then replayed on other machines.
       switcher (`bin/bin/theme`), quick-access keybinds (theme picker,
       app launchers, power menu, emoji picker, window cycling).
       **Session switch complete: Hyprland is primary, GNOME is fallback.**
-      Optional follow-up: fingerprint login (see Known gotchas — no
-      official package, AUR `libfprint-ft9201` is the option).
+      Fingerprint login: the repo side is done (`hyprlock.conf` ships it
+      enabled and self-guarding); whether it actually works is per-machine
+      hardware/driver work — see Known gotchas.
 - [ ] **6 — Finalize.** `README.md` written. Clean-machine proof of
       `bootstrap.sh` deliberately done by hand on a real second machine
-      instead of a disposable VM (no virtualization tooling on `rustiq`
+      instead of a disposable VM (no virtualization tooling on the first machine
       yet, and a real clone is a more honest test of the actual
       multi-machine goal anyway) — phase stays open until that's
       actually happened once.
@@ -273,25 +275,36 @@ scripts/
   such dependency (standalone binary asset, not an npm package), which
   is why only two of the three servers failed the first time this was
   tried headless without `eval "$(mise activate bash)"` first.
-- The laptop's fingerprint sensor is a FocalTech FT9201 (USB `2808:9338`,
-  visible via `/sys/bus/usb/devices/*/product` since `lsusb`/`usbutils`
-  isn't installed) with no official Arch package and no upstream
-  libfprint support. AUR `libfprint-ft9201` (proprietary TOD driver,
-  drop-in `libfprint-2-2` replacement) is the only option — it conflicts
-  with `extra/libfprint` on install. Deferred; see Phase 5 follow-up.
+- Fingerprint sensors differ per machine, so this repo deliberately names
+  no specific reader — an earlier version of this note hardcoded one
+  machine's sensor and was simply wrong on the next one. Always derive
+  the actual device on the box from `/sys/bus/usb/devices/*/idVendor` and
+  `idProduct` (`lsusb`/`usbutils` isn't installed), never from notes.
+  Most readers have no upstream libfprint driver and only a proprietary
+  vendor TOD module, so expect: TOD-enabled libfprint (AUR
+  `libfprint-tod-git`, which provides *and* conflicts with `libfprint`),
+  then the vendor's TOD driver, then `fprintd`. Install the TOD libfprint
+  **before** `fprintd`, or pacman pulls `extra/libfprint` in to satisfy
+  `libfprint-2.so` and the two collide — that ordering, not the driver
+  itself, is what makes this look unsupportable at first. Nothing about
+  any of this belongs in the repo: `hyprlock.conf` enables fingerprint
+  unconditionally and self-disables wherever there's no reader, and PAM
+  wiring (`/etc/pam.d/*`) is machine-local by nature.
 
-## Clean-machine findings (second machine, `rakshith`, 2026-08-15)
+## Clean-machine findings (second machine, 2026-08-15)
 
 The Phase 6 clean-machine replay finally happened, onto an existing
-GNOME/SDDM Arch box (hostname `rakshith`, user `rakshith` — note the
-username is *not* `rustiq`). It found four bugs, all the same shape:
-**state that existed on `rustiq` because it was created by hand during
+GNOME/SDDM Arch box with a different hostname *and* a different username
+from the first machine — which is itself what surfaced several of these,
+since anything that had quietly baked in the original username broke.
+It found four bugs, all the same shape:
+**state that existed on the first machine because it was created by hand during
 Phase 5, and that nothing in the repo actually reproduces.** Worth
 re-reading before adding anything themeable or session-related.
 
 - **A config can reference a binary no manifest installs, and every
   layer still reports success.** `uwsm` was never in `packages/*.txt`
-  (it had been installed by hand on `rustiq`), yet every `exec-once` in
+  (it had been installed by hand on the first machine), yet every `exec-once` in
   `hypr/autostart.conf` and every app keybind in `hypr/keybinds.conf` is
   written `uwsm app -- <cmd>`. Hyprland parses those fine whether or not
   the binary exists, and a bind whose command isn't on `$PATH` silently
@@ -319,7 +332,7 @@ re-reading before adding anything themeable or session-related.
   carry a `.gitkeep`. Any directory whose only contents are gitignored
   needs one.
 - **A shared config may only depend on a shared manifest.**
-  `brightnessctl` lived in `packages/host-rustiq.txt`, but
+  `brightnessctl` lived in the host-specific manifest, but
   `hypr/hypridle.conf` and `hypr/keybinds.conf` — shared by every machine
   — reference it unconditionally. Moved to `packages/pacman.txt`. A
   `host-<hostname>.txt` entry can only ever cover packages that nothing
@@ -329,7 +342,7 @@ re-reading before adding anything themeable or session-related.
   store the palette as `color_scheme_path=`, and Qt's QSettings INI
   format expands nothing — not `$HOME`, not `~`. So a tracked copy
   necessarily bakes in one machine's username, and it did:
-  `/home/rustiq/.config/...`, which meant Qt theming silently did nothing
+  `/home/<other-user>/.config/...`, which meant Qt theming silently did nothing
   on any other machine (qt6ct just ignores a path that doesn't resolve).
   Now the `__DOTFILES__` pattern from `matugen/config.toml`: tracked
   `qt{5,6}ct.conf.in` with a `__HOME__` placeholder, generated `.conf`
@@ -341,13 +354,13 @@ re-reading before adding anything themeable or session-related.
 - **The login manager was never tracked either.** CLAUDE.md has claimed
   GDM + a permanent GNOME fallback since Phase 5, but neither `gdm` nor
   `gnome-shell` (nor `nautilus`, bound to `$mod+E`) was in any manifest —
-  all three were already installed on `rustiq`. A clean machine would get
+  all three were already installed on the first machine. A clean machine would get
   Hyprland and no way to log into it. All now in `packages/pacman.txt`.
 - **A `*.local` escape hatch nothing seeds is invisible on a clean
-  machine.** `$mod+S` did nothing on `rakshith`: `~/.ssh/config.local`
+  machine.** `$mod+S` did nothing on the second machine: `~/.ssh/config.local`
   never existed there, so `ssh-connect`'s host list was empty and it
   exited 1 — into a Hyprland keybind, whose stderr goes nowhere. Same
-  shape as the four above (hand-made `rustiq` state), but the file
+  shape as the four above (hand-made first-machine state), but the file
   genuinely *can't* be tracked, so the fix is discoverability, not
   tracking: `hooks/53-ssh-config-local.sh` seeds a commented placeholder
   (create-only-if-missing, like `50-git-identity.sh`), and `ssh-connect`
@@ -355,7 +368,7 @@ re-reading before adding anything themeable or session-related.
   keybind calls has to surface its own failures — nothing else will.
 
 **Display manager is now an explicit decision, not an accident.**
-`rustiq` ran GDM because its GNOME install had enabled it; `rakshith` ran
+The first machine ran GDM because its GNOME install had enabled it; the second ran
 SDDM for the same accidental reason — and that is *why* the second
 machine got the plain `hyprland.desktop` session instead of the uwsm one
 (`hyprland-uwsm.desktop` carries `TryExec=uwsm`, so any DM correctly

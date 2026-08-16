@@ -8,8 +8,8 @@
 # variable expansion at all — not $HOME, not ~, not $XDG_CONFIG_HOME.
 # It has to be a literal absolute path, which means a tracked qt6ct.conf
 # necessarily bakes in one machine's username. It did: the tracked copy
-# read /home/rustiq/.config/... and Qt theming therefore did nothing at
-# all on the second machine (user `rakshith`), silently — qt6ct just
+# read /home/<other-user>/.config/... and Qt theming therefore did nothing at
+# all on the second machine, silently — qt6ct just
 # ignores a color_scheme_path that doesn't resolve.
 #
 # Same shape as matugen/config.toml's __DOTFILES__ placeholder (see
