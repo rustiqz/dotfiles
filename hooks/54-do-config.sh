@@ -47,7 +47,7 @@ if [[ ! -f $README ]]; then
 DigitalOcean credentials — untracked, machine-local, never in ~/dotfiles.
 
 Contents: one kubeconfig per cluster, chmod 600, named after the
-cluster, e.g. plankea-dev-cluster-1.yaml.
+cluster, e.g. <cluster-name>.yaml.
 
 ~/.kube/config is a symlink to whichever one is currently active:
 

@@ -77,6 +77,21 @@ link() {
   # link <theme-file> <target-symlink-path>
   local src="$THEME_DIR/$1" dst="$2"
   [[ -f $src ]] || return 0
+
+  # A theme file containing @DOTFILES@ is a template, not a plain file:
+  # GTK CSS has no $HOME or reliable relative-path expansion for url()
+  # through a symlink chain, so an absolute path has to appear literally
+  # in the stylesheet. Tracking one would bake whoever built it into
+  # every other machine — the exact qt5ct/qt6ct bug in the clean-machine
+  # findings. So render it per-machine and link the rendered copy. Same
+  # reason hooks/74-qt-conf.sh generates color_scheme_path from a .in.
+  if grep -q '@DOTFILES@' "$src"; then
+    local rendered="$THEME_DIR/.rendered-$1"
+    sed "s|@DOTFILES@|$DOTFILES|g" "$src" >"$rendered"
+    ln -sfr "$rendered" "$dst"
+    return 0
+  fi
+
   ln -sfr "$src" "$dst"
 }
 

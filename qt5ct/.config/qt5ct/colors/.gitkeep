@@ -7,5 +7,5 @@
 # non-existent directory then fails silently (that script is
 # deliberately `set -uo pipefail`, not -e, so one failed step doesn't
 # abort the switch), and Qt apps get no theme at all with nothing
-# logged anywhere. Existed on rustiq only because it had been created
+# logged anywhere. Existed on the original machine only because it was created
 # by hand while Phase 5 was being built.

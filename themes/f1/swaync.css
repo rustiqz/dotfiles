@@ -113,9 +113,12 @@
    swaync's real style.css -> active-theme.css symlink -> here, and a
    relative url() didn't survive that chain (confirmed empirically —
    the graphic just didn't render). CSS has no ~/$HOME expansion, so a
-   literal path is the only option for a static file like this. */
+   literal path is the only option for a static file like this.
+   @DOTFILES@ is substituted per-machine by bin/bin/theme's link(), which
+   renders this file to .rendered-swaync.css and links that — a tracked
+   absolute path would hardcode one machine's home into every other. */
 .control-center .control-center-list-placeholder {
-  background-image: url("/home/rustiq/dotfiles/themes/f1/start-lights.svg");
+  background-image: url("@DOTFILES@/themes/f1/start-lights.svg");
   background-repeat: no-repeat;
   background-position: center top;
   background-size: 220px auto;
