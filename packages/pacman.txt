@@ -366,3 +366,13 @@ ffmpegthumbnailer
 # "optional upstream, not actually optional here" reasoning as
 # ffmpegthumbnailer above.
 p7zip
+
+# --- Notes (Obsidian) --------------------------------------------------------
+
+# Vault at ~/vault (hooks/62-obsidian-vault.sh creates it, its own git
+# repo separate from this one — synced via the obsidian-git community
+# plugin, installed manually on first launch, same "can't be scripted
+# headlessly" reasoning as Mason's LSP installs). Themed through the
+# switcher like every other app here — see themes/<name>/obsidian.css
+# and bin/bin/theme.
+obsidian
