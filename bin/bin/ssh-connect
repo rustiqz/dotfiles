@@ -56,5 +56,20 @@ SELECTED=$(echo "$HOSTS" | rofi -dmenu -p "SSH")
 # setsid + uwsm app + disown: launches the new kitty window as its own
 # scoped systemd unit rather than a child of this already-scoped script
 # process — same pattern bin/bin/theme uses to restart waybar.
-setsid uwsm app -- kitty --title "ssh: $SELECTED" -e ssh "$SELECTED" >/dev/null 2>&1 &
+#
+# `kitten ssh`, not plain `ssh`: kitty sets TERM=xterm-kitty, and that
+# terminfo entry exists only on machines with kitty installed. ssh
+# forwards TERM but not the terminfo database behind it, so on the
+# remote host every curses program (vi, nvim, less, top) either dies
+# with "unknown terminal type" or silently degrades to a dumb
+# capability set — arrow keys, colors and clear-screen all wrong.
+# `kitten ssh` is kitty's drop-in ssh wrapper: it copies the compiled
+# xterm-kitty terminfo into the remote's ~/.terminfo on connect, then
+# execs the real ssh. Nothing is installed remotely as root and it is a
+# no-op on subsequent connects.
+#
+# Note this is a *wrapper invocation*, not a PATH shadow — the warning
+# at the top of this file about never putting an `ssh` on $PATH still
+# holds; git/rsync/etc. keep resolving /usr/bin/ssh as before.
+setsid uwsm app -- kitty --title "ssh: $SELECTED" -e kitten ssh "$SELECTED" >/dev/null 2>&1 &
 disown
