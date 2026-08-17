@@ -275,6 +275,21 @@ scripts/
   such dependency (standalone binary asset, not an npm package), which
   is why only two of the three servers failed the first time this was
   tried headless without `eval "$(mise activate bash)"` first.
+- **kitty over ssh needs `kitten ssh`, not `ssh`.** kitty sets
+  `TERM=xterm-kitty`; ssh forwards the TERM *name* but not the terminfo
+  database behind it, and no remote host has an `xterm-kitty` entry
+  unless kitty is installed there. Remote curses programs then fail
+  with "unknown terminal type" or silently degrade (broken arrow keys,
+  no colors, no clear-screen) — which reads as "kitty is unsupported"
+  rather than a missing-file problem. `kitten ssh` copies the compiled
+  terminfo into the remote's `~/.terminfo` and execs the real ssh.
+  Wired in two places: `bin/bin/ssh-connect` invokes it directly, and
+  `zsh/.zshrc` aliases `ssh` to it *only* when `$TERM == xterm-kitty`.
+  It has to be a shell alias and never a binary on `$PATH` — aliases
+  don't apply to git-over-ssh, rsync, scp or any script, which is the
+  breakage `ssh-connect`'s own header warns about. Escape hatch for a
+  remote that can't run the wrapper (restricted shell, embedded box):
+  `TERM=xterm-256color ssh <host>` — worse, but universally understood.
 - Fingerprint sensors differ per machine, so this repo deliberately names
   no specific reader — an earlier version of this note hardcoded one
   machine's sensor and was simply wrong on the next one. Always derive
