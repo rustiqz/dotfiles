@@ -35,8 +35,18 @@ set -euo pipefail
 HOSTS=$( { grep -h "^Host " "$HOME/.ssh/config" "$HOME/.ssh/config.local" 2>/dev/null \
   | cut -d' ' -f2- | tr ' ' '\n' | grep -v '[*?]' | sort -u; } || true)
 
+# Failure has to be *visible*, not just logged. This script's only real
+# caller is a Hyprland keybind ($mod+S), and a bind's stderr goes
+# nowhere at all — so on a machine where config.local was never written
+# (i.e. any clean clone, since it's untracked by design) the key press
+# was indistinguishable from the keybind being broken. notify-send is
+# guarded the same way screenshot does it: it's an optional nicety, the
+# stderr line is the real contract when run from a terminal.
 if [[ -z $HOSTS ]]; then
-  echo "no Host entries found in ~/.ssh/config or ~/.ssh/config.local" >&2
+  MSG="Create ~/.ssh/config.local and add Host entries"
+  echo "ssh-connect: no Host entries found in ~/.ssh/config or ~/.ssh/config.local" >&2
+  echo "ssh-connect: $MSG" >&2
+  command -v notify-send &>/dev/null && notify-send -u critical "ssh-connect: no hosts configured" "$MSG"
   exit 1
 fi
 
@@ -46,5 +56,20 @@ SELECTED=$(echo "$HOSTS" | rofi -dmenu -p "SSH")
 # setsid + uwsm app + disown: launches the new kitty window as its own
 # scoped systemd unit rather than a child of this already-scoped script
 # process — same pattern bin/bin/theme uses to restart waybar.
-setsid uwsm app -- kitty --title "ssh: $SELECTED" -e ssh "$SELECTED" >/dev/null 2>&1 &
+#
+# `kitten ssh`, not plain `ssh`: kitty sets TERM=xterm-kitty, and that
+# terminfo entry exists only on machines with kitty installed. ssh
+# forwards TERM but not the terminfo database behind it, so on the
+# remote host every curses program (vi, nvim, less, top) either dies
+# with "unknown terminal type" or silently degrades to a dumb
+# capability set — arrow keys, colors and clear-screen all wrong.
+# `kitten ssh` is kitty's drop-in ssh wrapper: it copies the compiled
+# xterm-kitty terminfo into the remote's ~/.terminfo on connect, then
+# execs the real ssh. Nothing is installed remotely as root and it is a
+# no-op on subsequent connects.
+#
+# Note this is a *wrapper invocation*, not a PATH shadow — the warning
+# at the top of this file about never putting an `ssh` on $PATH still
+# holds; git/rsync/etc. keep resolving /usr/bin/ssh as before.
+setsid uwsm app -- kitty --title "ssh: $SELECTED" -e kitten ssh "$SELECTED" >/dev/null 2>&1 &
 disown

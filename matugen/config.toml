@@ -18,7 +18,7 @@
 # __DOTFILES__ below: TOML has no environment-variable expansion, and
 # matugen needs literal paths — bin/bin/theme sed-substitutes this
 # placeholder for $DOTFILES into a temp copy before passing --config,
-# rather than hardcoding /home/rustiq here, so the repo stays portable
+# rather than hardcoding an absolute /home path here, so the repo stays portable
 # to a different username on another machine (same as every other
 # script here using $HOME/$DOTFILES instead of a literal path).
 [config]
@@ -58,3 +58,7 @@ output_path = "__DOTFILES__/themes/wallpaper/yazi-flavor/flavor.toml"
 [templates.obsidian]
 input_path = "__DOTFILES__/matugen/templates/obsidian.css.tpl"
 output_path = "__DOTFILES__/themes/wallpaper/obsidian.css"
+
+[templates.k9s]
+input_path = "__DOTFILES__/matugen/templates/k9s-skin.yaml.tpl"
+output_path = "__DOTFILES__/themes/wallpaper/k9s-skin.yaml"

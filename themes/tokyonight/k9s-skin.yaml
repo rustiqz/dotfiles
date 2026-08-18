@@ -1,0 +1,136 @@
+# themes/tokyonight/k9s-skin.yaml
+#
+# TokyoNight (Night) skin for k9s. Schema taken from upstream's own
+# skins/stock.yaml at k9s v0.51 (fetched and diffed against nord.yaml
+# to confirm which keys are canonical vs. skin-specific) rather than
+# written from docs — same "confirm the real schema first" approach as
+# themes/tokyonight/yazi-flavor/flavor.toml.
+#
+# Symlinked by bin/bin/theme to ~/.config/k9s/skins/active-theme.yaml;
+# k9s selects it by *filename stem* via `k9s.ui.skin: active-theme` in
+# config.yaml (set by hooks/75-k9s-skin.sh). Filename-stem lookup, not
+# a name key inside the file — same indexing rule bat's themes turned
+# out to use.
+#
+# Every hex below is already in this repo's palette
+# (themes/tokyonight/kitty.conf), so no new colors are introduced: a
+# k9s pane and the kitty window around it are literally the same set.
+# Note border/focus reuse kitty's inactive/active_border_color, which
+# are in turn what hyprland.conf uses for window borders — a focused
+# k9s frame matches the focused window frame around it.
+
+# Palette — anchors so a slot change below is a one-word edit, not a
+# hex hunt. Names are TokyoNight's own, not k9s roles.
+foreground:    &fg        "#c0caf5"
+foreground_dk: &fg_dark   "#a9b1d6"
+background_dk: &bg_dark   "#15161e"
+highlight:     &highlight "#292e42"
+selection:     &selection "#283457"
+comment:       &comment   "#545c7e"
+surface:       &surface   "#414868"
+crust:         &crust     "#16161e"
+blue:          &blue      "#7aa2f7"
+cyan:          &cyan      "#7dcfff"
+teal:          &teal      "#73daca"
+green:         &green     "#9ece6a"
+yellow:        &yellow    "#e0af68"
+red:           &red       "#f7768e"
+magenta:       &magenta   "#bb9af7"
+
+k9s:
+  # bgColor: default (not the #1a1b26 literal) everywhere a large area
+  # is painted — "default" means the terminal's own background, so k9s
+  # inherits kitty's background *including any transparency*, instead
+  # of stamping an opaque rectangle that almost-but-not-quite matches.
+  body:
+    fgColor: *fg
+    bgColor: default
+    logoColor: *blue
+  prompt:
+    fgColor: *fg
+    bgColor: *bg_dark
+    suggestColor: *comment
+  info:
+    fgColor: *blue
+    sectionColor: *fg
+  dialog:
+    fgColor: *fg
+    bgColor: default
+    buttonFgColor: *crust
+    buttonBgColor: *blue
+    buttonFocusFgColor: *crust
+    buttonFocusBgColor: *magenta
+    labelFgColor: *yellow
+    fieldFgColor: *fg
+  frame:
+    border:
+      fgColor: *highlight
+      focusColor: *blue
+    menu:
+      fgColor: *fg_dark
+      keyColor: *blue
+      numKeyColor: *magenta
+    crumbs:
+      fgColor: *crust
+      bgColor: *surface
+      activeColor: *blue
+    # Resource lifecycle colors. These are the ones actually worth
+    # getting right — they're how a pod's state reads at a glance, so
+    # they follow terminal convention (green good / red broken /
+    # yellow in-flight) rather than being spread evenly across the
+    # palette for looks.
+    status:
+      newColor: *cyan
+      modifyColor: *blue
+      addColor: *green
+      errorColor: *red
+      pendingColor: *yellow
+      highlightColor: *teal
+      killColor: *magenta
+      completedColor: *comment
+    title:
+      fgColor: *fg
+      highlightColor: *magenta
+      counterColor: *cyan
+      filterColor: *green
+  views:
+    charts:
+      bgColor: default
+      defaultDialColors:
+        - *green
+        - *red
+      defaultChartColors:
+        - *green
+        - *red
+    table:
+      fgColor: *fg_dark
+      bgColor: default
+      # Solid blue cursor bar with a dark foreground, rather than the
+      # subtler *selection background: the cursor row is the one thing
+      # you track continuously while scrolling a pod list, so it wins
+      # the contrast argument over blending in.
+      cursorFgColor: *crust
+      cursorBgColor: *blue
+      markColor: *yellow
+      header:
+        fgColor: *magenta
+        bgColor: default
+        sorterColor: *teal
+    xray:
+      fgColor: *fg_dark
+      bgColor: default
+      cursorColor: *selection
+      graphicColor: *cyan
+      showIcons: false
+    yaml:
+      keyColor: *blue
+      colonColor: *comment
+      valueColor: *fg
+    logs:
+      fgColor: *fg
+      bgColor: default
+      indicator:
+        fgColor: *blue
+        bgColor: *bg_dark
+        toggleOnColor: *green
+        toggleOffColor: *comment

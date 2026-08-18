@@ -1,5 +1,5 @@
 [Appearance]
 style=qt5ct-style
 custom_palette=true
-color_scheme_path=/home/rustiq/.config/qt5ct/colors/active-theme.conf
+color_scheme_path=__HOME__/.config/qt5ct/colors/active-theme.conf
 standard_dialogs=default
