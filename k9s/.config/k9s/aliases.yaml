@@ -1,0 +1,21 @@
+# ~/dotfiles/k9s/.config/k9s/aliases.yaml
+#
+# Short names for resource types, typed in k9s's `:` command mode —
+# `:dp` instead of `:deployments`. These are k9s's own generated
+# defaults, tracked verbatim so the file has a home in the repo; add
+# to it freely, k9s only ever reads this one (it doesn't rewrite it
+# the way it rewrites config.yaml).
+#
+# Built-in aliases (`:pods`, `:svc`, `:ns`, `:ctx`, ...) don't need an
+# entry here — press Ctrl-A inside k9s for the full live list of
+# everything it already knows, including CRDs from the cluster.
+
+aliases:
+  dp: deployments
+  sec: v1/secrets
+  jo: jobs
+  cr: clusterroles
+  crb: clusterrolebindings
+  ro: roles
+  rb: rolebindings
+  np: networkpolicies

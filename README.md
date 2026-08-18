@@ -1,7 +1,7 @@
 # dotfiles
 
 Reproducible Arch Linux setup: coding environment first, Hyprland desktop
-second. Built on one laptop (`rustiq`), meant to be replayed on others —
+second. Built on one laptop, meant to be replayed on others —
 one command re-provisions a fresh machine to the same state.
 
 TokyoNight everywhere by default, with a wallpaper-driven theme generated
@@ -163,7 +163,7 @@ just a new directory shaped like `<app>/.config/<app>/...`.
 
 ## Multi-machine notes
 
-Nothing in this repo is host-specific yet beyond `packages/host-rustiq.txt`
+Nothing in this repo is host-specific yet beyond `packages/host-<hostname>.txt`
 (CPU microcode — hardware-dependent, doesn't belong in the shared
 manifest). Everything else — including the coding/media tooling, the
 theme switcher, and the desktop widgets — installs the same way on any

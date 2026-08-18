@@ -105,7 +105,24 @@ alias top='btop'
 alias lg='lazygit'
 alias diff='delta'
 
+# ssh from inside kitty only. kitty advertises TERM=xterm-kitty, whose
+# terminfo entry exists on this machine and nowhere else — ssh forwards
+# the TERM *name* but not the terminfo database, so remote curses
+# programs (vi, nvim, less, top) hit "unknown terminal type" or degrade
+# to a broken fallback. `kitten ssh` ships the compiled terminfo into
+# the remote's ~/.terminfo, then execs the real ssh.
+#
+# An alias, not a binary on $PATH: aliases apply to interactive shells
+# only, so git-over-ssh, rsync, scp and any script still resolve
+# /usr/bin/ssh — the exact breakage bin/bin/ssh-connect's header warns
+# about. Guarded on TERM so a non-kitty terminal (or a login over a
+# serial/tty console) is untouched, and on kitten existing at all.
+if [[ $TERM == xterm-kitty ]] && command -v kitten &>/dev/null; then
+  alias ssh='kitten ssh'
+fi
+
 # --- Local overrides -------------------------------------------------------
 # Untracked, machine-specific tweaks (work aliases, secrets loaded into
 # env, whatever). See .gitignore for the *.local convention.
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+export PATH="$HOME/.local/bin:$PATH"

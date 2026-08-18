@@ -1,0 +1,7 @@
+# This directory's only real content is active-theme.yaml, a symlink
+# repointed by bin/bin/theme and matched by .gitignore's active-theme.*
+# rule — so without this file git wouldn't track the directory at all,
+# it wouldn't exist after a clean clone, and `ln -sfr` into a missing
+# directory fails silently (bin/bin/theme is deliberately -uo pipefail,
+# not -e). Exactly the bug the qt5ct/qt6ct colors/ directories hit on
+# the second machine; see CLAUDE.md's clean-machine findings.

@@ -62,7 +62,12 @@ chk_enabled() {
 # ---------------------------------------------------------------------------
 hdr "Repo & host"
 # ---------------------------------------------------------------------------
-[[ $HOST == rustiq ]] && ok "hostname is $HOST" || wa "hostname is $HOST (manifests key off this)"
+# Checks that this host *has* a manifest, not that it is one specific machine —
+# a hardcoded hostname made this warn on every box except the one it was written
+# on, which is the opposite of what a portability check should do.
+[[ -f $DOTFILES/packages/host-$HOST.txt ]] \
+  && ok "hostname is $HOST (packages/host-$HOST.txt present)" \
+  || wa "hostname is $HOST (no packages/host-$HOST.txt — manifests key off this)"
 [[ -d $DOTFILES/.git ]] && ok "dotfiles is a git repo" || no "dotfiles is not a git repo"
 # An uncommitted working tree means this machine's state isn't reproducible
 # elsewhere yet — the whole point of the repo.

@@ -5,7 +5,7 @@ second. Built on one laptop, then replayed on other machines.
 
 ## Current state
 
-- **Machine:** `rustiq` — laptop, Intel Comet Lake-U, UHD Graphics (Gen9.5)
+- **Machine:** primary laptop — Intel Comet Lake-U, UHD Graphics (Gen9.5)
   iGPU, ~8GB RAM, ext4, systemd-boot with a UKI, no discrete GPU.
 - **Session:** Hyprland (uwsm-managed, `hyprland-uwsm.desktop` in GDM) is
   now the primary session. GNOME stays installed permanently as a fallback.
@@ -90,6 +90,64 @@ second. Built on one laptop, then replayed on other machines.
   plugins → Browse) — community plugins can't be installed headlessly,
   same reasoning as Mason installing LSP binaries on Neovim's first
   real launch, not at bootstrap time.
+- k9s is themed through the switcher like everything else
+  (`themes/tokyonight/k9s-skin.yaml`, plus
+  `matugen/templates/k9s-skin.yaml.tpl` for `theme wallpaper`). k9s
+  resolves skins by *filename stem* — same indexing rule as bat's
+  themes — so the symlink has to stay `skins/active-theme.yaml`,
+  matching `ui.skin: active-theme`. That key is written by
+  `hooks/75-k9s-skin.sh` rather than tracked in a config file, because
+  **k9s reserialises its own `config.yaml` on exit**, expanding
+  defaults including a `screenDumpDir` under an absolute `/home/<user>/`
+  path — tracking it would replay the qt5ct/qt6ct username bug through
+  a different mechanism. So `k9s/.config/k9s/config.yaml` is gitignored
+  and the hook owns only the one key, exactly like `hooks/74-qt-conf.sh`
+  and `color_scheme_path`. Verified the skin actually loads by running
+  k9s at `-l debug` and reading `~/.local/state/k9s/k9s.log` for
+  `Loading skin file`, with a deliberately bogus skin name as the
+  negative control (it logs `No custom skin found. Using stock skin`
+  and otherwise says nothing at default log level — a broken skin is
+  silent).
+- **Cluster access is local-only state, deliberately.**
+  `~/.config/digitalocean/` (0700, created by `hooks/54-do-config.sh`,
+  outside the repo) is the single home for DO cluster credentials, and
+  `~/.kube/config` is a **symlink** into it — swapping clusters is a
+  repoint, the same active-theme idiom used everywhere else here.
+  Deliberately a symlink and not a `KUBECONFIG` env var: `$mod+C` runs
+  `kitty -e k9s`, which execs k9s with no login shell, so nothing from
+  `.zshrc` exists at that point. Verified by running k9s under `env -i`
+  and confirming it still resolved the cluster. These files hold a
+  DigitalOcean admin bearer token, so they're never in this repo — same
+  class as `~/.ssh/config.local`, one directory up in scale. The specific
+  DOKS cluster name, region and namespaces are deliberately not recorded
+  here — this repo is public, and naming a live cluster and the platform
+  services running on it is reconnaissance, not documentation. It's a
+  single-node DOKS cluster running argocd behind an ingress controller. A
+  The widely-repeated "kubeconfig expires in 7 days" applies to DO's
+  *legacy certificate* flow ("valid for 7 days that cannot be revoked");
+  a modern cluster like this one gets a **revocable OAuth token** with
+  no such clock, which is what this kubeconfig holds. `doctl` is
+  therefore convenience (auto-renewed credentials, easy re-add,
+  revocation) rather than a deadline — and it costs a long-lived DO API
+  token in plaintext at `~/.config/doctl/config.yaml`, i.e. *more* blast
+  radius than a cluster-scoped token unless that DO token is itself
+  scoped. Not installed, not in any manifest, deliberately.
+  The cluster has no metrics-server, so k9s's CPU/MEM columns read n/a
+  (logged as `Fail to locate metrics-server`, not a config problem).
+  ArgoCD manages the cluster, so anything edited live in k9s gets
+  reverted on next sync — k9s is a read/debug tool here.
+- **`bin/bin/queues`** — BullMQ queue status over `valkey-cli`
+  (localhost:6379 by default, `REDIS_HOST`/`REDIS_PORT` to override).
+  `queues` prints every queue busiest-first, `queues <name>` adds recent
+  failures with their `failedReason`. BullMQ keeps no registry of
+  queues, so enumeration is a `SCAN` for `bull:*:meta` — the same thing
+  bull-board does internally. Job states span two Redis types and the
+  counts must match: `wait`/`active`/`paused` are lists (`LLEN`),
+  `delayed`/`failed`/`completed`/`prioritized` are sorted sets
+  (`ZCARD`). A never-used state has no key at all, so 0 always means
+  "none", never "wrong command". Counts are gathered by piping all
+  commands into a single `valkey-cli` rather than one process per
+  queue — 20+ queues makes that difference visible.
 - A work PC is planned but not yet bootstrapped from this repo — no
   `host-<hostname>.txt`/`host/<hostname>/` exists for it yet since
   nothing added so far has turned out to be genuinely host-specific
@@ -120,11 +178,12 @@ second. Built on one laptop, then replayed on other machines.
       switcher (`bin/bin/theme`), quick-access keybinds (theme picker,
       app launchers, power menu, emoji picker, window cycling).
       **Session switch complete: Hyprland is primary, GNOME is fallback.**
-      Optional follow-up: fingerprint login (see Known gotchas — no
-      official package, AUR `libfprint-ft9201` is the option).
+      Fingerprint login: the repo side is done (`hyprlock.conf` ships it
+      enabled and self-guarding); whether it actually works is per-machine
+      hardware/driver work — see Known gotchas.
 - [ ] **6 — Finalize.** `README.md` written. Clean-machine proof of
       `bootstrap.sh` deliberately done by hand on a real second machine
-      instead of a disposable VM (no virtualization tooling on `rustiq`
+      instead of a disposable VM (no virtualization tooling on the first machine
       yet, and a real clone is a more honest test of the actual
       multi-machine goal anyway) — phase stays open until that's
       actually happened once.
@@ -237,9 +296,120 @@ scripts/
   such dependency (standalone binary asset, not an npm package), which
   is why only two of the three servers failed the first time this was
   tried headless without `eval "$(mise activate bash)"` first.
-- The laptop's fingerprint sensor is a FocalTech FT9201 (USB `2808:9338`,
-  visible via `/sys/bus/usb/devices/*/product` since `lsusb`/`usbutils`
-  isn't installed) with no official Arch package and no upstream
-  libfprint support. AUR `libfprint-ft9201` (proprietary TOD driver,
-  drop-in `libfprint-2-2` replacement) is the only option — it conflicts
-  with `extra/libfprint` on install. Deferred; see Phase 5 follow-up.
+- **kitty over ssh needs `kitten ssh`, not `ssh`.** kitty sets
+  `TERM=xterm-kitty`; ssh forwards the TERM *name* but not the terminfo
+  database behind it, and no remote host has an `xterm-kitty` entry
+  unless kitty is installed there. Remote curses programs then fail
+  with "unknown terminal type" or silently degrade (broken arrow keys,
+  no colors, no clear-screen) — which reads as "kitty is unsupported"
+  rather than a missing-file problem. `kitten ssh` copies the compiled
+  terminfo into the remote's `~/.terminfo` and execs the real ssh.
+  Wired in two places: `bin/bin/ssh-connect` invokes it directly, and
+  `zsh/.zshrc` aliases `ssh` to it *only* when `$TERM == xterm-kitty`.
+  It has to be a shell alias and never a binary on `$PATH` — aliases
+  don't apply to git-over-ssh, rsync, scp or any script, which is the
+  breakage `ssh-connect`'s own header warns about. Escape hatch for a
+  remote that can't run the wrapper (restricted shell, embedded box):
+  `TERM=xterm-256color ssh <host>` — worse, but universally understood.
+- Fingerprint sensors differ per machine, so this repo deliberately names
+  no specific reader — an earlier version of this note hardcoded one
+  machine's sensor and was simply wrong on the next one. Always derive
+  the actual device on the box from `/sys/bus/usb/devices/*/idVendor` and
+  `idProduct` (`lsusb`/`usbutils` isn't installed), never from notes.
+  Most readers have no upstream libfprint driver and only a proprietary
+  vendor TOD module, so expect: TOD-enabled libfprint (AUR
+  `libfprint-tod-git`, which provides *and* conflicts with `libfprint`),
+  then the vendor's TOD driver, then `fprintd`. Install the TOD libfprint
+  **before** `fprintd`, or pacman pulls `extra/libfprint` in to satisfy
+  `libfprint-2.so` and the two collide — that ordering, not the driver
+  itself, is what makes this look unsupportable at first. Nothing about
+  any of this belongs in the repo: `hyprlock.conf` enables fingerprint
+  unconditionally and self-disables wherever there's no reader, and PAM
+  wiring (`/etc/pam.d/*`) is machine-local by nature.
+
+## Clean-machine findings (second machine, 2026-08-15)
+
+The Phase 6 clean-machine replay finally happened, onto an existing
+GNOME/SDDM Arch box with a different hostname *and* a different username
+from the first machine — which is itself what surfaced several of these,
+since anything that had quietly baked in the original username broke.
+It found four bugs, all the same shape:
+**state that existed on the first machine because it was created by hand during
+Phase 5, and that nothing in the repo actually reproduces.** Worth
+re-reading before adding anything themeable or session-related.
+
+- **A config can reference a binary no manifest installs, and every
+  layer still reports success.** `uwsm` was never in `packages/*.txt`
+  (it had been installed by hand on the first machine), yet every `exec-once` in
+  `hypr/autostart.conf` and every app keybind in `hypr/keybinds.conf` is
+  written `uwsm app -- <cmd>`. Hyprland parses those fine whether or not
+  the binary exists, and a bind whose command isn't on `$PATH` silently
+  does nothing. Result on a clean machine: compositor starts, no bar, no
+  wallpaper, no notifications, no working keybinds — indistinguishable
+  from "Hyprland came up unconfigured", with nothing logged anywhere.
+  `bootstrap.sh` step 8 now derives the referenced-command list straight
+  from the stowed hypr configs and warns about any that won't resolve.
+- **`swaync-client` blocks forever when swaync isn't running.** It
+  D-Bus-activates, fails, prints "Will wait for connection..." and never
+  returns — `command -v swaync-client` does not guard against this.
+  `bin/bin/theme` called it unguarded, and `hooks/73-theme.sh` (the last
+  hook) calls that script, so **`bootstrap.sh` hung one step from the end
+  on every single run** — far enough in to look finished and get Ctrl-C'd.
+  Everything in `theme` after the swaync block (the Qt colour links, the
+  uwsm `env-theme` link) therefore never ran. Now guarded on `pidof
+  swaync` plus a `timeout`. General lesson: anything in a hook that talks
+  to a session daemon must assume that daemon is *not* running, because
+  bootstrap is by definition run from some other session.
+- **git does not track empty directories.** `qt6ct/.config/qt6ct/colors/`
+  and the qt5ct equivalent only ever contain `active-theme.conf`, which
+  is gitignored — so they simply don't exist after a clean clone, and
+  `bin/bin/theme`'s `ln -sfr` into a missing directory fails silently
+  (that script is deliberately `set -uo pipefail`, not `-e`). Both now
+  carry a `.gitkeep`. Any directory whose only contents are gitignored
+  needs one.
+- **A shared config may only depend on a shared manifest.**
+  `brightnessctl` lived in the host-specific manifest, but
+  `hypr/hypridle.conf` and `hypr/keybinds.conf` — shared by every machine
+  — reference it unconditionally. Moved to `packages/pacman.txt`. A
+  `host-<hostname>.txt` entry can only ever cover packages that nothing
+  in a shared package refers to.
+
+- **Qt config can't reference `$HOME` at all.** `qt5ct.conf`/`qt6ct.conf`
+  store the palette as `color_scheme_path=`, and Qt's QSettings INI
+  format expands nothing — not `$HOME`, not `~`. So a tracked copy
+  necessarily bakes in one machine's username, and it did:
+  `/home/<other-user>/.config/...`, which meant Qt theming silently did nothing
+  on any other machine (qt6ct just ignores a path that doesn't resolve).
+  Now the `__DOTFILES__` pattern from `matugen/config.toml`: tracked
+  `qt{5,6}ct.conf.in` with a `__HOME__` placeholder, generated `.conf`
+  gitignored, `hooks/74-qt-conf.sh` expands it. That hook seeds the file
+  when missing but otherwise *only* rewrites the `color_scheme_path`
+  line — qt6ct rewrites this file itself whenever its GUI is used, so
+  regenerating wholesale would discard the user's own settings. Same
+  reason `[SettingsWindow]` is not in the template.
+- **The login manager was never tracked either.** CLAUDE.md has claimed
+  GDM + a permanent GNOME fallback since Phase 5, but neither `gdm` nor
+  `gnome-shell` (nor `nautilus`, bound to `$mod+E`) was in any manifest —
+  all three were already installed on the first machine. A clean machine would get
+  Hyprland and no way to log into it. All now in `packages/pacman.txt`.
+- **A `*.local` escape hatch nothing seeds is invisible on a clean
+  machine.** `$mod+S` did nothing on the second machine: `~/.ssh/config.local`
+  never existed there, so `ssh-connect`'s host list was empty and it
+  exited 1 — into a Hyprland keybind, whose stderr goes nowhere. Same
+  shape as the four above (hand-made first-machine state), but the file
+  genuinely *can't* be tracked, so the fix is discoverability, not
+  tracking: `hooks/53-ssh-config-local.sh` seeds a commented placeholder
+  (create-only-if-missing, like `50-git-identity.sh`), and `ssh-connect`
+  now also reports the empty-host case via `notify-send`. Anything a
+  keybind calls has to surface its own failures — nothing else will.
+
+**Display manager is now an explicit decision, not an accident.**
+The first machine ran GDM because its GNOME install had enabled it; the second ran
+SDDM for the same accidental reason — and that is *why* the second
+machine got the plain `hyprland.desktop` session instead of the uwsm one
+(`hyprland-uwsm.desktop` carries `TryExec=uwsm`, so any DM correctly
+hides it until `uwsm` is installed). `hooks/20-services.sh` now disables
+whatever display manager it finds enabled and enables `gdm.service`.
+Deliberately **without** `--now`: switching display manager live kills the
+running session, including the terminal running `bootstrap.sh`. It takes
+effect at the next boot.

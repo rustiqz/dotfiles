@@ -15,6 +15,7 @@
 #   5. backs up any pre-existing real file that would conflict with stow
 #   6. symlinks every config package into $HOME via stow
 #   7. runs any scripts in hooks/
+#   8. warns about commands the session config references but can't find
 
 # -e  abort on the first failing command, so a broken step can't cascade
 # -u  treat unset variables as errors (catches typo'd var names)
@@ -78,7 +79,7 @@ sudo pacman -S --needed --noconfirm base-devel git stow
 # bootstrapped from this exact repo ("paru-debug: .../paru.debug
 # exists in filesystem, owned by paru-bin-debug"). CLAUDE.md already
 # documented !debug as a known gotcha, but nothing actually enforced it
-# until now — it was just coincidentally already the case on rustiq.
+# until now — it was just coincidentally already the case on the original machine.
 #
 # Three-way check instead of a single sed, since a truly fresh
 # /etc/makepkg.conf's default OPTIONS array isn't guaranteed to already
@@ -257,5 +258,69 @@ for hook in "$DOTFILES"/hooks/*.sh; do
   log "Hook: $(basename "$hook")"
   bash "$hook"
 done
+
+# ---------------------------------------------------------------------------
+# 8. Preflight: does the session config reference anything that isn't here?
+# ---------------------------------------------------------------------------
+# Everything above can succeed completely — every package installed, every
+# config stowed, every hook run, exit status 0 — and still leave a desktop
+# that comes up looking like a fresh, unconfigured Hyprland. That happens
+# whenever a *config* references a binary that no *manifest* installs:
+# Hyprland parses `exec-once = uwsm app -- waybar` fine whether or not
+# `uwsm` exists, and a bind whose command isn't on $PATH just silently
+# does nothing when pressed. There is no error anywhere to notice.
+#
+# That is exactly how this repo shipped for several commits: `uwsm` was
+# never listed in packages/pacman.txt (it had been installed by hand on
+# the original machine while Phase 5 was being built, so nothing local ever needed the
+# entry), and every exec-once plus every app keybind is written as
+# `uwsm app -- <cmd>`. The first machine bootstrapped from a clean clone
+# got a compositor with no bar, no wallpaper, no notifications and no
+# working keybinds — with bootstrap.sh reporting success each time.
+#
+# So: derive the list of commands the stowed session config actually
+# depends on straight from the config files themselves, rather than
+# maintaining a second hardcoded list here that could drift out of sync
+# with them, and report any that won't resolve at session start.
+session_commands() {
+  # `uwsm` is emitted first and separately: every other command below is
+  # written as `uwsm app -- <cmd>`, so the wrapper's own name gets stripped
+  # off while building the list — and it's precisely the one whose absence
+  # takes the whole desktop down rather than one feature.
+  grep -lqE 'uwsm[[:space:]]+app[[:space:]]+--' "$DOTFILES"/hypr/.config/hypr/*.conf 2>/dev/null \
+    && echo uwsm
+
+  # Pull the command out of every directive that launches one: Hyprland's
+  # `exec-once =` / `exec,` (binds), and hypridle's `lock_cmd =` /
+  # `on-timeout =` / `on-resume =`.
+  sed -e 's/#.*//' "$DOTFILES"/hypr/.config/hypr/*.conf 2>/dev/null \
+    | grep -oE '(exec-once|exec|lock_cmd|on-timeout|on-resume)[[:space:]]*[=,][^#]*' \
+    | sed -E 's/^[a-z_-]+[[:space:]]*[=,][[:space:]]*//' \
+    | sed -E 's/^pidof[[:space:]]+[^|]*\|\|[[:space:]]*//' \
+    | sed -E 's/^uwsm[[:space:]]+app[[:space:]]+--[[:space:]]*//' \
+    | awk '{print $1}' \
+    | grep -vE '^(\$|$)'    # drop Hyprland variables ($terminal etc.)
+}
+
+log "Checking session dependencies"
+missing=()
+while read -r cmd; do
+  [[ -z $cmd ]] && continue
+  command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+done < <(session_commands 2>/dev/null | sort -u || true)
+
+# Warn rather than abort: a missing command degrades one feature in almost
+# every case, and failing the whole run would leave the machine less
+# provisioned than letting it finish. The uwsm case is the exception that
+# motivated this block, hence how loud it is. `${missing[@]+...}` because
+# `set -u` treats expanding an empty array as an unbound variable.
+if (( ${#missing[@]} )); then
+  printf '\033[1;33m==> WARNING: %d command(s) referenced by hypr/ are not installed:\033[0m\n' "${#missing[@]}"
+  printf '      %s\n' ${missing[@]+"${missing[@]}"}
+  printf '    The session will start but these will silently do nothing.\n'
+  printf '    Add them to packages/pacman.txt (or aur.txt) — note that a\n'
+  printf '    host-<hostname>.txt entry is not enough for anything a shared\n'
+  printf '    config references.\n'
+fi
 
 log "Bootstrap complete."

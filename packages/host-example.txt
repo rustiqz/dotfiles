@@ -1,6 +1,18 @@
-# Packages specific to this machine (hostname: rustiq).
-# Hardware: Intel Comet Lake-U, UHD Graphics (Gen9.5) iGPU, laptop.
-# Hardware-dependent things live here so packages/pacman.txt stays portable.
+# Template for a host-specific package manifest.
+#
+# bootstrap.sh installs packages/host-$(hostname).txt, so to use this on a
+# machine, copy it to packages/host-<that-hostname>.txt and edit. Nothing
+# installs this file itself — the name "example" is deliberate, so no real
+# hostname has to be committed to a public repo.
+#
+# What belongs here: things tied to *that box's* hardware, so that
+# packages/pacman.txt stays portable. What does NOT belong here: anything
+# the shared configs reference unconditionally — see the brightnessctl note
+# in pacman.txt for why gating a package on the hostname silently breaks
+# every other machine.
+#
+# The entries below are a worked example from a real machine:
+# Intel Comet Lake-U, UHD Graphics (Gen9.5) iGPU, laptop.
 
 # --- CPU ---------------------------------------------------------------------
 
@@ -35,9 +47,9 @@ libva-utils
 
 # --- Laptop ------------------------------------------------------------------
 
-# Backlight control. Hyprland has no built-in brightness handling, so the
-# XF86MonBrightness key bindings in Phase 5 will shell out to this.
-brightnessctl
+# brightnessctl moved to packages/pacman.txt — shared hypr configs
+# (hypridle.conf, keybinds.conf) reference it unconditionally, so it
+# can't be gated on the hostname. See the note there.
 
 # Power profile switching (power-saver / balanced / performance). GNOME's
 # power slider drives this today; under Hyprland you query it via
