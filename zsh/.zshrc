@@ -122,6 +122,32 @@ alias find='fd'
 alias top='btop'
 alias lg='lazygit'
 alias diff='delta'
+alias c='clear'
+
+# Navigation
+alias ..='cd ..'
+alias ...='cd ../..'
+
+# git: quick status/diff/log checks that don't warrant opening lazygit
+alias gs='git status'
+alias gd='git diff'
+alias gl='git log --oneline --graph --decorate'
+
+# docker
+alias lzd='lazydocker'
+alias dc='docker compose'
+
+# kubernetes: k9s covers interactive use, these are for quick one-offs
+alias k='kubectl'
+alias kgp='kubectl get pods'
+alias kctx='kubectl config get-contexts'
+
+# tmux: complements ~/bin/work, the project sessionizer
+alias ta='tmux attach'
+alias tls='tmux ls'
+
+# pnpm is the default target for global installs (hooks/61-node-globals.sh)
+alias pn='pnpm'
 
 # ssh from inside kitty only. kitty advertises TERM=xterm-kitty, whose
 # terminfo entry exists on this machine and nowhere else — ssh forwards
@@ -138,6 +164,23 @@ alias diff='delta'
 if [[ $TERM == xterm-kitty ]] && command -v kitten &>/dev/null; then
   alias ssh='kitten ssh'
 fi
+
+# yazi runs as a subprocess, so it can't change its parent shell's directory
+# on exit by itself — plain `yazi` always leaves you back where you started
+# even after navigating somewhere else inside it. This wrapper (yazi's own
+# recommended pattern) has it write the final directory to a temp file on
+# quit, then `cd`s the shell there. A function, not an alias, since it needs
+# the intermediate variable/cleanup logic.
+function y() {
+  local tmp
+  tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
+  yazi "$@" --cwd-file="$tmp"
+  local cwd
+  if cwd="$(cat -- "$tmp")" && [[ -n $cwd && $cwd != "$PWD" ]]; then
+    cd -- "$cwd"
+  fi
+  rm -f -- "$tmp"
+}
 
 # --- Local overrides -------------------------------------------------------
 # Untracked, machine-specific tweaks (work aliases, secrets loaded into

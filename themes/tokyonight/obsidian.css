@@ -1,0 +1,71 @@
+/* themes/tokyonight/obsidian.css
+ *
+ * CSS snippet, not a full Obsidian theme package (no manifest.json /
+ * theme.css pair under .obsidian/themes/) — a snippet is a single file
+ * Obsidian already reads from .obsidian/snippets/ once enabled, which
+ * matches this repo's existing "one file, switcher repoints it" pattern
+ * (kitty.conf, waybar.css, ...) far better than the plugin-shaped theme
+ * package format would. See bin/bin/theme for how active-theme.css gets
+ * symlinked straight into ~/vault/.obsidian/snippets/ — the vault isn't
+ * a stow package (it's obsidian-git's own repo, not this one), so this
+ * is the one themed app whose active-theme link doesn't pass through a
+ * $DOTFILES/<app>/.config/... stow-managed hop first.
+ *
+ * Same TokyoNight palette as everywhere else in this repo — see
+ * themes/tokyonight/kitty.conf for the source values.
+ */
+
+.theme-dark {
+  --background-primary: #1a1b26;
+  --background-primary-alt: #16161e;
+  --background-secondary: #1f2335;
+  --background-secondary-alt: #16161e;
+  --background-modifier-border: #292e42;
+  --background-modifier-hover: #283457;
+  --background-modifier-active-hover: #283457;
+  --background-modifier-border-hover: #414868;
+  --background-modifier-border-focus: #7aa2f7;
+
+  --text-normal: #c0caf5;
+  --text-muted: #a9b1d6;
+  --text-faint: #545c7e;
+  --text-accent: #7aa2f7;
+  --text-accent-hover: #89b4fa;
+  --text-error: #f7768e;
+  --text-on-accent: #1a1b26;
+  --text-selection: rgba(122, 162, 247, 0.25);
+
+  --interactive-normal: #1f2335;
+  --interactive-hover: #283457;
+  --interactive-accent: #7aa2f7;
+  --interactive-accent-hover: #89b4fa;
+
+  --divider-color: #292e42;
+
+  --h1-color: #7aa2f7;
+  --h2-color: #7dcfff;
+  --h3-color: #bb9af7;
+  --h4-color: #9ece6a;
+  --h5-color: #e0af68;
+  --h6-color: #a9b1d6;
+
+  --link-color: #7aa2f7;
+  --link-color-hover: #89b4fa;
+  --link-unresolved-color: #f7768e;
+
+  --code-normal: #c0caf5;
+  --code-background: #16161e;
+  --code-property: #7dcfff;
+  --code-string: #9ece6a;
+  --code-comment: #545c7e;
+  --code-function: #7aa2f7;
+  --code-keyword: #bb9af7;
+  --code-value: #e0af68;
+
+  --tag-color: #bb9af7;
+  --tag-background: #1f2335;
+  --blockquote-border-color: #7aa2f7;
+
+  --checkbox-color: #7aa2f7;
+  --checkbox-color-hover: #89b4fa;
+}
