@@ -16,6 +16,18 @@
 # terminal.
 export PATH="$HOME/bin:$PATH"
 
+# Same class of problem as PATH above: an app launched straight from a
+# keybind never sources .zshrc, so it sees no $EDITOR. `$mod, C` runs
+# `kitty -e k9s`, and k9s's `e` (edit resource) shells out to `kubectl
+# edit`, whose no-$EDITOR fallback is the literal command `vi` — a
+# binary Arch's `vim` package does not provide. The exec fails, k9s
+# flashes an error and returns to the table instantly, which looks like
+# the editor opening and closing itself. Duplicated in zsh/.zshrc
+# because that covers the other direction (a terminal-launched k9s in
+# the GNOME fallback session, or a plain tty login, never reads this).
+export EDITOR="nvim"
+export VISUAL="$EDITOR"
+
 # env-theme is a symlink bin/bin/theme repoints (see
 # themes/<name>/uwsm-env.sh) — XCURSOR_*, QT_QPA_PLATFORMTHEME, and any
 # other genuinely theme-specific env vars live there instead of here.
