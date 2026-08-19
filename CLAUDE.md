@@ -148,12 +148,13 @@ second. Built on one laptop, then replayed on other machines.
   "none", never "wrong command". Counts are gathered by piping all
   commands into a single `valkey-cli` rather than one process per
   queue — 20+ queues makes that difference visible.
-- A work PC is planned but not yet bootstrapped from this repo — no
-  `host-<hostname>.txt`/`host/<hostname>/` exists for it yet since
-  nothing added so far has turned out to be genuinely host-specific
-  (everything above is wanted on every machine). That mechanism is
-  still there for whenever something actually does differ machine to
-  machine (see Conventions).
+- **A second machine (a work PC) is now bootstrapped from this repo** —
+  see "Clean-machine findings" below for what that replay found and
+  fixed, all merged into `main`. Still no `host-<hostname>.txt`/
+  `host/<hostname>/` for it: nothing added so far has turned out to be
+  genuinely host-specific (everything above is wanted on every
+  machine). That mechanism is still there for whenever something
+  actually does differ machine to machine (see Conventions).
 
 ## Phases
 
@@ -181,12 +182,12 @@ second. Built on one laptop, then replayed on other machines.
       Fingerprint login: the repo side is done (`hyprlock.conf` ships it
       enabled and self-guarding); whether it actually works is per-machine
       hardware/driver work — see Known gotchas.
-- [ ] **6 — Finalize.** `README.md` written. Clean-machine proof of
-      `bootstrap.sh` deliberately done by hand on a real second machine
-      instead of a disposable VM (no virtualization tooling on the first machine
-      yet, and a real clone is a more honest test of the actual
-      multi-machine goal anyway) — phase stays open until that's
-      actually happened once.
+- [x] **6 — Finalize.** `README.md` written. Clean-machine proof of
+      `bootstrap.sh` done by hand on a real second machine (a work PC)
+      instead of a disposable VM (no virtualization tooling on the first
+      machine, and a real clone is a more honest test of the actual
+      multi-machine goal anyway) — see "Clean-machine findings" below
+      for what that replay found and fixed, all now merged into `main`.
 
 ## Repo layout
 
