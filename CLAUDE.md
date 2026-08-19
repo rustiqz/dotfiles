@@ -69,6 +69,27 @@ second. Built on one laptop, then replayed on other machines.
   — its hex values already matched this repo's palette exactly, so
   it's that file verbatim. `theme wallpaper` covers it too, via
   `matugen/templates/yazi-flavor.toml.tpl`.
+- Obsidian (notes): vault lives at `~/vault`, its own git repo — not a
+  stow package and not this repo, since it's synced separately via the
+  `obsidian-git` community plugin. `hooks/62-obsidian-vault.sh` creates
+  it (or clones it, if `~/.config/git/obsidian-vault.local` holds a
+  remote URL — same `*.local` escape hatch as git identity/ssh config)
+  and seeds `.obsidian/appearance.json` so the theme switcher's CSS
+  snippet is enabled by default, but only when that run is the one
+  creating `.obsidian/` in the first place — never clobbers a real
+  cloned vault's existing settings. Themed via a CSS *snippet*
+  (`.obsidian/snippets/active-theme.css`), not a full Obsidian theme
+  package (`.obsidian/themes/<name>/theme.css` + manifest) — matches
+  every other app's "one file, switcher repoints it" shape far better.
+  Since the vault isn't stow-managed, `bin/bin/theme` symlinks straight
+  into `~/vault/.obsidian/snippets/` instead of through the usual
+  `$DOTFILES/<app>/.config/...` stow hop — the one themed app that
+  skips that indirection. `theme wallpaper` covers it too, via
+  `matugen/templates/obsidian.css.tpl`. Installing the `obsidian-git`
+  plugin itself is a one-time manual step (Settings → Community
+  plugins → Browse) — community plugins can't be installed headlessly,
+  same reasoning as Mason installing LSP binaries on Neovim's first
+  real launch, not at bootstrap time.
 - k9s is themed through the switcher like everything else
   (`themes/tokyonight/k9s-skin.yaml`, plus
   `matugen/templates/k9s-skin.yaml.tpl` for `theme wallpaper`). k9s
@@ -127,12 +148,13 @@ second. Built on one laptop, then replayed on other machines.
   "none", never "wrong command". Counts are gathered by piping all
   commands into a single `valkey-cli` rather than one process per
   queue — 20+ queues makes that difference visible.
-- A work PC is planned but not yet bootstrapped from this repo — no
-  `host-<hostname>.txt`/`host/<hostname>/` exists for it yet since
-  nothing added so far has turned out to be genuinely host-specific
-  (everything above is wanted on every machine). That mechanism is
-  still there for whenever something actually does differ machine to
-  machine (see Conventions).
+- **A second machine (a work PC) is now bootstrapped from this repo** —
+  see "Clean-machine findings" below for what that replay found and
+  fixed, all merged into `main`. Still no `host-<hostname>.txt`/
+  `host/<hostname>/` for it: nothing added so far has turned out to be
+  genuinely host-specific (everything above is wanted on every
+  machine). That mechanism is still there for whenever something
+  actually does differ machine to machine (see Conventions).
 
 ## Phases
 
@@ -160,12 +182,12 @@ second. Built on one laptop, then replayed on other machines.
       Fingerprint login: the repo side is done (`hyprlock.conf` ships it
       enabled and self-guarding); whether it actually works is per-machine
       hardware/driver work — see Known gotchas.
-- [ ] **6 — Finalize.** `README.md` written. Clean-machine proof of
-      `bootstrap.sh` deliberately done by hand on a real second machine
-      instead of a disposable VM (no virtualization tooling on the first machine
-      yet, and a real clone is a more honest test of the actual
-      multi-machine goal anyway) — phase stays open until that's
-      actually happened once.
+- [x] **6 — Finalize.** `README.md` written. Clean-machine proof of
+      `bootstrap.sh` done by hand on a real second machine (a work PC)
+      instead of a disposable VM (no virtualization tooling on the first
+      machine, and a real clone is a more honest test of the actual
+      multi-machine goal anyway) — see "Clean-machine findings" below
+      for what that replay found and fixed, all now merged into `main`.
 
 ## Repo layout
 

@@ -62,8 +62,8 @@ theme              # interactive picker (rofi)
 ```
 
 One command re-themes kitty, waybar, rofi, Hyprland borders/hyprlock,
-swaync, wlogout, Qt (qt6ct/qt5ct), GTK/icon/cursor, and the desktop
-widget sidebar together. Each theme lives in `themes/<name>/` and can be
+swaync, wlogout, Qt (qt6ct/qt5ct), GTK/icon/cursor, yazi, Obsidian, and
+the desktop widget sidebar together. Each theme lives in `themes/<name>/` and can be
 partial — a theme that only defines one app's file leaves everything
 else on whatever was active before.
 

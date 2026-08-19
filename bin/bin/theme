@@ -137,6 +137,22 @@ if [[ -d $THEME_DIR/yazi-flavor ]]; then
   ln -sfrT "$THEME_DIR/yazi-flavor" "$DOTFILES/yazi/.config/yazi/flavors/active-theme.yazi"
 fi
 
+# --- Obsidian (vault-based notes) -------------------------------------------
+# Not stow-managed: ~/vault is obsidian-git's own repo, not this one, so
+# the symlink target lives directly under $HOME instead of behind a
+# $DOTFILES/<app>/.config/... stow hop the way every app above does it.
+# A CSS snippet, not a full theme package (.obsidian/themes/<name>/) —
+# Obsidian already reads snippets from .obsidian/snippets/ once enabled,
+# which is the same "one file, switcher repoints it" shape as everything
+# else here. Only runs once the vault actually exists (see
+# hooks/62-obsidian-vault.sh) — skipped before that, like any theme file
+# a given theme doesn't define. No daemon to reload — Obsidian re-reads
+# an enabled snippet's contents live on save, no restart needed.
+if [[ -d $HOME/vault ]]; then
+  mkdir -p "$HOME/vault/.obsidian/snippets"
+  link "obsidian.css" "$HOME/vault/.obsidian/snippets/active-theme.css"
+fi
+
 # --- k9s (kubernetes TUI) ----------------------------------------------------
 # Single-file link like everything else here (yazi's whole-directory
 # case is the odd one out) — but note k9s resolves the skin by the
