@@ -17,6 +17,24 @@ export PATH="$HOME/bin:$PATH"
 export PNPM_HOME="$HOME/.local/share/pnpm"
 export PATH="$PNPM_HOME/bin:$PATH"
 
+# --- Editor --------------------------------------------------------------------
+# Any tool that shells out to "the editor" (kubectl edit, git commit,
+# systemctl edit, crontab) reads $EDITOR. Left unset, kubectl's own
+# fallback is the literal command `vi` — which does NOT exist on Arch:
+# the `vim` package installs /usr/bin/vim only, and /usr/bin/vi comes
+# from the separate `vi` package that nothing here installs. So `e` on
+# any resource in k9s ran `kubectl edit`, kubectl exec'd a missing
+# binary, and k9s just flashed "Edit command failed" and dropped
+# straight back to the table — reading as "k9s closed the editor
+# instantly" rather than "no editor is configured".
+#
+# Also set in uwsm/.config/uwsm/env, deliberately duplicated: this file
+# only covers interactive shells, and the $mod+C keybind runs k9s via
+# `kitty -e k9s` with no login shell at all (same reasoning as the
+# ~/.kube/config symlink in hooks/54-do-config.sh).
+export EDITOR="nvim"
+export VISUAL="$EDITOR"
+
 # --- History -------------------------------------------------------------------
 HISTFILE=~/.zsh_history
 HISTSIZE=50000
