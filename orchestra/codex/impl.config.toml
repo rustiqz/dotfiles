@@ -1,0 +1,18 @@
+# ~/.codex/impl.config.toml — the workhorse profile for delegated implementation.
+# Selected by: codex exec --profile impl   (codex-task uses this by default)
+#
+# Rationale: implementation from a tight LLD is mostly mechanical translation,
+# but it still has to hold a whole module in its head. High effort, full model.
+
+model = "gpt-5.6"
+model_reasoning_effort = "high"
+
+# The wrapper passes --sandbox workspace-write explicitly, but set it here too
+# so a bare `codex --profile impl` behaves the same way.
+sandbox_mode = "workspace-write"
+
+# Delegated runs are unattended. Approval prompts would deadlock the wrapper.
+approval_policy = "never"
+
+# Implementation frequently needs current library docs (NestJS/TypeORM churn).
+web_search = "cached"

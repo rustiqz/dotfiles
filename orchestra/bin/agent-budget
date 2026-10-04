@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# agent-budget — reports token spend across both agents in one place.
+#
+# WHY: Claude Code's /cost covers the Claude side only, and Codex's usage lives
+# inside per-run JSONL event streams. Neither model can report its own spend
+# reliably. This reads the ledger the SubagentStop hook writes, plus whatever
+# run directories exist, and prints one table.
+#
+# USAGE
+#   agent-budget              summary of all runs in this repo
+#   agent-budget --last 10    the ten most recent delegations
+#   agent-budget --by-spec    grouped by spec file, to find expensive specs
+set -euo pipefail
+
+LEDGER="${AGENT_LEDGER:-$HOME/.local/share/orchestra/ledger.tsv}"
+RUN_ROOT="${CODEX_TASK_RUN_ROOT:-.design/runs}"
+MODE="summary"
+LIMIT=20
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --last)    LIMIT="$2"; MODE="last"; shift 2 ;;
+    --by-spec) MODE="by-spec"; shift ;;
+    *) echo "agent-budget: unknown flag $1" >&2; exit 64 ;;
+  esac
+done
+
+command -v jq >/dev/null || { echo "agent-budget needs jq" >&2; exit 69; }
+
+# ---------------------------------------------------------------------------
+# Codex side: walk the run directories and pull usage + status out of each.
+# Falls back gracefully when a run predates the usage extraction.
+# ---------------------------------------------------------------------------
+echo "== Codex delegations (from $RUN_ROOT) =="
+printf '%-42s %-10s %10s %10s %8s\n' "RUN" "STATUS" "IN" "OUT" "FILES"
+
+TOTAL_IN=0; TOTAL_OUT=0; RUNS=0
+
+for dir in $(ls -1dt "$RUN_ROOT"/*/ 2>/dev/null | head -n "$LIMIT"); do
+  run=$(basename "$dir")
+  status=$(jq -r '.status // "?"' "$dir/report.json" 2>/dev/null || echo "?")
+  in_tok=$(jq -r '[.. | .input_tokens? // empty] | last // 0' "$dir/usage.json" 2>/dev/null || echo 0)
+  out_tok=$(jq -r '[.. | .output_tokens? // empty] | last // 0' "$dir/usage.json" 2>/dev/null || echo 0)
+  files=$(wc -l < "$dir/changed-files.txt" 2>/dev/null || echo 0)
+
+  printf '%-42s %-10s %10s %10s %8s\n' "${run:0:42}" "$status" "$in_tok" "$out_tok" "$files"
+
+  TOTAL_IN=$((TOTAL_IN + ${in_tok:-0}))
+  TOTAL_OUT=$((TOTAL_OUT + ${out_tok:-0}))
+  RUNS=$((RUNS + 1))
+done
+
+echo
+printf 'runs: %d   input: %d   output: %d\n' "$RUNS" "$TOTAL_IN" "$TOTAL_OUT"
+
+# Tokens-per-changed-file is the metric that actually tells you something.
+# A high ratio means the implementer spent its budget reading and exploring
+# rather than writing — which almost always traces back to a thin spec.
+if [[ $RUNS -gt 0 ]]; then
+  echo
+  echo "== Cost per changed file (high = underspecified LLDs) =="
+  for dir in $(ls -1dt "$RUN_ROOT"/*/ 2>/dev/null | head -n "$LIMIT"); do
+    files=$(wc -l < "$dir/changed-files.txt" 2>/dev/null || echo 0)
+    [[ "$files" -eq 0 ]] && continue
+    in_tok=$(jq -r '[.. | .input_tokens? // empty] | last // 0' "$dir/usage.json" 2>/dev/null || echo 0)
+    ratio=$(( in_tok / files ))
+    printf '%-42s %8d tok/file\n' "$(basename "$dir" | cut -c1-42)" "$ratio"
+  done | sort -k2 -rn | head -n 10
+fi
+
+# ---------------------------------------------------------------------------
+# Claude side: the ledger written by the SubagentStop hook.
+# ---------------------------------------------------------------------------
+if [[ -f "$LEDGER" ]]; then
+  echo
+  echo "== Delegation ledger ($LEDGER) =="
+  column -t -s $'\t' "$LEDGER" | tail -n $((LIMIT + 1))
+fi
+
+echo
+echo "For the Claude side of the bill, run /cost inside Claude Code."

@@ -1,0 +1,18 @@
+# ~/.codex/cheap.config.toml — bulk mechanical work.
+# Selected by: codex exec --profile cheap
+#
+# Use for: renaming across files, adding DTO boilerplate, generating test
+# fixtures, migration scaffolds, codemod-style edits. Work where the LLD has
+# removed all the thinking and only typing remains.
+#
+# Do NOT use for: anything touching transaction boundaries, auth, money, or
+# schema semantics. Route those to impl.
+
+model = "gpt-5.6-terra"
+model_reasoning_effort = "low"
+
+sandbox_mode = "workspace-write"
+approval_policy = "never"
+
+# No web access needed for mechanical edits; keeps runs fast and cheap.
+web_search = "cached"

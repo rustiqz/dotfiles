@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+# design-store — keeps HLDs, LLDs, and ADRs OUT of your work repositories.
+#
+# THE PROBLEM
+#   Design docs belong next to the code conceptually, but committing them to a
+#   company repo means every spec, every abandoned alternative, and every
+#   half-finished LLD shows up in code review and repo history.
+#
+# THE SHAPE
+#   One central, independently-versioned store:
+#
+#     ~/design/                          <- its own git repo, yours alone
+#       plankea-helpdesk-hub-node/
+#         hld/  lld/  adr/  runs/
+#       plankea-task-hub-workers-node/
+#         hld/  lld/  adr/  runs/
+#
+#   Linked into each work repo as a single gitignored symlink:
+#
+#     <repo>/.design -> ~/design/<repo-name>
+#
+#   So the agents always use the stable path `.design/lld/TASK-014-*.md`, the
+#   tooling never needs to know where the store actually lives, and the work
+#   repo carries exactly one ignored symlink.
+#
+# USAGE
+#   design-store init                 # create the store + git init it, once
+#   design-store link                 # link the current repo to the store
+#   design-store link --name foo      # override the store subdirectory name
+#   design-store status               # what's linked, what's unlinked
+set -euo pipefail
+
+STORE="${DESIGN_STORE:-$HOME/design}"
+CMD="${1:-status}"; shift || true
+
+NAME=""
+NO_AGENTS=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --name) NAME="$2"; shift 2 ;;
+    --no-agents) NO_AGENTS=1; shift ;;
+    *) echo "design-store: unknown flag $1" >&2; exit 64 ;;
+  esac
+done
+
+init_store() {
+  mkdir -p "$STORE"
+  if [[ ! -d "$STORE/.git" ]]; then
+    git -C "$STORE" init -q
+    cat > "$STORE/.gitignore" <<'EOF'
+# Delegation transcripts are large, machine-generated, and reproducible.
+# Keep the specs, drop the run logs.
+*/runs/
+EOF
+    cat > "$STORE/README.md" <<'EOF'
+# Design store
+
+HLDs, LLDs, and ADRs for every project, kept outside the work repositories.
+
+One directory per repo. Each work repo has a gitignored `.design` symlink
+pointing at its directory here, so agent tooling can use stable relative paths
+without anything being committed to the work repo.
+EOF
+    git -C "$STORE" add -A
+    git -C "$STORE" commit -qm "Initialize design store"
+    echo "Initialized git repo at $STORE"
+  else
+    echo "Store already initialized at $STORE"
+  fi
+}
+
+link_repo() {
+  # Must be inside a git repo — the store is keyed by repository name.
+  local root
+  root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "design-store: not inside a git repository" >&2; exit 65; }
+
+  local name="${NAME:-$(basename "$root")}"
+  local target="$STORE/$name"
+
+  mkdir -p "$target/hld" "$target/lld" "$target/adr" "$target/runs" "$target/agents"
+
+  # Per-repo agent rules live in the store, not the work repo.
+  #
+  # WHY: they are your tooling, not the project's. Committing them to a company
+  # repo is a social decision that needs buy-in, and on a solo project there is
+  # nobody to share them with. Keeping them here means they are version-
+  # controlled (the store is a git repo), survive a fresh clone of the work
+  # repo, and never appear in a diff anyone reviews.
+  #
+  # The universal rules are already global in ~/.codex/AGENTS.md and
+  # ~/.claude/CLAUDE.md; these two files hold only what is specific to this
+  # codebase.
+  local tpl="${ORCHESTRA_SRC:-$HOME/dotfiles/orchestra}/templates"
+  if [[ ! -f "$target/agents/AGENTS.md" && -f "$tpl/AGENTS.project.md" ]]; then
+    sed "s/<project name>/$name/" "$tpl/AGENTS.project.md" > "$target/agents/AGENTS.md"
+    echo "  seeded $target/agents/AGENTS.md - fill in the vocabulary table"
+  fi
+  if [[ ! -f "$target/agents/CLAUDE.md" && -f "$tpl/CLAUDE.project.md" ]]; then
+    sed "s/<Project name>/$name/" "$tpl/CLAUDE.project.md" > "$target/agents/CLAUDE.md"
+  fi
+
+  # Seed a per-project index so the store is navigable without the repo.
+  [[ -f "$target/README.md" ]] || cat > "$target/README.md" <<EOF
+# $name — design
+
+- \`hld/\` bounded-context designs
+- \`lld/\` per-task specs, named TASK-<id>-<slug>.md
+- \`adr/\` decisions with consequences
+- \`runs/\` delegation transcripts (gitignored)
+
+Linked into the work repo at: $root/.design
+EOF
+
+  # The symlink. Relative paths inside the repo now resolve into the store.
+  if [[ -L "$root/.design" ]]; then
+    rm "$root/.design"
+  elif [[ -e "$root/.design" ]]; then
+    echo "design-store: $root/.design exists and is not a symlink — move it first" >&2
+    exit 73
+  fi
+  ln -s "$target" "$root/.design"
+
+  # AGENTS.md and CLAUDE.md are symlinked in from the store. Both tools read
+  # them from the working directory and neither cares about git status, so
+  # this works identically to committing them - minus the commit.
+  # A repo that already tracks these files is one where the team owns them.
+  # Symlinking over a tracked file shows as a type-change (T) in git status and
+  # breaks every other clone if it ever gets committed, so detect it and skip.
+  if [[ "$NO_AGENTS" -eq 0 ]]; then
+    for f in AGENTS.md CLAUDE.md; do
+      if git -C "$root" ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+        NO_AGENTS=1
+        echo "  NOTE: $f is tracked by git - leaving it in the repo."
+        echo "        The team owns it. Rerun with --no-agents to skip this check."
+        break
+      fi
+    done
+  fi
+
+  if [[ "$NO_AGENTS" -eq 1 ]]; then
+    echo "Linked $root/.design -> $target   (agent rules left in the repo)"
+    local exclude="$root/.git/info/exclude"
+    # Leading slash anchors to the repo root. Without it a bare "CLAUDE.md"
+    # matches at ANY depth, which silently hides apps/*/CLAUDE.md - exactly the
+    # per-directory files Claude Code relies on for scoped instructions.
+    for entry in /.design /.claude/settings.local.json; do
+      grep -qxF "$entry" "$exclude" 2>/dev/null || echo "$entry" >> "$exclude"
+    done
+    return 0
+  fi
+
+  for f in AGENTS.md CLAUDE.md; do
+    if [[ -L "$root/$f" ]]; then
+      rm "$root/$f"
+    elif [[ -e "$root/$f" ]]; then
+      # A real file here is either a teammate's, or yours from before this
+      # change. Adopt it into the store rather than clobbering it.
+      echo "  adopting existing $f into the store"
+      mv "$root/$f" "$target/agents/$f"
+      # A prose reference does not load a file; only a bare `@AGENTS.md` line
+      # does. An adopted CLAUDE.md that merely links to AGENTS.md leaves the
+      # hard rules out of context entirely, silently.
+      if [[ "$f" == "CLAUDE.md" ]] && ! grep -qE '^@AGENTS\.md[[:space:]]*$' "$target/agents/CLAUDE.md"; then
+        printf '@AGENTS.md\n\n%s' "$(cat "$target/agents/CLAUDE.md")" > "$target/agents/CLAUDE.md.tmp"
+        mv "$target/agents/CLAUDE.md.tmp" "$target/agents/CLAUDE.md"
+        echo "  added the missing @AGENTS.md import - a prose link does not load it"
+      fi
+    fi
+    ln -s "$target/agents/$f" "$root/$f"
+  done
+
+  # Ignore all three locally rather than in the committed .gitignore, so
+  # nothing about this setup ever appears in a diff your teammates review.
+  local exclude="$root/.git/info/exclude"
+
+  # Repair unanchored entries written by an earlier version of this script.
+  # They match at any depth and hide nested CLAUDE.md / AGENTS.md files.
+  if grep -qxE '(AGENTS|CLAUDE)\.md' "$exclude" 2>/dev/null; then
+    cp "$exclude" "$exclude.bak.$(date +%s)"
+    grep -vxE '(AGENTS|CLAUDE)\.md|\.design|\.claude/settings\.local\.json' \
+      "$exclude" > "$exclude.tmp" && mv "$exclude.tmp" "$exclude"
+    echo "  repaired unanchored .git/info/exclude entries (they hid nested CLAUDE.md files)"
+  fi
+
+  # Leading slash anchors to the repo root. A bare "CLAUDE.md" would match at
+  # any depth and hide apps/*/CLAUDE.md, whose whole purpose is to load scoped
+  # rules per package. This bit once; it will not bite again.
+  for entry in /.design /AGENTS.md /CLAUDE.md /.claude/settings.local.json; do
+    grep -qxF "$entry" "$exclude" 2>/dev/null || echo "$entry" >> "$exclude"
+  done
+
+  echo "Linked $root/.design      -> $target"
+  echo "Linked $root/AGENTS.md    -> $target/agents/AGENTS.md"
+  echo "Linked $root/CLAUDE.md    -> $target/agents/CLAUDE.md"
+  echo "All ignored via .git/info/exclude - nothing is committed"
+  echo
+  echo "To share the rules with teammates later:  git add -f AGENTS.md"
+}
+
+status() {
+  [[ -d "$STORE" ]] || { echo "No store at $STORE — run: design-store init"; exit 0; }
+  echo "Store: $STORE"
+  for d in "$STORE"/*/; do
+    [[ -d "$d" ]] || continue
+    local n; n="$(basename "$d")"
+    printf '  %-40s hld:%-3s lld:%-3s adr:%-3s\n' "$n" \
+      "$(ls -1 "$d/hld" 2>/dev/null | wc -l)" \
+      "$(ls -1 "$d/lld" 2>/dev/null | wc -l)" \
+      "$(ls -1 "$d/adr" 2>/dev/null | wc -l)" \
+      "$([[ -f "$d/agents/AGENTS.md" ]] && echo yes || echo no)"
+  done
+  echo
+  if [[ -L .design ]]; then
+    echo "This repo: linked -> $(readlink .design)"
+  else
+    echo "This repo: NOT linked — run: design-store link"
+  fi
+}
+
+case "$CMD" in
+  init)   init_store ;;
+  link)   init_store; link_repo ;;
+  status) status ;;
+  *) echo "usage: design-store {init|link|status} [--name <dir>]" >&2; exit 64 ;;
+esac

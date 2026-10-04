@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "codex-task report",
+  "description": "The ONLY thing Codex returns to Claude Code. Keep it small - every field here costs orchestrator context on every delegation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "summary",
+    "changed_files",
+    "verification",
+    "deviations",
+    "blockers"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "partial",
+        "blocked"
+      ],
+      "description": "completed = spec fully implemented and verification passed. partial = code written but verification failed. blocked = could not proceed."
+    },
+    "summary": {
+      "type": "string",
+      "description": "What was implemented, in at most 4 sentences. No narration of the process. At most 600 characters."
+    },
+    "changed_files": {
+      "type": "array",
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "change",
+          "why"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "change": {
+            "type": "string",
+            "enum": [
+              "added",
+              "modified",
+              "deleted"
+            ]
+          },
+          "why": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "At most 160 characters."
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commands"
+      ],
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "cmd",
+              "passed",
+              "first_error"
+            ],
+            "properties": {
+              "cmd": {
+                "type": "string"
+              },
+              "passed": {
+                "type": "boolean"
+              },
+              "first_error": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "First failing assertion or compiler error ONLY. Never paste full output. At most 400 characters."
+              }
+            }
+          }
+        }
+      }
+    },
+    "deviations": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "description": "At most 300 characters."
+      },
+      "description": "Anywhere the implementation had to depart from the spec, and why. Claude uses this to decide whether to update the LLD."
+    },
+    "blockers": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "description": "At most 300 characters."
+      },
+      "description": "Spec ambiguities, missing context, or design decisions that belong to the orchestrator. Empty array when status is completed."
+    }
+  }
+}

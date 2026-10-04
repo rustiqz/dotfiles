@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+"""
+check-scope - verify a delegation's diff stayed inside the spec's Files table.
+
+WHY THIS EXISTS
+    Every LLD declares exactly which files the task may create or modify, and
+    AGENTS.md instructs Codex to touch nothing else. Until now that was an
+    instruction with no enforcement - which §2.3 of the architecture says is
+    the wrong place for an invariant that can be checked mechanically.
+
+    Scope creep is the failure mode this catches: an implementer that
+    "helpfully" refactors an adjacent file produces a diff that passes every
+    test and is still not what you asked for. It is also how architectural
+    drift accumulates one reasonable-looking change at a time.
+
+WHAT IT DOES
+    Parses the `## Files` table from the spec, compares it against the actual
+    working-tree changes, and reports:
+
+      IN SCOPE      declared and changed - expected
+      NOT DECLARED  changed but absent from the table - the finding
+      NOT TOUCHED   declared but unchanged - usually means partial work
+
+USAGE
+    check-scope --spec .design/lld/TASK-014-voucher.md
+    check-scope --spec ... --base HEAD~1      # compare against a commit
+    check-scope --spec ... --json             # machine-readable, for the verifier
+
+EXIT CODES
+    0  everything changed was declared
+    1  undeclared files were modified
+    2  the spec could not be parsed (treated as a spec defect, not a pass)
+"""
+
+import argparse, json, re, subprocess, sys
+from pathlib import Path
+
+# Files that change as a side effect of legitimate work and are never worth
+# flagging. Lockfiles appear whenever a declared dependency is installed;
+# snapshots regenerate with the tests that own them.
+ALWAYS_ALLOWED = {
+    "pnpm-lock.yaml", "package-lock.json", "yarn.lock", "Cargo.lock",
+}
+ALLOWED_SUFFIXES = (".snap",)
+
+
+def parse_files_table(spec_path: Path):
+    """Extract declared paths from the spec's `## Files` markdown table.
+
+    The table format is fixed by templates/LLD.md:
+
+        | Path | Action | Purpose |
+        |---|---|---|
+        | `src/invoice/invoice.service.ts` | modify | ... |
+
+    Paths may or may not be backticked; both are accepted, because a human
+    editing the spec in Neovim should not have to remember which.
+    """
+    text = spec_path.read_text()
+
+    m = re.search(r"^#+\s*Files\s*$(.*?)(?=^#+\s|\Z)", text, re.M | re.S)
+    if not m:
+        return None, "no '## Files' section found"
+
+    declared = {}
+    for line in m.group(1).splitlines():
+        line = line.strip()
+        if not line.startswith("|") or set(line) <= set("|- "):
+            continue  # separator row or blank
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        path = cells[0].strip("` ")
+        action = cells[1].strip().lower()
+        # Skip the header row and any placeholder rows left from the template.
+        if not path or path.lower() == "path" or path.startswith("src/<"):
+            continue
+        declared[path] = action
+
+    if not declared:
+        return None, "'## Files' section present but contains no file rows"
+    return declared, None
+
+
+def changed_files(base=None):
+    """Actual changes, from git. Ground truth, not the model's self-report."""
+    if base:
+        cmd = ["git", "diff", "--name-status", base]
+    else:
+        # --untracked-files=all is required: the default collapses an
+        # untracked directory to "src/shared/" and hides the files inside it,
+        # which would let new files in a new directory slip the scope check.
+        cmd = ["git", "status", "--porcelain", "--untracked-files=all"]
+    out = subprocess.run(cmd, capture_output=True, text=True)
+    if out.returncode != 0:
+        return {}, out.stderr.strip()
+
+    changed = {}
+    for line in out.stdout.splitlines():
+        if not line.strip():
+            continue
+        if base:
+            status, _, path = line.partition("\t")
+            code = status[0]
+        else:
+            code, path = line[:2].strip(), line[3:]
+            code = code[0] if code else "?"
+        path = path.strip().strip('"')
+        # Renames report "old -> new"; the new path is what matters.
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1]
+        changed[path] = {"A": "added", "?": "added", "M": "modified",
+                         "D": "deleted", "R": "modified"}.get(code, "modified")
+    return changed, None
+
+
+def is_ignorable(path: str) -> bool:
+    name = Path(path).name
+    return name in ALWAYS_ALLOWED or path.endswith(ALLOWED_SUFFIXES)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
+    ap.add_argument("--spec", required=True, type=Path)
+    ap.add_argument("--base", help="compare against this git ref instead of the working tree")
+    ap.add_argument("--json", action="store_true")
+    a = ap.parse_args()
+
+    if not a.spec.is_file():
+        print(f"check-scope: spec not found: {a.spec}", file=sys.stderr)
+        return 2
+
+    declared, err = parse_files_table(a.spec)
+    if err:
+        # A spec with no Files table cannot be scope-checked. That is a defect
+        # in the spec, not a passing result - exit 2 so it is visibly different
+        # from "checked and clean".
+        msg = f"cannot scope-check: {err}"
+        print(json.dumps({"ok": False, "error": msg}) if a.json else f"SPEC DEFECT: {msg}",
+              file=sys.stderr)
+        return 2
+
+    changed, gerr = changed_files(a.base)
+    if gerr:
+        print(f"check-scope: git failed: {gerr}", file=sys.stderr)
+        return 2
+
+    undeclared = sorted(p for p in changed if p not in declared and not is_ignorable(p))
+    in_scope   = sorted(p for p in changed if p in declared)
+    untouched  = sorted(p for p in declared if p not in changed)
+    ignored    = sorted(p for p in changed if p not in declared and is_ignorable(p))
+
+    result = {
+        "ok": not undeclared,
+        "spec": str(a.spec),
+        "in_scope": in_scope,
+        "undeclared": undeclared,
+        "not_touched": untouched,
+        "ignored": ignored,
+    }
+
+    if a.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"scope check: {a.spec.name}")
+        print(f"  in scope      {len(in_scope)}")
+        if undeclared:
+            print(f"  NOT DECLARED  {len(undeclared)}   <- scope creep")
+            for p in undeclared:
+                print(f"      {p}")
+        if untouched:
+            # Not a failure. A spec can legitimately list a file the task
+            # turned out not to need, and partial work is caught by the
+            # acceptance commands, not here.
+            print(f"  not touched   {len(untouched)}   (declared but unchanged)")
+            for p in untouched:
+                print(f"      {p}")
+        if ignored:
+            print(f"  ignored       {len(ignored)}   (lockfiles / snapshots)")
+        print("  RESULT: " + ("PASS" if result["ok"] else "SCOPE VIOLATION"))
+
+    return 0 if result["ok"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

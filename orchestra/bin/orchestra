@@ -1,0 +1,293 @@
+#!/usr/bin/env bash
+# orchestra — turn this setup on and off without uninstalling it.
+#
+# WHY THIS EXISTS
+#   Everything here is installed as symlinks, which makes disabling cheap: move
+#   the links aside and Claude Code/Codex fall back to their stock behaviour.
+#   Nothing is deleted, so re-enabling is instant and your source tree is
+#   untouched either way.
+#
+#   You want this when: debugging whether a problem is yours or the harness's;
+#   working in a repo where delegation is wrong (someone else's codebase, a
+#   throwaway script); or pairing with someone who doesn't have Codex.
+#
+# GRANULARITY — four levels, least to most disruptive
+#   orchestra off hooks     hooks only; agents/skills/commands keep working
+#   orchestra off here      this repo only; global setup untouched
+#   orchestra off           everything global; nothing deleted
+#   orchestra uninstall     remove all symlinks, restore any backups
+#
+# STATE
+#   Disabled pieces move to ~/.claude/.orchestra-disabled/ and
+#   ~/.codex/.orchestra-disabled/. A marker file records what is off.
+set -euo pipefail
+
+CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
+PARK_C="$CLAUDE_HOME/.orchestra-disabled"
+PARK_X="$CODEX_HOME/.orchestra-disabled"
+STATE="$HOME/.config/orchestra/state"
+
+# Files this setup owns. Anything not on these lists is left strictly alone,
+# so a plugin or another tool's agents in the same directories survive.
+OWNED_AGENTS="codex-scout architecture-critic spec-auditor codex-implementer verifier codex-reviewer"
+OWNED_COMMANDS="scout hld lld delegate maintain review2 ledger"
+OWNED_SKILLS="design-docs delegate-to-codex test-suite documentation greenfield nestjs-backend frontend-web mobile-app"
+OWNED_HOOKS="require-spec.sh post-edit-typecheck.sh log-delegation.sh"
+
+mkdir -p "$(dirname "$STATE")"
+touch "$STATE"
+
+log()  { printf '  %s\n' "$*"; }
+step() { printf '\n==> %s\n' "$*"; }
+
+mark()   { grep -qxF "$1" "$STATE" || echo "$1" >> "$STATE"; }
+unmark() { grep -vxF "$1" "$STATE" > "$STATE.tmp" 2>/dev/null || true; mv "$STATE.tmp" "$STATE"; }
+is_off() { grep -qxF "$1" "$STATE" 2>/dev/null; }
+
+# park <path> <parkdir> — move a symlink out of the way, preserving its name.
+park() {
+  local src="$1" dir="$2"
+  [[ -e "$src" || -L "$src" ]] || return 0
+  mkdir -p "$dir"
+  mv "$src" "$dir/$(basename "$src")"
+}
+
+# unpark <name> <parkdir> <dest> — move it back.
+unpark() {
+  local name="$1" dir="$2" dest="$3"
+  [[ -e "$dir/$name" || -L "$dir/$name" ]] || return 0
+  mkdir -p "$(dirname "$dest")"
+  mv "$dir/$name" "$dest"
+}
+
+# --------------------------------------------------------------------------
+# hooks — the most intrusive layer, and the one you most often want off alone.
+#
+# Rather than deleting hook scripts, we swap settings.json for a minimal
+# variant that keeps the env vars and permissions but registers no hooks. The
+# full file is parked so nothing is lost.
+# --------------------------------------------------------------------------
+hooks_off() {
+  step "Disabling hooks"
+  if is_off hooks; then log "already off"; return 0; fi
+
+  # Derive a hookless settings.json from whatever is currently installed, so
+  # any local edits you made to env or permissions are preserved.
+  local cur="$CLAUDE_HOME/settings.json"
+  if [[ -e "$cur" ]]; then
+    mkdir -p "$PARK_C"
+    cp -L "$cur" "$PARK_C/settings.json.full"
+    python3 - "$cur" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d.pop("hooks", None)
+d["//orchestra"] = "hooks disabled by `orchestra off hooks` - re-enable with `orchestra on hooks`"
+# settings.json is a symlink into the source tree; replace it with a real file
+# so we never write through into your dotfiles repo.
+import os
+os.remove(p)
+json.dump(d, open(p, "w"), indent=2)
+open(p, "a").write("\n")
+PY
+    log "hooks unregistered; env and permissions kept"
+    log "NOTE: the spec gate is now off - delegation no longer requires a spec file"
+  fi
+  mark hooks
+}
+
+hooks_on() {
+  step "Enabling hooks"
+  if ! is_off hooks; then log "already on"; return 0; fi
+  if [[ -e "$PARK_C/settings.json.full" ]]; then
+    rm -f "$CLAUDE_HOME/settings.json"
+    mv "$PARK_C/settings.json.full" "$CLAUDE_HOME/settings.json"
+    log "restored full settings.json (symlink into the source tree)"
+  else
+    log "no parked settings found - re-run install.sh"
+  fi
+  unmark hooks
+}
+
+# --------------------------------------------------------------------------
+# global — park every agent, command, skill, and the settings file.
+# Codex profiles and ~/.local/bin stay: they do nothing unless invoked, and
+# leaving them means `design-store` and `agent-budget` keep working.
+# --------------------------------------------------------------------------
+all_off() {
+  step "Disabling Orchestra globally"
+  if is_off all; then log "already off"; return 0; fi
+
+  for a in $OWNED_AGENTS;   do park "$CLAUDE_HOME/agents/$a.md"   "$PARK_C/agents";   done
+  for c in $OWNED_COMMANDS; do park "$CLAUDE_HOME/commands/$c.md" "$PARK_C/commands"; done
+  for s in $OWNED_SKILLS;   do
+    park "$CLAUDE_HOME/skills/$s" "$PARK_C/skills"
+    park "$CODEX_HOME/skills/$s"  "$PARK_X/skills"
+  done
+  park "$CLAUDE_HOME/CLAUDE.md"     "$PARK_C"
+  park "$CLAUDE_HOME/settings.json" "$PARK_C"
+
+  log "parked in $PARK_C and $PARK_X - nothing deleted"
+  log "Codex profiles and ~/.local/bin left in place (inert unless invoked)"
+  mark all
+}
+
+all_on() {
+  step "Enabling Orchestra globally"
+  if ! is_off all; then log "already on"; return 0; fi
+
+  for a in $OWNED_AGENTS;   do unpark "$a.md" "$PARK_C/agents"   "$CLAUDE_HOME/agents/$a.md";   done
+  for c in $OWNED_COMMANDS; do unpark "$c.md" "$PARK_C/commands" "$CLAUDE_HOME/commands/$c.md"; done
+  for s in $OWNED_SKILLS;   do
+    unpark "$s" "$PARK_C/skills" "$CLAUDE_HOME/skills/$s"
+    unpark "$s" "$PARK_X/skills" "$CODEX_HOME/skills/$s"
+  done
+  unpark "CLAUDE.md"     "$PARK_C" "$CLAUDE_HOME/CLAUDE.md"
+  unpark "settings.json" "$PARK_C" "$CLAUDE_HOME/settings.json"
+
+  log "restored"
+  unmark all
+}
+
+# --------------------------------------------------------------------------
+# here — per-repo disable, via a settings.local.json that Claude Code loads
+# after the user-level file. Project settings win, so this neutralises hooks
+# and the deny rules in this repo only. Written to .git/info/exclude so it
+# never lands in a commit.
+# --------------------------------------------------------------------------
+here_off() {
+  local root; root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "orchestra: not inside a git repository" >&2; exit 65; }
+  step "Disabling Orchestra in $root"
+  mkdir -p "$root/.claude"
+  cat > "$root/.claude/settings.local.json" <<'JSON'
+{
+  "//": "Orchestra disabled for this repository by `orchestra off here`.",
+  "//2": "Project settings take precedence over ~/.claude/settings.json, so the empty hooks object below overrides the global hook registrations. Delete this file or run `orchestra on here` to restore.",
+  "hooks": {}
+}
+JSON
+  grep -qxF '.claude/settings.local.json' "$root/.git/info/exclude" 2>/dev/null \
+    || echo '.claude/settings.local.json' >> "$root/.git/info/exclude"
+  log "wrote .claude/settings.local.json (hooks off here)"
+  log "ignored via .git/info/exclude - not committed"
+}
+
+here_on() {
+  local root; root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "orchestra: not inside a git repository" >&2; exit 65; }
+  rm -f "$root/.claude/settings.local.json"
+  rmdir "$root/.claude" 2>/dev/null || true
+  step "Re-enabled in $root"
+}
+
+# --------------------------------------------------------------------------
+# uninstall — remove every symlink this setup created, restore timestamped
+# backups install.sh made. The source tree and the design store are untouched.
+# --------------------------------------------------------------------------
+uninstall() {
+  step "Uninstalling Orchestra"
+  read -r -p "Remove all Orchestra symlinks? Source tree and ~/design are kept. [y/N] " ans
+  [[ "$ans" =~ ^[Yy]$ ]] || { log "aborted"; exit 0; }
+
+  all_on 2>/dev/null || true   # bring parked files back so we remove them all
+
+  for a in $OWNED_AGENTS;   do rm -f "$CLAUDE_HOME/agents/$a.md";   done
+  for c in $OWNED_COMMANDS; do rm -f "$CLAUDE_HOME/commands/$c.md"; done
+  for s in $OWNED_SKILLS;   do rm -rf "$CLAUDE_HOME/skills/$s" "$CODEX_HOME/skills/$s"; done
+  for h in $OWNED_HOOKS;    do rm -f "$CLAUDE_HOME/hooks/$h";       done
+  rm -f "$CLAUDE_HOME/CLAUDE.md" "$CLAUDE_HOME/settings.json"
+  for t in config impl review cheap; do rm -f "$CODEX_HOME/$t.config.toml"; done
+  for b in codex-task agent-budget design-store orchestra; do rm -f "$BIN_DIR/$b"; done
+  rm -rf "$PARK_C" "$PARK_X" "$HOME/.config/orchestra"
+
+  # Restore the most recent backup install.sh made for each clobbered file.
+  for f in "$CLAUDE_HOME"/*.bak.* "$CODEX_HOME"/*.bak.*; do
+    [[ -e "$f" ]] || continue
+    local orig="${f%%.bak.*}"
+    [[ -e "$orig" ]] || { mv "$f" "$orig"; log "restored backup -> $orig"; }
+  done
+
+  log "done - ~/design and the source tree were not touched"
+  log "per-repo AGENTS.md / CLAUDE.md / .design links remain; remove by hand if you want"
+}
+
+status() {
+  step "Orchestra status"
+  if is_off all; then
+    log "GLOBAL: OFF  (parked in $PARK_C)"
+  else
+    log "GLOBAL: ON"
+    # Count only what Orchestra owns. These directories are shared with your
+    # own commands and with skills synced from claude.ai, so a raw `ls | wc -l`
+    # reports numbers that do not match what this setup installed.
+    local na=0 nc=0 ns=0
+    for a in $OWNED_AGENTS;   do [[ -e "$CLAUDE_HOME/agents/$a.md"   ]] && na=$((na+1)); done
+    for c in $OWNED_COMMANDS; do [[ -e "$CLAUDE_HOME/commands/$c.md" ]] && nc=$((nc+1)); done
+    for s in $OWNED_SKILLS;   do [[ -e "$CLAUDE_HOME/skills/$s"      ]] && ns=$((ns+1)); done
+    echo "    agents:   $na/$(echo $OWNED_AGENTS   | wc -w)"
+    echo "    commands: $nc/$(echo $OWNED_COMMANDS | wc -w)"
+    echo "    skills:   $ns/$(echo $OWNED_SKILLS   | wc -w)"
+    echo "    (other files in these directories are yours or synced - not counted)"
+  fi
+  is_off hooks && log "HOOKS:  OFF  (spec gate is NOT enforcing)" || log "HOOKS:  ON"
+
+  if git rev-parse --show-toplevel >/dev/null 2>&1; then
+    local root; root="$(git rev-parse --show-toplevel)"
+    [[ -f "$root/.claude/settings.local.json" ]] \
+      && log "THIS REPO: OFF" || log "THIS REPO: ON"
+    [[ -L "$root/.design" ]] \
+      && log "design store: $(readlink "$root/.design")" \
+      || log "design store: not linked here"
+  fi
+
+  # Derive the list from the source tree rather than hard-coding it, so a
+  # binary added later is checked automatically instead of silently omitted.
+  local bins
+  if [[ -d "${ORCHESTRA_SRC:-$HOME/dotfiles/orchestra}/bin" ]]; then
+    bins=$(ls -1 "${ORCHESTRA_SRC:-$HOME/dotfiles/orchestra}/bin")
+  else
+    bins="codex-task agent-budget design-store orchestra check-scope orq-wall"
+  fi
+  printf '\n  binaries: '
+  for b in $bins; do
+    command -v "$b" >/dev/null 2>&1 && printf '%s ' "$b" || printf '%s(MISSING) ' "$b"
+  done; echo
+  command -v jq >/dev/null 2>&1 || log "WARNING: jq missing - hooks will exit silently"
+}
+
+# --------------------------------------------------------------------------
+case "${1:-status}" in
+  off)
+    case "${2:-all}" in
+      hooks) hooks_off ;;
+      here)  here_off ;;
+      all|"") all_off ;;
+      *) echo "orchestra off {all|hooks|here}" >&2; exit 64 ;;
+    esac ;;
+  on)
+    case "${2:-all}" in
+      hooks) hooks_on ;;
+      here)  here_on ;;
+      all|"") all_on ;;
+      *) echo "orchestra on {all|hooks|here}" >&2; exit 64 ;;
+    esac ;;
+  uninstall) uninstall ;;
+  status)    status ;;
+  *)
+    cat <<'EOF'
+usage: orchestra <command>
+
+  status              what is on, what is off, what is missing
+  off hooks           unregister hooks; agents/skills/commands stay
+  off here            disable in the current repo only
+  off                 park everything global; nothing deleted
+  on [hooks|here]     reverse any of the above
+  uninstall           remove all symlinks, restore backups
+
+Disabling never deletes. Parked files live in ~/.claude/.orchestra-disabled/.
+EOF
+    exit 64 ;;
+esac
