@@ -182,6 +182,93 @@ function y() {
   rm -f -- "$tmp"
 }
 
+# --- base64, for editing Secrets ---------------------------------------------
+# Values under a Secret's `data:` are base64, so adding one in k9s (`e`)
+# means encoding it by hand first. Two things make the obvious
+# `echo foo | base64` wrong, both of which cost an afternoon:
+#
+#   - `echo` appends a newline that gets encoded into the value. dHJ1ZQ== is
+#     "true", dHJ1ZQo= is "true\n" — the API server accepts both, and the
+#     trailing byte then fails string comparisons in the app with nothing
+#     anywhere to point at. Hence printf '%s'.
+#   - GNU base64 wraps at 76 columns, so anything long (a URL, a JWT, a
+#     cert) comes back as multiple lines, and that embedded newline is
+#     exactly what kubectl rejects as "illegal base64 data at input byte N".
+#     Hence -w0.
+#
+# b64kv emits the full `  KEY: value` line already indented for a data:
+# block, so it pastes into the editor as-is. Quote the argument in all
+# three: ?, *, & and $ are live in zsh, and a cron expression like
+# '0 8 * * *' glob-expands against the cwd unquoted.
+#
+# For anything non-trivial, prefer `stringData:` in the same edit — the API
+# server encodes it on write and merges it into data:, no base64 involved.
+b64()   { printf '%s' "$1" | base64 -w0; echo; }
+d64()   { printf '%s' "$1" | base64 -d;  echo; }
+b64kv() { printf '  %s: %s\n' "$1" "$(printf '%s' "$2" | base64 -w0)"; }
+#
+# b64env is the bulk version: hand it a block of env vars, get the whole
+# encoded data: block back. Accepts the shapes these values actually
+# arrive in — KEY=value from a .env, KEY: value from a manifest, and
+# "KEY": "value", from a JSON config — since a paste out of a ticket is
+# usually a mix. `export ` prefixes, trailing commas, surrounding quotes,
+# blank lines and # comments are all handled; anything it can't parse is
+# reported on stderr rather than silently dropped.
+#
+# With no argument it reads the CLIPBOARD, not the terminal, which is not
+# the obvious design but is the only one that works. Pasting into a plain
+# `read` loop doesn't: zsh's line editor is what implements bracketed
+# paste, and ZLE is not running once the function has started, so kitty
+# falls back to sending each newline as ESC E (NEL). The block then
+# arrives as a single line and encodes to one enormous bogus value.
+# Reading the clipboard sidesteps the terminal entirely. Files and pipes
+# are unaffected: `b64env .env.local`, `something | b64env`.
+#
+# The sed normalisation is belt-and-braces for input that went through a
+# terminal anyway — CR endings, NEL from a paste captured to a file, and
+# the literal three characters ^[E, which is how that ESC renders if you
+# copy a mangled line back out of the scrollback.
+#
+# `command cat` deliberately: cat is aliased to bat above, and zsh
+# expands aliases when a function is *parsed*, so a bare `cat` here would
+# resolve to bat and decorate the input.
+b64env() {
+  local src line key val
+  if (( $# == 0 )) && [[ -t 0 ]]; then
+    if command -v wl-paste &>/dev/null; then
+      print -u2 "b64env: reading clipboard"
+      src="$(wl-paste 2>/dev/null)"
+    else
+      print -u2 "b64env: paste then Ctrl-D — newlines may mangle, prefer a file"
+      src="$(command cat)"
+    fi
+  else
+    src="$(command cat -- "$@")"
+  fi
+  printf '%s\n' "$src" \
+    | sed -e 's/\x1bE/\n/g' -e 's/\^\[E/\n/g' -e 's/\xc2\x85/\n/g' -e 's/\r/\n/g' \
+    | while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"   # ltrim
+    line="${line%"${line##*[![:space:]]}"}"   # rtrim
+    [[ -z $line || $line == '#'* ]] && continue
+    line="${line#export }"
+    line="${line%,}"
+    # The key charset excludes : and =, so the first separator after it is
+    # unambiguously the delimiter — values containing either (a URL with a
+    # scheme and a ?id= query, say) survive intact.
+    if [[ $line =~ '^"?([A-Za-z_][A-Za-z0-9_]*)"?[[:space:]]*[:=][[:space:]]*(.*)$' ]]; then
+      key="${match[1]}"; val="${match[2]}"
+    else
+      print -u2 "b64env: skipped unparseable line: $line"
+      continue
+    fi
+    val="${val%,}"
+    [[ $val == \"*\" ]] && { val="${val#\"}"; val="${val%\"}"; }
+    [[ $val == \'*\' ]] && { val="${val#\'}"; val="${val%\'}"; }
+    printf '  %s: %s\n' "$key" "$(printf '%s' "$val" | base64 -w0)"
+  done
+}
+
 # --- Local overrides -------------------------------------------------------
 # Untracked, machine-specific tweaks (work aliases, secrets loaded into
 # env, whatever). See .gitignore for the *.local convention.
