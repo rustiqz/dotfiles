@@ -63,10 +63,16 @@ second. Built on one laptop, then replayed on other machines.
   its IPC: `theme reload|name`, `bar brightness|flash <title> <detail>`
   — any script can flash the dev island. waybar's config is kept in the
   repo, unused, as the rollback.
-- Now-playing and Docker status live in the ags desktop widget sidebar
-  (`$mod+grave`), not waybar — waybar's `mpris`/`custom/docker` modules
-  were removed once the sidebar covered both in more detail (see the
-  "desktop widget sidebar" note below).
+- **Dev hub** (`$mod+Space`, also `$mod+grave`): Quickshell drawer,
+  `quickshell/.config/quickshell/modules/hub/`. Sections by letter — `a`
+  agents (Enter jumps to the window/tmux pane), `c` CI + PRs (Enter
+  opens, `l` failed log in a terminal), `s` compose services (Enter logs,
+  `u`/`d` up/down via `devstat act`, `z` lazydocker), `p` listening dev
+  servers, `w` watchers — plus volume/brightness/mic sliders,
+  Wi-Fi/Bluetooth/Silence/Caffeine toggles and now-playing. It replaced
+  the ags sidebar (Docker + now-playing); ags is gone from the repo and
+  manifests. `qs ipc call hub openSection <letter>` opens a section from
+  a script.
 - yazi (`$mod+Y`, opens in a kitty window) is themed through the same
   switcher as everything else — flavors are looked up by *directory*
   name (`~/.config/yazi/flavors/<name>.yazi/`), so `bin/bin/theme`
@@ -240,9 +246,11 @@ developers (weather, screen time, pomodoro, phone, shaders) is out.
       `themes/<name>/quickshell.json` + matugen template, cross-fading
       live. `scripts/verify-phase9.sh` 21/21 in the live session;
       **cold-start check (full logout/login) still pending.**
-- [ ] **10 — Dev hub.** `$mod+Space` right drawer, keyboard-first
-      (`a` agents, `c` CI, `s` services, `p` ports, `w` watchers) + one
-      quick-controls row. Retires the ags sidebar.
+- [x] **10 — Dev hub.** `$mod+Space` right drawer, keyboard-first
+      (`a` agents, `c` CI, `s` services, `p` ports, `w` watchers) +
+      quick controls + now-playing. `devstat act up|down` for services
+      (a project's `just up/down` when present). Retired the ags sidebar
+      everywhere. `scripts/verify-phase10.sh` 24/24.
 - [ ] **11 — Pokédex launcher.** Replaces rofi drun on `$mod+D`; `/`
       projects, `>` run, `@` windows, `=` calc, `:` emoji.
 - [ ] **12 — Wallpaper cards + polish.** Pokémon-card wallpaper picker
@@ -452,6 +460,18 @@ scripts/
   `top` ("Cannot override FINAL property"). Both surfaced only as a load
   failure chain naming the outermost type ("Type Bar unavailable") — read
   the *last* "caused by" line, it names the real file and line.
+
+- **Quickshell IPC function names: avoid CLI words and JS reserved
+  words.** A function named `show` can't take arguments from the CLI —
+  `qs ipc call hub show c` is parsed against the `qs ipc show`
+  subcommand. Renamed to `goto`, the reload logged "Configuration
+  Loaded" yet `qs ipc show` still listed the *old* handler: `goto` is
+  reserved in JS, the new handler silently didn't register. Check `qs
+  ipc show` after adding a function, not just the log.
+- **Animate layer-panel slides with a `Translate`, not `x`.** `x: open ?
+  0 : width + gap` on the hub's content was a binding loop (the window
+  sizes from its content) — warned on every open, caught by the verify
+  script's clean-log check.
 
 ## Clean-machine findings (second machine, 2026-08-15)
 

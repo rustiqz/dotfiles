@@ -29,6 +29,21 @@ Singleton {
     property var agents: ({ sessions: [], orchestra: null })
     property var services: ({ available: false, running: 0, projects: [] })
     property var ci: ({ available: false, repos: [] })
+    property var ports: []
+    property var watchers: []
+
+    // The dev hub sets this while open. ports/watchers are only shown
+    // there, so they're only polled then — no point scanning /proc and
+    // ss every few seconds for a panel nobody is looking at.
+    property bool hubOpen: false
+    onHubOpenChanged: if (hubOpen) refreshAll()
+
+    function refreshAll() {
+        refreshFocus()
+        if (!liveProc.running) liveProc.running = true
+        if (!ciProc.running) ciProc.running = true
+        if (!hubProc.running) hubProc.running = true
+    }
 
     // --- derived ---------------------------------------------------------------
     readonly property var sessions: agents && agents.sessions ? agents.sessions : []
@@ -72,9 +87,19 @@ Singleton {
         target: d => root.ci = d
     }
 
+    Poll {
+        id: hubProc
+        command: [root.bin, "ports", "watchers"]
+        target: d => { root.ports = d.ports; root.watchers = d.watchers }
+    }
+
     Timer {
         interval: 3000; running: true; repeat: true; triggeredOnStart: true
         onTriggered: root.refreshFocus()
+    }
+    Timer {
+        interval: 3000; running: root.hubOpen; repeat: true
+        onTriggered: if (!hubProc.running) hubProc.running = true
     }
     Timer {
         interval: 4000; running: true; repeat: true; triggeredOnStart: true

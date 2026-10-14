@@ -74,13 +74,20 @@ wallpaper (`matugen/config.toml` + `matugen/templates/*.tpl`), extracts
 a Material You palette, and regenerates every themed app's colors from
 it on the spot — never automatically, only when you ask.
 
-### Desktop widget sidebar
+### Bar and dev hub
 
-`$mod + grave` (backtick) toggles a floating sidebar (Docker container
-status + a rich now-playing card with album art and a scrubbable
-progress bar) built with [Astal/AGS](https://github.com/Aylur/ags). It
-floats on top without reserving screen space and starts hidden — nothing
-sitting there permanently.
+The bar is [Quickshell](https://quickshell.org) (`quickshell/`): three
+floating islands, with a centre "dev island" showing the focused
+project's branch and dirty state, running agents, containers and CI —
+and briefly expanding for events (CI red/green, an agent needing input,
+a long command finishing) and as the volume/brightness OSD.
+
+`$mod + Space` opens the dev hub: a keyboard-driven drawer with agents
+(`a`), CI and PRs (`c`), compose services with up/down/logs (`s`),
+listening dev servers (`p`) and watch-mode builders (`w`), plus volume,
+brightness, mic, Wi-Fi/Bluetooth/Do-not-disturb/Caffeine toggles and
+now-playing. All data comes from `bin/bin/devstat`, which prints the same
+thing as JSON in a terminal.
 
 ### Keybinds
 

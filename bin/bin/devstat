@@ -28,6 +28,13 @@ USAGE
       watchers  watch-mode builders/test runners (bacon, vitest, tsx...)
       projects  project directories (for the launcher)
 
+    Actions (the dev hub's buttons; usable from a terminal too):
+      devstat act up|down DIR      start/stop a project's services — the
+                                   project's `just up`/`just down` when its
+                                   justfile has that recipe, else `docker
+                                   compose up -d`/`down` in DIR. Result is
+                                   a cmd-done event (bar flash + notification).
+
     Hook entry points (not for interactive use):
       devstat agent-event [TYPE]   agent hook; reads the hook JSON on stdin
       devstat cmd-done ...         zsh precmd hook for long commands
@@ -748,6 +755,47 @@ SECTIONS = {
 
 
 # --------------------------------------------------------------------------
+# actions
+# --------------------------------------------------------------------------
+def _just_has(d, recipe):
+    """True if the project's justfile defines `recipe` (`just --summary`
+    prints every recipe name, space-separated)."""
+    jf = next((d / n for n in ("justfile", "Justfile", ".justfile") if (d / n).exists()), None)
+    if not jf:
+        return False
+    rc, out = run(["just", "--justfile", str(jf), "--working-directory", str(d), "--summary"], timeout=5)
+    return rc == 0 and recipe in out.split()
+
+
+def act(verb, directory):
+    """Start/stop a project's services, report the outcome as an event.
+    Prefers the project's own `just up`/`just down` — the project knows its
+    env files, profiles and migrations; this script doesn't."""
+    d = Path(directory).expanduser().resolve()
+    if verb not in ("up", "down") or not d.is_dir():
+        print(f"devstat act: usage: act up|down DIR (got {verb} {directory})", file=sys.stderr)
+        return 2
+    if shutil.which("just") and _just_has(d, verb):
+        cmd = ["just", verb]
+    else:
+        cmd = ["docker", "compose", "up", "-d"] if verb == "up" else ["docker", "compose", "down"]
+    start = time.time()
+    try:
+        p = subprocess.run(cmd, cwd=d, capture_output=True, text=True, timeout=600)
+        status, err = p.returncode, (p.stderr or p.stdout).strip().splitlines()
+    except subprocess.TimeoutExpired:
+        status, err = 124, ["timed out after 10 min"]
+    except FileNotFoundError:
+        status, err = 127, [f"{cmd[0]} not found"]
+    elapsed = int(time.time() - start)
+    label = " ".join(cmd)
+    emit("cmd-done", cmd=label, status=status, seconds=elapsed, project=project_of(d))
+    if status != 0:
+        notify(f"✗ {label} · {d.name}", (err[-1] if err else "")[:200], urgency="critical", icon="dialog-error")
+    return status
+
+
+# --------------------------------------------------------------------------
 # hook entry points — must never fail loudly or print to stdout
 # --------------------------------------------------------------------------
 def agent_event(kind_arg):
@@ -863,6 +911,11 @@ def main():
                 with (STATE / "debug.log").open("a") as f:
                     f.write(f"--- {time.ctime()} {argv}\n{traceback.format_exc()}")
         return 0
+    if argv[:1] == ["act"]:
+        if len(argv) != 3:
+            print("devstat act: usage: act up|down DIR", file=sys.stderr)
+            return 2
+        return act(argv[1], argv[2])
     if argv[:1] == ["cmd-done"]:
         ap = argparse.ArgumentParser(prog="devstat cmd-done")
         ap.add_argument("--elapsed", type=int, required=True)
