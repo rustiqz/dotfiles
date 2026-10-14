@@ -440,3 +440,45 @@ p7zip
 # switcher like every other app here — see themes/<name>/obsidian.css
 # and bin/bin/theme.
 obsidian
+
+
+# --- Phase 7: developer toolchain --------------------------------------------
+
+# Rust toolchain manager. Was installed by hand on the first machine and
+# never tracked — exactly the "hand-made state nothing reproduces" shape
+# from the clean-machine findings. Provides/conflicts with `rust`/`cargo`,
+# so never add those here. The toolchain itself, its components
+# (rust-analyzer, rust-src, clippy, rustfmt) and cross targets are
+# installed by hooks/55-rust-toolchain.sh, not pacman.
+rustup
+
+# Build speed — wired in by cargo/.cargo/config.toml (stowed):
+#   mold    linker; linking is the slowest step of an incremental
+#           rebuild in a many-crate workspace like monitra
+#   sccache compiler cache shared across *projects* — monitra and
+#           Vaultiq's crypto core compile the same serde/tokio/etc.
+#           Note it can't cache incremental crates (workspace members
+#           in debug builds), only dependencies and release builds.
+mold
+sccache
+
+# Cargo subcommands, from pacman rather than `cargo install` so a clean
+# machine gets them from bootstrap (several were hand-installed into
+# ~/.cargo/bin on the first machine).
+bacon            # background checker/test runner: `bacon clippy`, `bacon test`
+cargo-nextest    # faster test runner; neotest's rust adapter uses it when present
+cargo-binstall   # install prebuilt release binaries instead of compiling
+cargo-audit      # RustSec advisory scan (monitra/Vaultiq both run it in CI)
+cargo-ndk        # builds Vaultiq's crypto core for the Android targets
+git-cliff        # changelog generation (monitra's release flow)
+mdbook           # docs site (monitra)
+
+# One task runner across every project: each repo exposes the same
+# `just dev` / `just test` / `just up` / `just down` recipes, which is
+# what the Phase 10 dev hub and the project launcher call — no per-project
+# special-casing in this repo.
+just
+
+# Required by nvim-treesitter's `main` branch, which builds parsers
+# locally (its README: pacman package, explicitly not the npm one).
+tree-sitter-cli
