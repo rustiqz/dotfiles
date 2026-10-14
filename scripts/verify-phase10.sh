@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # verify-phase10.sh — assert that Phase 10 (dev hub) is applied: the hub
-# is reachable (IPC + keybinds), actually maps/unmaps as a layer, is
+# is reachable (IPC + keybinds), actually maps/unmaps as a layer (with
+# its click-outside scrim), is
 # blurred, its actions work, and the ags sidebar it replaced is gone
 # everywhere (process, autostart, keybind, theme switcher, manifests).
 #
@@ -48,8 +49,24 @@ timeout 3 qs ipc call hub openSection c &>/dev/null; sleep 0.8
 mapped && ok "openSection c → layer 'quickshell-hub' mapped" || no "hub layer not mapped after opening"
 kb=$(hyprctl layers -j | jq -r '[.[].levels[][] | select(.namespace == "quickshell-hub")][0] | .keyboardInteractivity // empty' 2>/dev/null)
 [[ -z $kb || $kb == 1 ]] && ok "hub takes keyboard focus when open" || wa "hub keyboardInteractivity=$kb (expected exclusive)"
+# Click-outside-to-close: a full-screen scrim layer under the hub (which
+# sits a level higher) catches every click that isn't on the hub. The
+# click itself can't be scripted here (no input simulator installed), so
+# assert the geometry and stacking that make it work.
+L=$(hyprctl layers -j 2>/dev/null)
+scrim=$(jq -c '[.[].levels | to_entries[] | .key as $l | .value[] | select(.namespace == "quickshell-hub-scrim") | {l: ($l|tonumber), w, h}][0]' <<<"$L")
+hubl=$(jq '[.[].levels | to_entries[] | .key as $l | .value[] | select(.namespace == "quickshell-hub") | ($l|tonumber)][0]' <<<"$L")
+mon=$(hyprctl monitors -j | jq -c '[.[] | select(.focused)][0] | {w: (.width / .scale | floor), h: (.height / .scale | floor)}')
+if [[ $(jq -r '"\(.w)x\(.h)"' <<<"$scrim") == $(jq -r '"\(.w)x\(.h)"' <<<"$mon") ]]; then
+  ok "scrim covers the whole monitor ($(jq -r '"\(.w)x\(.h)"' <<<"$scrim")) — catches clicks outside the hub"
+else
+  no "scrim missing or not full-screen: $scrim vs monitor $mon"
+fi
+(( hubl > $(jq '.l // 99' <<<"$scrim") )) && ok "hub stacked above the scrim (layer $hubl)" || no "hub not above the scrim"
 timeout 3 qs ipc call hub close &>/dev/null; sleep 0.8
 mapped && no "hub layer still mapped after close" || ok "close → layer unmapped"
+hyprctl layers -j | jq -r '.[].levels[][] | .namespace' | grep -qx quickshell-hub-scrim \
+  && no "scrim still mapped after close (would eat every click)" || ok "close → scrim unmapped too"
 rules=$(grep -c 'match:namespace ^(quickshell-hub)' "$DOTFILES/hypr/.config/hypr/windowrules.conf")
 (( rules >= 2 )) && ok "hub layer blurred (blur + ignore_alpha)" || no "no blur layerrules for quickshell-hub"
 
