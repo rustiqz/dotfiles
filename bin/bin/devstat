@@ -350,6 +350,34 @@ def emit(kind, **fields):
         pass
 
 
+# Notification wording: Pokémon-game flavour by default ("A wild CI failure
+# appeared!"), matching the launcher/cards/greeter. `touch
+# ~/.config/devstat/plain` switches every title back to plain wording — a
+# file, not an env var, because the CI timer and agent hooks don't run in
+# your shell and never see its environment.
+PLAIN_FLAG = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "devstat" / "plain"
+
+
+def title(kind, **k):
+    plain = PLAIN_FLAG.exists()
+    t = {
+        "ci-failed":   ("CI failed · {name}",               "A wild CI failure appeared! · {name}"),
+        "ci-fixed":    ("CI green again · {name}",          "{name}'s CI evolved to green!"),
+        "agent-input": ("Agent needs input · {project}",    "{project} is waiting for your command!"),
+        "agent-done":  ("Agent finished · {project}",       "{project} used Finish! It's super effective!"),
+        "act-failed":  ("✗ {label} · {dir}",                "✗ {label} · {dir} — it missed!"),
+    }[kind][0 if plain else 1]
+    return t.format(**k)
+
+
+def flavor_body(ok, rest):
+    """Body prefix for command results: 'Super effective!' / 'It missed!'."""
+    if PLAIN_FLAG.exists():
+        return rest
+    return ("Super effective! · " if ok else "It missed! · ") + rest if rest else \
+           ("Super effective!" if ok else "It missed!")
+
+
 def notify(title, body="", urgency="normal", icon="utilities-terminal"):
     # -a devstat: swaync can group/filter on the app name.
     run(["notify-send", "-a", "devstat", "-u", urgency, "-i", icon, title, body], timeout=3)
@@ -544,11 +572,11 @@ def _ci_transitions(old, new):
             wf = next((w for w in r["workflows"] if w["conclusion"] in
                        ("failure", "timed_out", "startup_failure")), {})
             emit("ci-failed", repo=r["slug"], workflow=wf.get("name"), url=wf.get("url"))
-            notify(f"CI failed · {name}", f"{wf.get('name', '')}: {wf.get('title', '')}",
+            notify(title("ci-failed", name=name), f"{wf.get('name', '')}: {wf.get('title', '')}",
                    urgency="critical", icon="dialog-error")
         elif prev == "failing" and cur == "passing":
             emit("ci-fixed", repo=r["slug"])
-            notify(f"CI green again · {name}", icon="emblem-ok")
+            notify(title("ci-fixed", name=name), icon="emblem-ok")
 
 
 def _docker_rows():
@@ -791,7 +819,8 @@ def act(verb, directory):
     label = " ".join(cmd)
     emit("cmd-done", cmd=label, status=status, seconds=elapsed, project=project_of(d))
     if status != 0:
-        notify(f"✗ {label} · {d.name}", (err[-1] if err else "")[:200], urgency="critical", icon="dialog-error")
+        notify(title("act-failed", label=label, dir=d.name), (err[-1] if err else "")[:200],
+               urgency="critical", icon="dialog-error")
     return status
 
 
@@ -864,14 +893,14 @@ def agent_event(kind_arg):
     if status == "needs-input":
         emit("agent-needs-input", project=project, session=sid, message=state["message"])
         if not (pid and is_visible(pid)):
-            notify(f"Agent needs input · {project}", state["message"] or "",
+            notify(title("agent-input", project=project), state["message"] or "",
                    urgency="critical", icon="dialog-question")
     elif status == "done" and prev.get("status") == "working":
         took = now() - prev.get("since", now())
         emit("agent-done", project=project, session=sid, seconds=took)
         # Only worth a notification for a turn long enough to look away.
         if took >= 20 and not (pid and is_visible(pid)):
-            notify(f"Agent finished · {project}", f"after {took // 60}m {took % 60}s",
+            notify(title("agent-done", project=project), f"after {took // 60}m {took % 60}s",
                    icon="emblem-ok")
 
 
@@ -889,8 +918,8 @@ def cmd_done(a):
         return
     mins, secs = divmod(a.elapsed, 60)
     took = f"{mins}m {secs}s" if mins else f"{secs}s"
-    title = ("✓ " if ok else f"✗ exit {a.status} · ") + (a.cmd if len(a.cmd) <= 60 else a.cmd[:57] + "…")
-    notify(title, f"{project + ' · ' if project else ''}{took}",
+    heading = ("✓ " if ok else f"✗ exit {a.status} · ") + (a.cmd if len(a.cmd) <= 60 else a.cmd[:57] + "…")
+    notify(heading, flavor_body(ok, f"{project + ' · ' if project else ''}{took}"),
            urgency="normal" if ok else "critical",
            icon="emblem-ok" if ok else "dialog-error")
 

@@ -94,24 +94,36 @@ PanelWindow {
 
     // --- sections ----------------------------------------------------------------------
     readonly property var sections: [
-        { key: "a", name: "Agents", hints: [["↵", "jump to"]] },
+        { key: "a", name: "Party", hints: [["↵", "jump to"]] },
         { key: "c", name: "CI", hints: [["↵", "open"], ["l", "failed log"], ["o", "actions"]] },
         { key: "s", name: "Services", hints: [["↵", "logs"], ["u", "up"], ["d", "down"], ["z", "lazydocker"]] },
         { key: "p", name: "Ports", hints: [["↵", "open"]] },
         { key: "w", name: "Watchers", hints: [] },
     ]
 
+    // The agents section is your Party: each agent session is a party
+    // member with an HP bar. HP is how fresh the current turn is — it
+    // drains over 30 minutes of continuous work, so an agent that's been
+    // grinding (or stuck) visibly goes yellow, then red: the nudge to
+    // check on it. Idle/finished members rest at full HP. Status reads as
+    // the game would say it.
+    readonly property int hpDrainSecs: 30 * 60
     readonly property var agentItems: {
         hub.tick
         const color = { "needs-input": Theme.warn, working: Theme.accent, idle: Theme.muted, done: Theme.ok }
+        const said = { "needs-input": "awaiting command", working: "in battle", idle: "resting",
+                       done: "victorious", running: "in the field" }
+        const now = Date.now() / 1000
         const out = DevStat.sessions.map(s => ({
             icon: s.status === "needs-input" ? Icons.hand : s.kind === "claude" ? Icons.robot : Icons.term,
             iconColor: color[s.status] || Theme.info,
             title: s.project || (s.cwd ? s.cwd.split("/").pop() : s.kind),
-            subtitle: s.message || [s.kind, s.since ? `${s.status} ${hub.ago(s.since)}` : `up ${hub.ago(s.started)}`,
+            subtitle: s.message || [`Lv. ${s.kind}`, s.since ? `${said[s.status] || s.status} ${hub.ago(s.since)}` : `out for ${hub.ago(s.started)}`,
                                     s.tmux ? `tmux ${s.tmux}` : s.workspace ? `workspace ${s.workspace}` : ""]
                                    .filter(Boolean).join(" · "),
-            chip: s.status === "running" ? "" : s.status,
+            hp: s.status === "working" && s.since ? 1 - (now - s.since) / hub.hpDrainSecs
+              : s.status === "needs-input" ? 0.35 : 1,
+            chip: said[s.status] || "",
             chipColor: color[s.status] || Theme.muted,
             actions: { Enter: () => hub.focusAgent(s) },
         }))
@@ -217,7 +229,7 @@ PanelWindow {
     }
 
     readonly property var items: ({ a: agentItems, c: ciItems, s: serviceItems, p: portItems, w: watcherItems })[section] || []
-    readonly property var empty: ({ a: "No agents running", c: "No repos", s: "No compose projects",
+    readonly property var empty: ({ a: "Your party is empty — no agents running", c: "No repos", s: "No compose projects",
                                     p: "No dev servers listening", w: "No watchers running" })[section]
     onSectionChanged: cursor = 0
     onItemsChanged: if (cursor >= items.length) cursor = Math.max(0, items.length - 1)
