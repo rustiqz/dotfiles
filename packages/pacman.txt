@@ -503,3 +503,4 @@ libnotify             # notify-send — every CI/agent/long-command notification
 xdg-utils             # xdg-open — hub/bar open CI runs, PRs, dev-server URLs
 less                  # hub `l`: failed CI logs paged in a terminal
 nm-connection-editor  # bar's network glyph opens it (also pulled by network-manager-applet)
+librsvg               # rsvg-convert — bin/bin/lockinfo renders the lock screen's fallback Pokéball avatar (and scripts/generate-wallpaper.py)
