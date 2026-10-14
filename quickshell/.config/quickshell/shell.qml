@@ -20,6 +20,7 @@ import qs.modules.hub
 import qs.modules.launcher
 import qs.modules.cheatsheet
 import qs.modules.power
+import qs.modules.wallpaper
 
 ShellRoot {
     Variants {
@@ -39,4 +40,7 @@ ShellRoot {
 
     // Power menu — $mod+P and the bar's power glyph (qs ipc call power toggle).
     PowerMenu {}
+
+    // Wallpaper picker as Pokémon cards — $mod+W (qs ipc call wallpapers toggle).
+    Wallpapers {}
 }

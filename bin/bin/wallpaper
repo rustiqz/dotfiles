@@ -7,7 +7,10 @@
 # the lock screen picks up the same choice next time it's shown.
 #
 # Usage:
-#   wallpaper       interactive rofi picker over the wallpaper directory
+#   wallpaper         interactive rofi picker over the wallpaper directory
+#   wallpaper NAME    set NAME (a file in the wallpaper directory) directly —
+#                     what the Pokémon-card picker ($mod+W, quickshell
+#                     modules/wallpaper/) calls, so both share one code path
 
 set -euo pipefail
 
@@ -19,9 +22,14 @@ CURRENT_LINK="$WALLPAPER_DIR/.current"
 # without this the picker would silently list nothing every time.
 # .current is naturally excluded below regardless (it has no image
 # extension), so this can't turn it into a duplicate entry.
+if [[ $# -ge 1 ]]; then
+  selected=$(basename -- "$1")   # a name, never a path outside the directory
+  [[ -f $WALLPAPER_DIR/$selected ]] || { echo "wallpaper: no such file: $WALLPAPER_DIR/$selected" >&2; exit 1; }
+else
 selected=$(find -L "$WALLPAPER_DIR" -maxdepth 1 -type f \
   \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) \
   -printf '%f\n' | sort | rofi -dmenu -p "Wallpaper")
+fi
 
 [[ -z $selected ]] && exit 0
 

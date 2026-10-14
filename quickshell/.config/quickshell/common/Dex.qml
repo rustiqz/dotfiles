@@ -23,7 +23,32 @@ Singleton {
         dark:     { name: "Dark",     color: "#705746" },   // security
         ground:   { name: "Ground",   color: "#E2BF65" },   // files
         normal:   { name: "Normal",   color: "#A8A77A" },   // settings / anything else
+        ice:      { name: "Ice",      color: "#96D9D6" },   // wallpapers: cyan-dominant
     })
+
+    // Moves for the wallpaper cards' two attack rows, per type.
+    readonly property var moves: ({
+        fire: ["Ember", "Flame Wheel"], water: ["Bubble", "Hydro Pump"], grass: ["Vine Whip", "Solar Beam"],
+        electric: ["Spark", "Thunderbolt"], psychic: ["Confusion", "Psybeam"], fairy: ["Charm", "Moonblast"],
+        dark: ["Bite", "Night Slash"], normal: ["Tackle", "Hyper Beam"], ice: ["Ice Shard", "Blizzard"],
+        steel: ["Metal Claw", "Flash Cannon"], flying: ["Gust", "Air Slash"], ground: ["Mud Shot", "Earthquake"],
+        fighting: ["Karate Chop", "Close Combat"],
+    })
+
+    // A wallpaper's type, from its palette (QColor list from a
+    // ColorQuantizer): dark images are Dark, washed-out ones Normal,
+    // otherwise the hue of the most saturated colour picks the type.
+    function typeOfPalette(colors) {
+        if (!colors || colors.length === 0) return "normal"
+        const light = colors.reduce((a, c) => a + c.hslLightness, 0) / colors.length
+        const sig = colors.filter(c => c.hslLightness > 0.15 && c.hslLightness < 0.9)
+                          .sort((a, b) => b.hslSaturation - a.hslSaturation)[0] || colors[0]
+        if (light < 0.2) return "dark"
+        if (sig.hslSaturation < 0.18) return light > 0.6 ? "steel" : "normal"
+        const h = sig.hslHue * 360
+        return h < 45 || h >= 340 ? "fire" : h < 70 ? "electric" : h < 160 ? "grass"
+             : h < 200 ? "ice" : h < 255 ? "water" : h < 290 ? "psychic" : "fairy"
+    }
 
     // First match wins, in this order — so "Development;TerminalEmulator"
     // is Steel/Fighting, never the other way round.
