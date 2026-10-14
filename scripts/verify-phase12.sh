@@ -61,6 +61,16 @@ LOCK="$DOTFILES/hypr/.config/hypr/hyprlock.conf"
 grep -qF "$HOME" "$LOCK" && no "hyprlock.conf contains $HOME" || ok "no home path baked into hyprlock.conf"
 grep -q '@\$USER' "$LOCK" && ok "user label is \$USER (any account)" || no "user label isn't \$USER"
 grep -q 'fingerprint' "$LOCK" && ok "fingerprint auth block kept" || no "fingerprint block missing"
+# hyprlang reads {{ }} as arithmetic: the first restyle's inline playerctl
+# format was a config error that rendered as "Sample Text". Formats with
+# braces belong in bin/bin/lockinfo.
+grep -q '{{' "$LOCK" && no "hyprlock.conf contains {{ }} — hyprlang parses it as an expression" \
+                     || ok "no {{ }} in hyprlock.conf (moved into lockinfo)"
+for sub in battery music uptime greeting caught avatar; do
+  "$HOME/bin/lockinfo" "$sub" >/dev/null 2>&1 && ok "lockinfo $sub exits cleanly" || no "lockinfo $sub failed"
+done
+av=$("$HOME/bin/lockinfo" avatar)
+[[ -s $av ]] && ok "avatar resolves to an image ($(basename "$av"))" || no "lockinfo avatar → '$av' (missing/empty)"
 n=0; bad=0
 while IFS= read -r cmd; do
   n=$((n+1))
