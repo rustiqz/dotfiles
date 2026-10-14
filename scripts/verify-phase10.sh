@@ -22,6 +22,14 @@ no() { printf '  \033[1;31m✗\033[0m %s\n' "$*"; FAIL=$((FAIL+1)); }
 wa() { printf '  \033[1;33m!\033[0m %s\n' "$*"; WARN=$((WARN+1)); }
 hdr() { printf '\n\033[1;34m== %s\033[0m\n' "$*"; }
 
+# The running bar's log, minus one known-benign line: at startup Qt tries
+# to register an app ID with xdg-desktop-portal, but uwsm's scope already
+# gave the process one, so the portal declines ("Connection already
+# associated with an application ID"). Logged once per cold start, by Qt,
+# not by this config — filtered by its exact text so any other warning
+# still fails the check.
+qslog() { timeout 5 qs log 2>/dev/null | grep -v 'Failed to register with host portal'; }
+
 TMP=$(mktemp -d)
 trap 'timeout 3 qs ipc call hub close &>/dev/null; rm -rf "$TMP"' EXIT
 mapped() { hyprctl layers -j 2>/dev/null | jq -r '.[].levels[][] | .namespace' | grep -qx quickshell-hub; }
@@ -101,7 +109,7 @@ pacman -Qq aylurs-gtk-shell &>/dev/null && wa "aylurs-gtk-shell still installed 
 # ---------------------------------------------------------------------------
 hdr "Shell health"
 # ---------------------------------------------------------------------------
-log=$(timeout 5 qs log 2>/dev/null)
+log=$(qslog)
 bad=$(grep -E 'WARN|ERROR' <<<"$log" | head -3)
 [[ -z $bad ]] && ok "qs log: no warnings or errors" || no "qs log: $bad"
 out=$(Hyprland --verify-config -c "$DOTFILES/hypr/.config/hypr/hyprland.conf" 2>&1)

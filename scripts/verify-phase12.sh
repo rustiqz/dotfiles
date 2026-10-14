@@ -22,6 +22,14 @@ no() { printf '  \033[1;31m✗\033[0m %s\n' "$*"; FAIL=$((FAIL+1)); }
 wa() { printf '  \033[1;33m!\033[0m %s\n' "$*"; WARN=$((WARN+1)); }
 hdr() { printf '\n\033[1;34m== %s\033[0m\n' "$*"; }
 
+# The running bar's log, minus one known-benign line: at startup Qt tries
+# to register an app ID with xdg-desktop-portal, but uwsm's scope already
+# gave the process one, so the portal declines ("Connection already
+# associated with an application ID"). Logged once per cold start, by Qt,
+# not by this config — filtered by its exact text so any other warning
+# still fails the check.
+qslog() { timeout 5 qs log 2>/dev/null | grep -v 'Failed to register with host portal'; }
+
 mapped() { hyprctl layers -j 2>/dev/null | jq -r '.[].levels[][] | .namespace' | grep -qx "$1"; }
 
 # ---------------------------------------------------------------------------
@@ -98,7 +106,7 @@ pidof swaync &>/dev/null && ok "swaync running" || wa "swaync not running"
 # ---------------------------------------------------------------------------
 hdr "Shell health"
 # ---------------------------------------------------------------------------
-bad=$(timeout 5 qs log 2>/dev/null | grep -E 'WARN|ERROR' | head -3)
+bad=$(qslog | grep -E 'WARN|ERROR' | head -3)
 [[ -z $bad ]] && ok "qs log: no warnings or errors" || no "qs log: $bad"
 out=$(Hyprland --verify-config -c "$DOTFILES/hypr/.config/hypr/hyprland.conf" 2>&1)
 grep -q 'config ok' <<<"$out" && ok "Hyprland config verifies" || no "Hyprland config errors"

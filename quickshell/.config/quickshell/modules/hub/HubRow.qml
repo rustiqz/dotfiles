@@ -7,6 +7,7 @@ import qs.widgets
 // them, so sections differ only in *what* they show, not how:
 //
 //   { icon, iconColor, title, subtitle, chip, chipColor, indent,
+//     hp,            // optional 0..1: draws a game-style HP bar (Party)
 //     actions: { Enter: fn, u: fn, ... } }
 //
 // The selected row (keyboard cursor) gets the accent bar on its left edge.
@@ -68,6 +69,34 @@ Rectangle {
             wrapMode: Text.Wrap
             maximumLineCount: 2
             elide: Text.ElideRight
+        }
+        // HP bar, Pokémon-style: green above half, yellow above a fifth,
+        // red below — the colour change is the signal, not the number.
+        Row {
+            visible: root.item.hp !== undefined
+            spacing: 6
+            topPadding: 3
+            Text {
+                text: "HP"
+                color: Theme.warn
+                font.family: Theme.font; font.pixelSize: 9; font.bold: true
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Rectangle {
+                width: 150; height: 6; radius: 3
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.alpha(Theme.surfaceHi, 0.9)
+                border.width: 1; border.color: Theme.alpha(Theme.border, 0.8)
+                Rectangle {
+                    readonly property real hp: Math.max(0, Math.min(1, root.item.hp || 0))
+                    width: (parent.width - 2) * hp
+                    height: parent.height - 2
+                    x: 1; y: 1; radius: 2
+                    color: hp > 0.5 ? Theme.ok : hp > 0.2 ? Theme.warn : Theme.err
+                    Behavior on width { NumberAnimation { duration: Theme.animMed } }
+                    Behavior on color { ColorAnimation { duration: Theme.animMed } }
+                }
+            }
         }
     }
 
