@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # work — tmux project sessionizer (the ThePrimeagen tmux-sessionizer
-# pattern). fzf-pick a directory under ~/Projects, then create-or-attach
+# pattern). fzf-pick a directory under ~/projects (or ~/Projects), then create-or-attach
 # a tmux session named after it. Run it from inside or outside tmux;
 # either way you end up attached to that project's session.
 #
@@ -9,25 +9,40 @@
 # `.tmux-session` or `scripts/dev-tmux.sh`; see the setup hook below.
 #
 # Usage:
-#   work            interactive fzf picker over ~/Projects/*
+#   work            interactive fzf picker over ~/projects/* and ~/Projects/*
 #   work <path>      skip the picker, use <path> directly
 
 set -euo pipefail
 
-PROJECTS_DIR="$HOME/Projects"
+# Where projects live differs per machine — ~/projects on the laptop,
+# ~/Projects on the work PC (3a014d0 switched this to the latter during
+# that machine's replay, which left the laptop with an empty picker:
+# ~/Projects exists there, but empty). So: $PROJECTS_DIR if set,
+# otherwise every candidate that exists and isn't empty. devstat
+# (bin/bin/devstat, projects_roots) uses the same rule, so the picker and
+# the dev hub always agree on what a project is.
+roots=()
+if [[ -n ${PROJECTS_DIR:-} ]]; then
+  [[ -d $PROJECTS_DIR ]] || { echo "work: PROJECTS_DIR=$PROJECTS_DIR is not a directory" >&2; exit 1; }
+  roots=("$PROJECTS_DIR")
+else
+  for d in "$HOME/projects" "$HOME/Projects"; do
+    [[ -d $d && -n $(ls -A "$d" 2>/dev/null) ]] && roots+=("$d")
+  done
+fi
 
 # Deliberately not `mkdir -p` — this used to create the directory if it
-# was missing, which turned "PROJECTS_DIR points somewhere wrong" into an
+# was missing, which turned "the directory is somewhere else" into an
 # empty fzf list with no explanation rather than an error.
-if [[ ! -d $PROJECTS_DIR ]]; then
-  echo "work: no project directory at $PROJECTS_DIR" >&2
+if (( ${#roots[@]} == 0 )); then
+  echo "work: no projects found in ~/projects or ~/Projects (set PROJECTS_DIR to override)" >&2
   exit 1
 fi
 
 if [[ $# -eq 1 ]]; then
   selected=$1
 else
-  selected=$(find "$PROJECTS_DIR" -mindepth 1 -maxdepth 1 -type d | fzf --prompt="project> ")
+  selected=$(find "${roots[@]}" -mindepth 1 -maxdepth 1 -type d | fzf --prompt="project> ")
 fi
 
 # Empty means Esc/Ctrl-C out of fzf — quit quietly rather than erroring.

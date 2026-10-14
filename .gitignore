@@ -83,3 +83,6 @@ uwsm/.config/uwsm/env-theme
 # it would just be a git diff on every wallpaper change for content
 # that's fully reproducible from the templates + the image itself.
 themes/wallpaper/
+
+# Python bytecode (bin/bin/devstat is Python; py_compile/imports drop this beside it)
+__pycache__/

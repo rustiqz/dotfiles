@@ -1,0 +1,11 @@
+{
+  "name": "dotfiles-local",
+  "owner": { "name": "dotfiles" },
+  "plugins": [
+    {
+      "name": "devstat-hooks",
+      "source": "./devstat-hooks",
+      "description": "Report agent session state (working / needs input / done) to devstat for the desktop's dev surfaces and notifications."
+    }
+  ]
+}
