@@ -85,8 +85,13 @@ Scope {
             return "Apps"
         }
         readonly property var order: ["Apps", "Shell", "Windows", "Workspaces", "Capture", "Media & hardware"]
-        readonly property var groupColor: ({ "Apps": Theme.accent, "Shell": Theme.accent2, "Windows": Theme.info,
-                                             "Workspaces": Theme.ok, "Capture": Theme.warn, "Media & hardware": Theme.err })
+        // Each group is a Pokémon type, in the canonical type colour — the
+        // same badges as the launcher (common/Dex.qml): Apps Normal, Shell
+        // Psychic (controls the desktop), Windows Fighting (move, resize),
+        // Workspaces Flying (travel between them), Capture Electric (the
+        // flash), Media Water.
+        readonly property var groupType: ({ "Apps": "normal", "Shell": "psychic", "Windows": "fighting",
+                                            "Workspaces": "flying", "Capture": "electric", "Media & hardware": "water" })
         function build(list) {
             const groups = {}
             const seen = {}
@@ -104,12 +109,15 @@ Scope {
                     desc,
                 })
             }
-            return order.filter(c => groups[c]).map(c => ({ name: c, color: groupColor[c], rows: groups[c] }))
+            return order.filter(c => groups[c]).map(c => {
+                const t = Dex.types[groupType[c]] || Dex.types.normal
+                return { name: c, color: t.color, type: t.name, rows: groups[c] }
+            })
         }
 
         readonly property string q: filter.text.toLowerCase()
         readonly property var shown: groups.map(g => ({
-            name: g.name, color: g.color,
+            name: g.name, color: g.color, type: g.type,   // type: the badge label (dropping it left blank badges)
             rows: g.rows.filter(r => !q || r.desc.toLowerCase().includes(q) || r.keys.join(" ").toLowerCase().includes(q)),
         })).filter(g => g.rows.length)
 
@@ -210,8 +218,20 @@ Scope {
                                             x: 14; y: 12
                                             width: parent.width - 28
                                             spacing: 8
-                                            Txt { anchors.verticalCenter: undefined; text: modelData.name
-                                                  color: modelData.color; font.bold: true; font.pixelSize: 14 }
+                                            Row {
+                                                spacing: 8
+                                                Txt { text: modelData.name; color: modelData.color
+                                                      font.bold: true; font.pixelSize: 14 }
+                                                // Type badge, styled exactly like the launcher's
+                                                Rectangle {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    implicitWidth: typeLabel.implicitWidth + 14; implicitHeight: 18; radius: 9
+                                                    color: modelData.color
+                                                    Text { id: typeLabel; anchors.centerIn: parent; text: (modelData.type || "").toUpperCase()
+                                                           color: "#1a1a1a"; font.family: Theme.font; font.pixelSize: 9
+                                                           font.bold: true; font.letterSpacing: 1 }
+                                                }
+                                            }
                                             Repeater {
                                                 model: modelData.rows
                                                 delegate: Item {
