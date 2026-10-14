@@ -249,8 +249,11 @@ developers (weather, screen time, pomodoro, phone, shaders) is out.
       volume/brightness OSD); status (load, net, bt, audio, battery
       capsule, bell, clock, tray, power). Themed via
       `themes/<name>/quickshell.json` + matugen template, cross-fading
-      live. `scripts/verify-phase9.sh` 21/21 in the live session;
-      **cold-start check (full logout/login) still pending.**
+      live. `scripts/verify-phase9.sh` 21/21, and cold start confirmed
+      after a reboot (2026-10-14: boot 18:36, Hyprland 19:07:02, `qs`
+      19:07:03 from autostart in its own uwsm scope, no waybar). An
+      earlier "confirmed" was wrong — that session had only been
+      unlocked, not restarted; process start times are the check.
 - [x] **10 — Dev hub.** `$mod+Space` right drawer, keyboard-first
       (`a` agents, `c` CI, `s` services, `p` ports, `w` watchers) +
       quick controls + now-playing. `devstat act up|down` for services
@@ -532,6 +535,26 @@ scripts/
   into the repo. bootstrap.sh now pre-creates those as real directories
   (`~/.ssh` at 0700) and stows only directories git tracks — an
   untracked `orchestra/` would otherwise have landed in `$HOME`.
+
+- **Never end a real (PAM-enabled) hyprlock with a signal to "preview"
+  it.** `hyprlock & … pkill -USR1 hyprlock` does unlock, but it aborts the
+  PAM conversation, and PAM records each abort as a *failed login*.
+  pam_faillock's defaults (`deny=3`, `unlock_time=600`, no
+  `/etc/security/faillock.conf` here) locked password login — and sudo,
+  same PAM stack — out for 10 minutes after three previews on 2026-10-14,
+  right as the screen idle-locked for real. Resetting needs root
+  (`faillock --user $USER --reset`), which the lockout itself blocks, so
+  the only fix is waiting it out. Preview with `scripts/preview-lock.sh`:
+  it sources the real config and sets `auth:pam:enabled = false` on top
+  (fingerprint stays on: with *every* auth method off hyprlock aborts at
+  startup — "At least one authentication method must be enabled!" — and
+  its fingerprint path is fprintd over D-Bus, not PAM), refuses to run
+  while a real lock is up, and fails loudly if PAM ran or hyprlock
+  crashed (a crash leaves the screenshot showing just the desktop).
+- **The lock screen's corners are a message channel.** Notifications are
+  hidden while locked, but hyprlock re-runs `lockinfo music` every 3s;
+  `~/.cache/lockinfo/notice` (`<epoch>\t<text>`) makes that corner show
+  `<text>` until the deadline. Used to tell a locked-out user to wait.
 
 ## Clean-machine findings (second machine, 2026-08-15)
 

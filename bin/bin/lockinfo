@@ -24,6 +24,16 @@ case "${1:-}" in
     [[ -n $c ]] && printf '%s%%%s\n' "$c" "$([[ $s == Charging ]] && echo ' · charging')"
     ;;
   music)
+    # A short notice to show on the lock screen instead of now-playing,
+    # until a deadline: ~/.cache/lockinfo/notice holds "<epoch>\t<text>".
+    # The lock screen can't show notifications, and this corner refreshes
+    # every 3s — the one channel to someone looking at a locked screen.
+    nf="${XDG_CACHE_HOME:-$HOME/.cache}/lockinfo/notice"
+    if [[ -f $nf ]]; then
+      IFS=$'\t' read -r until text <"$nf"
+      if (( $(date +%s) < until )); then echo "$text"; exit 0; fi
+      rm -f "$nf"
+    fi
     t=$(playerctl metadata --format '{{ title }} — {{ artist }}' 2>/dev/null | cut -c1-60)
     [[ -n $t ]] && echo "$t"
     ;;
