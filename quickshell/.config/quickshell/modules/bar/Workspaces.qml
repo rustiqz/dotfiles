@@ -44,10 +44,12 @@ Island {
         return Quickshell.iconPath(entry && entry.icon ? entry.icon : cls.toLowerCase(), "application-x-executable")
     }
 
-    // Launcher — same rofi drun as $mod+D until Phase 11's launcher.
+    // Launcher button — same Pokédex launcher as $mod+D; right-click opens
+    // it straight into projects mode.
     Hover {
         hpad: 8
-        onClicked: Quickshell.execDetached(["rofi", "-show", "drun"])
+        onClicked: Quickshell.execDetached(["qs", "ipc", "call", "launcher", "toggle"])
+        onRightClicked: Quickshell.execDetached(["qs", "ipc", "call", "launcher", "openWith", "/"])
         Txt { text: Icons.arch; color: Theme.accent; font.pixelSize: Theme.iconSize + 2 }
     }
 

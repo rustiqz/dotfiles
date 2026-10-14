@@ -64,4 +64,12 @@ Singleton {
     readonly property string hub: "\u{f0a1d}"            // md-view_dashboard_outline
     readonly property string orchestra: "\u{f0b9f}"      // md-folder_star_outline
     readonly property string coffee: "\u{f06ca}"         // md-coffee_outline
+    // --- launcher (Phase 11) ---
+    readonly property string pokeball: "\u{f041d}"       // md-pokeball
+    readonly property string calc: "\u{f15a6}"           // md-calculator_variant_outline
+    readonly property string emoji: "\u{f01f5}"          // md-emoticon_happy_outline
+    readonly property string help: "\u{f0625}"           // md-help_circle_outline
+    readonly property string windows: "\u{f05b2}"        // md-window_restore
+    readonly property string search: "\u{f0349}"         // md-magnify
+    readonly property string cursor: "\u{f0142}"         // md-chevron_right
 }

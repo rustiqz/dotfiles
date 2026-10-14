@@ -483,3 +483,10 @@ tree-sitter-cli
 # sidebar (Phase 10), whose packages (aylurs-gtk-shell,
 # libastal-mpris-git, dart-sass) were dropped from the manifests.
 quickshell
+
+# --- Phase 11: Pokédex launcher --------------------------------------------
+
+# `qalc`, the launcher's `=` calculator mode: units, currencies, dates,
+# percentages ("5 GiB to MB", "now + 3 days") — far beyond JS eval. The
+# launcher checks for it and shows this package name if it's missing.
+libqalculate

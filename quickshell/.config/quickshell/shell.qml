@@ -1,4 +1,9 @@
 //@ pragma UseQApplication
+//@ pragma IconTheme Papirus-Dark
+// IconTheme: the same theme GTK uses (gsettings icon-theme). Without it
+// Qt looked icons up in bare hicolor, so app icons in the launcher and
+// workspace chips silently fell back or failed ("Could not load icon").
+// A pragma: applies at startup only, a live reload won't pick it up.
 // UseQApplication: tray menus (SystemTrayItem.display) are QMenus, which
 // need a QApplication rather than the default QGuiApplication.
 
@@ -12,6 +17,7 @@ import QtQuick
 import Quickshell
 import qs.modules.bar
 import qs.modules.hub
+import qs.modules.launcher
 
 ShellRoot {
     Variants {
@@ -22,4 +28,7 @@ ShellRoot {
     // Dev hub — one instance, follows the focused monitor. Toggled with
     // $mod+Space (qs ipc call hub toggle), hidden until then.
     Hub {}
+
+    // Pokédex launcher — $mod+D (qs ipc call launcher toggle).
+    Launcher {}
 }

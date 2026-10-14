@@ -63,6 +63,11 @@ second. Built on one laptop, then replayed on other machines.
   its IPC: `theme reload|name`, `bar brightness|flash <title> <detail>`
   — any script can flash the dev island. waybar's config is kept in the
   repo, unused, as the rollback.
+- **Launcher** (`$mod+D`) is the Pokédex in `quickshell/.../modules/
+  launcher/`; `qs ipc call launcher openWith /` opens straight into a
+  mode. Launch counts ("caught") live in Quickshell's state dir
+  (`launcher.json`) and drive ranking. The click-outside scrim shared
+  with the hub is `widgets/Scrim.qml`.
 - **Dev hub** (`$mod+Space`, also `$mod+grave`): Quickshell drawer,
   `quickshell/.config/quickshell/modules/hub/`. Sections by letter — `a`
   agents (Enter jumps to the window/tmux pane), `c` CI + PRs (Enter
@@ -251,8 +256,15 @@ developers (weather, screen time, pomodoro, phone, shaders) is out.
       quick controls + now-playing. `devstat act up|down` for services
       (a project's `just up/down` when present). Retired the ags sidebar
       everywhere. `scripts/verify-phase10.sh` 24/24.
-- [ ] **11 — Pokédex launcher.** Replaces rofi drun on `$mod+D`; `/`
-      projects, `>` run, `@` windows, `=` calc, `:` emoji.
+- [x] **11 — Pokédex launcher.** `$mod+D` (and the bar's Arch button;
+      right-click → projects). Quickshell `modules/launcher/`: a red
+      device with lens + LEDs, a dex "screen" for the selected entry
+      (No., type badges from desktop categories via `common/Dex.qml`,
+      "caught" launch stats), numbered list. Modes: apps (frecency),
+      `/` projects → `work`, `>` run (Shift+Enter in a terminal), `@`
+      windows, `=` qalc, `:` emoji (rofimoji's data), `?` help. Apps
+      launch as `uwsm app -- <id>.desktop`. Replaced rofi drun; rofi
+      stays for the pickers. `scripts/verify-phase11.sh` 19/19.
 - [ ] **12 — Wallpaper cards + polish.** Pokémon-card wallpaper picker
       (matugen palette cache, hue-derived type), power menu, hyprlock
       restyle, `$mod+/` cheatsheet from `bindd` descriptions, swaync.
@@ -482,6 +494,21 @@ scripts/
   the compositor. There's no input simulator installed (ydotool/wtype),
   so verify-phase10 asserts the scrim's geometry and stacking, not the
   click itself.
+
+- **Quickshell needs the icon theme set explicitly** —
+  `//@ pragma IconTheme Papirus-Dark` in `shell.qml` (startup-only, a
+  live reload won't apply it). Without it Qt looked in bare hicolor:
+  launcher icons logged "Could not load icon" and the `?fallback=` in
+  `Quickshell.iconPath` didn't help, since the fallback name has to
+  resolve through the same theme.
+- **Hover selection must ignore a pointer that isn't moving.** List rows
+  appearing or reordering under a still pointer fire both `onEntered`
+  and position events; either way the launcher opened with the wrong
+  row selected. Compare `mapToGlobal` coordinates against the last
+  event and only follow real movement.
+- **A missing binary gives a Quickshell `Process` no exit code to
+  read** — it never starts. Check presence up front (`sh -c 'command -v
+  x'`) instead of waiting for a 127 that never comes.
 
 ## Clean-machine findings (second machine, 2026-08-15)
 
