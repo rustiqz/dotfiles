@@ -102,9 +102,27 @@ if [[ -s /etc/pacman.d/mirrorlist ]]; then
   age=$(( ( $(date +%s) - $(stat -c %Y /etc/pacman.d/mirrorlist) ) / 86400 ))
   (( count > 0 )) && ok "mirrorlist has $count servers (${age}d old)" \
                   || no "mirrorlist has no Server lines"
+  # The comment above always said this, but nothing checked it — a
+  # 44-day-old list (five failed weekly runs in a row, see
+  # hooks/11-mirrors.sh) passed silently. Twice-weekly schedule, so
+  # anything past a week means the refresh is failing.
+  (( age <= 7 )) && ok "mirrorlist refreshed within the last week" \
+                 || no "mirrorlist is ${age}d old — reflector runs are failing (journalctl -u reflector)"
+  # One host twice (https + http) is what let a single stalled mirror
+  # fail a whole transaction.
+  dupes=$(grep '^Server' /etc/pacman.d/mirrorlist | awk -F/ '{print $3}' | sort | uniq -d)
+  [[ -z $dupes ]] && ok "no mirror host listed twice" \
+                  || no "mirror host(s) listed more than once: $dupes — reflector.conf should be --protocol https"
 else
   no "mirrorlist empty or missing"
 fi
+for d in reflector.service.d/retry.conf reflector.timer.d/schedule.conf; do
+  [[ -f /etc/systemd/system/$d ]] && ok "drop-in present: $d" \
+                                  || no "drop-in missing: $d (run hooks/11-mirrors.sh)"
+done
+result=$(systemctl show reflector.service -p Result --value 2>/dev/null)
+[[ $result == success ]] && ok "last reflector run succeeded" \
+                         || wa "last reflector run result: ${result:-unknown} (journalctl -u reflector)"
 
 # ---------------------------------------------------------------------------
 hdr "Memory / zram"
