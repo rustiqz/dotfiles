@@ -140,6 +140,21 @@ second. Built on one laptop, then replayed on other machines.
   (logged as `Fail to locate metrics-server`, not a config problem).
   ArgoCD manages the cluster, so anything edited live in k9s gets
   reverted on next sync — k9s is a read/debug tool here.
+- **`bin/bin/devstat`** — what's running/building/waiting across
+  projects, as JSON: the data layer the Phase 9/10 bar and hub render.
+  Every section degrades to a value that says why (docker stopped →
+  `available:false`, gh offline → last result marked `stale`), never an
+  exception. Three feeders keep it live without any UI open:
+  `devstat-ci.timer` (user unit, every 3 min — notifies when a repo's
+  default-branch CI turns red or green), the `devstat-hooks` agent plugin
+  (`agent-hooks/`, registered by `hooks/63-agent-hooks.sh` — session
+  state + "needs input"/"finished" notifications), and a zsh precmd hook
+  (commands >= 30s). All three notify only when you're *not* looking at
+  the source — focused window, or the active pane of a focused tmux
+  client. Events land in `~/.local/state/devstat/events.jsonl`;
+  `DEVSTAT_DEBUG=1` in an agent's environment traces every hook call.
+  Projects are `~/projects` *or* `~/Projects` (machines differ; whichever
+  is non-empty, or `$PROJECTS_DIR`) — same rule in `bin/bin/work`.
 - **`bin/bin/queues`** — BullMQ queue status over `valkey-cli`
   (localhost:6379 by default, `REDIS_HOST`/`REDIS_PORT` to override).
   `queues` prints every queue busiest-first, `queues <name>` adds recent
@@ -204,11 +219,13 @@ developers (weather, screen time, pomodoro, phone, shaders) is out.
       `cargo/.cargo/config.toml`, cargo tools and `just` from pacman,
       Neovim: treesitter `main`-branch rewrite, native LSP API, Rust/
       tailwind/YAML/JSON/Docker/TOML servers, neotest, trouble.
-- [ ] **8 — `devstat` data layer.** `bin/bin/devstat` (Python stdlib,
-      JSON out): ci, services, ports, agents, watchers, focus. Long-
-      command + Claude Code hook notifications. Per-project `.work.sh`
-      layouts + `just dev/test/up/down` recipes live in each project's
-      own repo, not here.
+- [x] **8 — `devstat` data layer.** `bin/bin/devstat` (Python stdlib,
+      JSON out): focus, ci, services, ports, agents, watchers, projects.
+      Agent-state hooks (local plugin, `agent-hooks/`), long-command
+      notifications (zsh), CI timer that notifies on red/green
+      transitions. Per-project layouts use `work`'s existing hooks
+      (`~/.tmux/sessions/<name>.sh` or a repo's `.tmux-session`) rather
+      than a new convention; `just` recipes live in each project's repo.
 - [ ] **9 — Quickshell base + bar.** Theme integration
       (`themes/<name>/quickshell.json` + matugen template), three-island
       bar with the dev island (focus project/branch, agents, containers,
@@ -392,6 +409,25 @@ scripts/
   early makes *every* cargo build on the machine fail. bootstrap.sh
   installs packages before stowing, which is the right order; by hand,
   install first.
+
+- **An installed agent plugin is only enabled via settings.json.** The
+  plugin docs say a plugin with no `enabledPlugins` entry starts enabled
+  (`defaultEnabled`); with `~/.claude/settings.json` moved aside,
+  `claude plugin list` reported `devstat-hooks` as `✘ disabled`. And that
+  file is orchestra's: `orchestra on` does a plain `mv` of its parked
+  symlink over whatever is there. So the plugin's two keys
+  (`extraKnownMarketplaces.dotfiles-local`,
+  `enabledPlugins["devstat-hooks@dotfiles-local"]`) must exist in
+  whichever settings file is active; `hooks/63-agent-hooks.sh` checks,
+  and never writes through orchestra's symlink.
+- **Async agent hooks still starting when a session exits are killed.**
+  In a headless run, Stop and SessionEnd launched together and only
+  SessionEnd's code ran (found with `DEVSTAT_DEBUG=1` after a silent
+  `except: pass` hid it), so finished turns were never recorded. Stop and
+  UserPromptSubmit are synchronous (~80ms once per turn); the rest stay
+  async.
+- **`PATH=<narrowed> timeout ...` looks `timeout` up in the narrowed PATH**
+  — resolve helpers with `command -v` *before* narrowing PATH in a test.
 
 ## Clean-machine findings (second machine, 2026-08-15)
 

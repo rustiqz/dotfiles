@@ -1,0 +1,909 @@
+#!/usr/bin/env python3
+"""
+devstat — what is running, building and waiting across my projects, as JSON.
+
+WHAT THIS IS
+    The data layer for the desktop's dev surfaces (Phase 9's bar island,
+    Phase 10's hub). Every section is gathered here and printed as JSON, so
+    the UI only renders — and every piece is testable from a terminal,
+    without the UI existing at all. A section that can't be gathered (docker
+    stopped, gh offline, not in Hyprland) degrades to a JSON value that says
+    so; it never raises and never takes the other sections down with it.
+
+USAGE
+    devstat                     every section
+    devstat focus ports ...     just these sections
+    devstat ci --refresh        bypass the CI cache
+    devstat --pretty            indented output (default is one line)
+
+    Sections:
+      focus     project + git state of the focused window (terminal cwd,
+                tmux pane path, or an editor's cwd)
+      ci        latest GitHub Actions run per workflow, per repo, plus my
+                open PRs. Cached for 3 min (see CI_TTL) — a timer keeps it
+                warm and fires a notification when a repo turns red.
+      services  containers grouped by compose project, with health
+      ports     listening dev servers, labelled by project
+      agents    running agent sessions (process scan + hook-reported state)
+      watchers  watch-mode builders/test runners (bacon, vitest, tsx...)
+      projects  project directories (for the launcher)
+
+    Hook entry points (not for interactive use):
+      devstat agent-event [TYPE]   agent hook; reads the hook JSON on stdin
+      devstat cmd-done ...         zsh precmd hook for long commands
+
+STATE
+    $XDG_STATE_HOME/devstat/  agents/<session>.json, events.jsonl
+    $XDG_CACHE_HOME/devstat/  ci.json
+
+Python stdlib only — no venv, no pip, same reasoning as orchestra's orq-wall.
+"""
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+HOME = Path.home()
+STATE = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "devstat"
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", HOME / ".cache")) / "devstat"
+EVENTS = STATE / "events.jsonl"
+AGENT_STATE = STATE / "agents"
+
+CI_TTL = 180            # seconds; 3 repos x 2 gh calls per refresh stays far
+                        # under the 5000/h API limit even with the timer on
+CI_RECENT_DAYS = 30     # "active" repos = pushed within this window
+EVENTS_KEEP = 200       # events.jsonl is trimmed to this many lines
+
+# Commands that are long-lived *on purpose* — finishing one is not news.
+# Used by cmd-done so quitting nvim after an hour doesn't notify.
+INTERACTIVE = {
+    "nvim", "vim", "vi", "ssh", "kitten", "tmux", "work", "lazygit",
+    "lazydocker", "k9s", "btop", "htop", "top", "man", "less", "more",
+    "yazi", "psql", "pgcli", "valkey-cli", "python", "python3", "node",
+    "watch", "tail", "journalctl", "claude", "codex", "fzf", "bacon",
+}
+
+
+# --------------------------------------------------------------------------
+# helpers
+# --------------------------------------------------------------------------
+def run(cmd, timeout=5, stdin=None):
+    """Run argv; return (rc, stdout). Never raises: a missing binary is 127,
+    a timeout is 124 — callers branch on rc, not exceptions."""
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True,
+                           timeout=timeout, input=stdin)
+        return p.returncode, p.stdout
+    except FileNotFoundError:
+        return 127, ""
+    except subprocess.TimeoutExpired:
+        return 124, ""
+    except OSError:
+        return 126, ""
+
+
+def run_json(cmd, timeout=5):
+    rc, out = run(cmd, timeout)
+    if rc != 0:
+        return None
+    try:
+        return json.loads(out)
+    except ValueError:
+        return None
+
+
+def projects_roots():
+    """Where projects live. Machines differ — ~/projects here, ~/Projects on
+    the work PC — so take an explicit PROJECTS_DIR if set, otherwise every
+    candidate that exists and is non-empty (same rule as bin/bin/work)."""
+    env = os.environ.get("PROJECTS_DIR")
+    if env:
+        p = Path(env).expanduser()
+        return [p] if p.is_dir() else []
+    roots = []
+    for name in ("projects", "Projects"):
+        p = HOME / name
+        try:
+            if p.is_dir() and any(p.iterdir()):
+                roots.append(p)
+        except OSError:
+            pass
+    return roots
+
+
+def git_root(path):
+    """Nearest ancestor containing .git (dir or file — worktrees use a file)."""
+    try:
+        p = Path(path).resolve()
+    except OSError:
+        return None
+    for d in (p, *p.parents):
+        if (d / ".git").exists():
+            return d
+        if d == HOME:
+            break
+    return None
+
+
+def project_of(path):
+    """Project name for a path: the top-level dir under a projects root, else
+    the enclosing git repo's name (so ~/dotfiles counts too), else None."""
+    if not path:
+        return None
+    try:
+        p = Path(path).resolve()
+    except OSError:
+        return None
+    for root in projects_roots():
+        try:
+            rel = p.relative_to(root.resolve())
+        except ValueError:
+            continue
+        return rel.parts[0] if rel.parts else None
+    g = git_root(p)
+    return g.name if g else None
+
+
+def now():
+    return int(time.time())
+
+
+# --------------------------------------------------------------------------
+# /proc process table — read once per invocation
+# --------------------------------------------------------------------------
+_PROCS = None
+_BOOT = None
+_HZ = os.sysconf("SC_CLK_TCK")
+
+
+def _boot_time():
+    global _BOOT
+    if _BOOT is None:
+        try:
+            for line in Path("/proc/stat").read_text().splitlines():
+                if line.startswith("btime "):
+                    _BOOT = int(line.split()[1])
+        except OSError:
+            _BOOT = 0
+    return _BOOT
+
+
+def procs():
+    """{pid: {pid, ppid, comm, args, start}} for every process we can read.
+    start is epoch seconds."""
+    global _PROCS
+    if _PROCS is not None:
+        return _PROCS
+    table = {}
+    for d in Path("/proc").iterdir():
+        if not d.name.isdigit():
+            continue
+        try:
+            stat = (d / "stat").read_text()
+            # comm is parenthesised and may itself contain spaces/parens —
+            # split on the *last* ')' (proc(5)).
+            rp = stat.rindex(")")
+            comm = stat[stat.index("(") + 1:rp]
+            fields = stat[rp + 2:].split()
+            ppid = int(fields[1])
+            start = _boot_time() + int(fields[19]) // _HZ
+            args = (d / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace").strip()
+        except (OSError, ValueError, IndexError):
+            continue
+        table[int(d.name)] = {"pid": int(d.name), "ppid": ppid, "comm": comm,
+                              "args": args, "start": start}
+    _PROCS = table
+    return table
+
+
+def cwd_of(pid):
+    try:
+        return os.readlink(f"/proc/{pid}/cwd")
+    except OSError:
+        return None
+
+
+def tty_of(pid):
+    try:
+        t = os.readlink(f"/proc/{pid}/fd/0")
+        return t if t.startswith("/dev/pts/") else None
+    except OSError:
+        return None
+
+
+def ancestors(pid):
+    table = procs()
+    seen = []
+    while pid in table and pid not in seen and pid > 1:
+        seen.append(pid)
+        pid = table[pid]["ppid"]
+    return seen
+
+
+def descendants(pid):
+    table = procs()
+    kids = {}
+    for p in table.values():
+        kids.setdefault(p["ppid"], []).append(p["pid"])
+    out, stack = [], [pid]
+    while stack:
+        for c in kids.get(stack.pop(), []):
+            out.append(c)
+            stack.append(c)
+    return out
+
+
+# --------------------------------------------------------------------------
+# tmux + Hyprland lookups (shared by focus, agents and notifications)
+# --------------------------------------------------------------------------
+def tmux_panes():
+    """{tty: {target, session, path, active}} for every pane, or {} if no
+    server is running."""
+    rc, out = run(["tmux", "list-panes", "-a", "-F",
+                   "#{pane_tty}\t#{session_name}:#{window_index}.#{pane_index}"
+                   "\t#{session_name}\t#{pane_current_path}"
+                   "\t#{&&:#{pane_active},#{window_active}}"])
+    panes = {}
+    if rc == 0:
+        for line in out.splitlines():
+            parts = line.split("\t")
+            if len(parts) == 5:
+                tty, target, session, path, active = parts
+                panes[tty] = {"target": target, "session": session,
+                              "path": path, "active": active == "1"}
+    return panes
+
+
+def tmux_clients():
+    """[{pid, tty, session, path}] for attached clients."""
+    rc, out = run(["tmux", "list-clients", "-F",
+                   "#{client_pid}\t#{client_tty}\t#{session_name}\t#{pane_current_path}"])
+    clients = []
+    if rc == 0:
+        for line in out.splitlines():
+            parts = line.split("\t")
+            if len(parts) == 4 and parts[0].isdigit():
+                clients.append({"pid": int(parts[0]), "tty": parts[1],
+                                "session": parts[2], "path": parts[3]})
+    return clients
+
+
+def hypr_clients():
+    data = run_json(["hyprctl", "clients", "-j"])
+    return data if isinstance(data, list) else []
+
+
+def focused_window():
+    data = run_json(["hyprctl", "activewindow", "-j"])
+    return data if isinstance(data, dict) and data.get("pid") else None
+
+
+def window_for_pid(pid, clients=None):
+    """The Hyprland window owning pid (directly, or via a tmux client), or
+    None."""
+    clients = clients if clients is not None else hypr_clients()
+    by_pid = {c.get("pid"): c for c in clients}
+    chain = ancestors(pid)
+    # Inside tmux the chain ends at the tmux *server*, which no window owns —
+    # hop to whichever attached client is showing that pane's session.
+    tty = tty_of(pid)
+    if tty:
+        pane = tmux_panes().get(tty)
+        if pane:
+            for cl in tmux_clients():
+                if cl["session"] == pane["session"]:
+                    chain = chain + ancestors(cl["pid"])
+    for p in chain:
+        if p in by_pid:
+            return by_pid[p]
+    return None
+
+
+def is_visible(pid):
+    """True if the process is in the focused window *and* (inside tmux) in
+    the active pane of an attached session — i.e. the user is looking at it.
+    Notifications fire only when this is False."""
+    win = focused_window()
+    if not win:
+        return False
+    chain = ancestors(pid)
+    if win["pid"] in chain:
+        return True
+    tty = tty_of(pid)
+    pane = tmux_panes().get(tty) if tty else None
+    if not pane or not pane["active"]:
+        return False
+    for cl in tmux_clients():
+        if cl["session"] == pane["session"] and win["pid"] in ancestors(cl["pid"]):
+            return True
+    return False
+
+
+# --------------------------------------------------------------------------
+# events + notifications
+# --------------------------------------------------------------------------
+def emit(kind, **fields):
+    """Append to events.jsonl (the bar island tails it) and keep it short."""
+    STATE.mkdir(parents=True, exist_ok=True)
+    rec = {"ts": now(), "kind": kind, **fields}
+    with EVENTS.open("a") as f:
+        f.write(json.dumps(rec) + "\n")
+    try:
+        lines = EVENTS.read_text().splitlines()
+        if len(lines) > EVENTS_KEEP * 2:
+            EVENTS.write_text("\n".join(lines[-EVENTS_KEEP:]) + "\n")
+    except OSError:
+        pass
+
+
+def notify(title, body="", urgency="normal", icon="utilities-terminal"):
+    # -a devstat: swaync can group/filter on the app name.
+    run(["notify-send", "-a", "devstat", "-u", urgency, "-i", icon, title, body], timeout=3)
+
+
+# --------------------------------------------------------------------------
+# sections
+# --------------------------------------------------------------------------
+def git_state(path):
+    root = git_root(path)
+    if not root:
+        return None
+    rc, out = run(["git", "-C", str(root), "status", "--porcelain=v2",
+                   "--branch", "--untracked-files=no"], timeout=3)
+    if rc != 0:
+        return {"root": str(root), "error": "git status failed"}
+    branch, ahead, behind, dirty = None, 0, 0, 0
+    for line in out.splitlines():
+        if line.startswith("# branch.head "):
+            branch = line.split(" ", 2)[2]
+        elif line.startswith("# branch.ab "):
+            m = re.match(r"# branch\.ab \+(\d+) -(\d+)", line)
+            if m:
+                ahead, behind = int(m.group(1)), int(m.group(2))
+        elif not line.startswith("#"):
+            dirty += 1
+    return {"root": str(root), "branch": branch, "dirty": dirty,
+            "ahead": ahead, "behind": behind}
+
+
+def sec_focus():
+    win = focused_window()
+    if not win:
+        return {"window": None, "cwd": None, "project": None, "git": None}
+    pid = win["pid"]
+    cwd = None
+    desc = descendants(pid)
+    table = procs()
+    # Terminal running tmux: the meaningful path is the client's current pane.
+    tmux_kids = [p for p in desc if table.get(p, {}).get("comm", "").startswith("tmux")]
+    if tmux_kids:
+        client_pids = {c["pid"]: c for c in tmux_clients()}
+        for p in tmux_kids:
+            if p in client_pids:
+                cwd = client_pids[p]["path"]
+                break
+    if cwd is None and desc:
+        # Otherwise the newest descendant — nvim inside the shell, a dev
+        # server, or the shell itself — is what the user is working in.
+        newest = max(desc, key=lambda p: (table.get(p, {}).get("start", 0), p))
+        cwd = cwd_of(newest)
+    if cwd is None:
+        cwd = cwd_of(pid)
+    if cwd and Path(cwd) == HOME:
+        cwd_project = None
+    else:
+        cwd_project = project_of(cwd)
+    return {
+        "window": {"class": win.get("class"), "title": win.get("title"),
+                   "address": win.get("address")},
+        "cwd": cwd,
+        "project": cwd_project,
+        "git": git_state(cwd) if cwd_project else None,
+    }
+
+
+def _github_slug(url):
+    m = re.search(r"github\.com[:/]([^/]+)/([^/\s]+?)(?:\.git)?$", url.strip())
+    return f"{m.group(1)}/{m.group(2)}" if m else None
+
+
+def _ci_repos():
+    """Repos to watch: every cloned project with a GitHub remote, plus my
+    repos pushed to recently (so a private repo that isn't cloned here —
+    arcana on this laptop — is still covered without naming it anywhere)."""
+    repos = {}
+    for root in projects_roots():
+        for d in sorted(root.iterdir()):
+            if (d / ".git").exists():
+                rc, out = run(["git", "-C", str(d), "remote", "get-url", "origin"])
+                slug = _github_slug(out) if rc == 0 else None
+                if slug:
+                    repos.setdefault(slug, {"slug": slug, "local": str(d), "default": None})
+    listed = run_json(["gh", "repo", "list", "--limit", "40", "--json",
+                       "nameWithOwner,pushedAt,isArchived,defaultBranchRef"], timeout=15)
+    if listed is None:
+        return None, repos
+    cutoff = time.time() - CI_RECENT_DAYS * 86400
+    for r in listed:
+        slug = r["nameWithOwner"]
+        default = (r.get("defaultBranchRef") or {}).get("name")
+        try:
+            pushed = time.mktime(time.strptime(r["pushedAt"], "%Y-%m-%dT%H:%M:%SZ")) - time.timezone
+        except (ValueError, KeyError, TypeError):
+            pushed = 0
+        if slug in repos:
+            repos[slug]["default"] = default
+        elif not r.get("isArchived") and pushed >= cutoff:
+            repos[slug] = {"slug": slug, "local": None, "default": default}
+    return listed, repos
+
+
+def _ci_repo(repo):
+    runs = run_json(["gh", "run", "list", "-R", repo["slug"], "-L", "20", "--json",
+                     "databaseId,workflowName,status,conclusion,headBranch,event,"
+                     "createdAt,url,displayTitle"], timeout=15)
+    prs = run_json(["gh", "pr", "list", "-R", repo["slug"], "--author", "@me",
+                    "--state", "open", "--json",
+                    "number,title,url,isDraft,reviewDecision,headRefName,statusCheckRollup"],
+                   timeout=15)
+    if runs is None:
+        return {**repo, "error": "gh run list failed"}
+    default = repo.get("default") or "main"
+    latest = {}
+    for r in runs:  # newest first; first seen per workflow wins
+        if r.get("headBranch") == default and r["workflowName"] not in latest:
+            latest[r["workflowName"]] = r
+    running = [r for r in runs if r.get("status") in ("in_progress", "queued", "waiting", "pending", "requested")]
+    # Runs with event "dynamic" are GitHub-managed (Dependabot updates,
+    # CodeQL default setup), not workflows in the repo. Listed, but they
+    # don't turn the repo red: a Dependabot PR failing to open is not
+    # "CI is broken", and notifying on it trains you to ignore the alert.
+    failing = [r for r in latest.values()
+               if r.get("conclusion") in ("failure", "timed_out", "startup_failure")
+               and r.get("event") != "dynamic"]
+    state = ("failing" if failing else
+             "running" if running else
+             "passing" if latest else "none")
+    workflows = [{"name": w, "status": r["status"], "conclusion": r.get("conclusion"),
+                  "managed": r.get("event") == "dynamic",
+                  "url": r["url"], "id": r["databaseId"], "title": r.get("displayTitle"),
+                  "created": r["createdAt"]} for w, r in sorted(latest.items())]
+    pr_out = []
+    for p in prs or []:
+        checks = p.get("statusCheckRollup") or []
+        fail = sum(1 for c in checks if (c.get("conclusion") or c.get("state")) in ("FAILURE", "ERROR", "TIMED_OUT"))
+        pend = sum(1 for c in checks if (c.get("status") or c.get("state")) in ("IN_PROGRESS", "QUEUED", "PENDING"))
+        pr_out.append({"number": p["number"], "title": p["title"], "url": p["url"],
+                       "draft": p.get("isDraft", False), "review": p.get("reviewDecision"),
+                       "branch": p.get("headRefName"), "checks_failing": fail,
+                       "checks_pending": pend})
+    return {"slug": repo["slug"], "local": repo["local"], "default": default,
+            "state": state, "workflows": workflows,
+            "running": [{"name": r["workflowName"], "branch": r.get("headBranch"),
+                         "url": r["url"]} for r in running],
+            "prs": pr_out}
+
+
+def sec_ci(refresh=False):
+    cache_file = CACHE / "ci.json"
+    cached = None
+    try:
+        cached = json.loads(cache_file.read_text())
+    except (OSError, ValueError):
+        pass
+    if cached and not refresh and now() - cached.get("fetched_at", 0) < CI_TTL:
+        return {**cached, "stale": False, "cached": True}
+
+    if not shutil.which("gh"):
+        err = "gh not installed"
+    else:
+        listed, repos = _ci_repos()
+        if listed is None:
+            err = "gh unavailable (offline or not authenticated)"
+        else:
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                results = list(pool.map(_ci_repo, repos.values()))
+            fresh = {"available": True, "fetched_at": now(),
+                     "repos": sorted(results, key=lambda r: r["slug"])}
+            _ci_transitions(cached, fresh)
+            CACHE.mkdir(parents=True, exist_ok=True)
+            tmp = cache_file.with_suffix(".tmp")
+            tmp.write_text(json.dumps(fresh))
+            tmp.replace(cache_file)
+            return {**fresh, "stale": False, "cached": False}
+    # Couldn't fetch: serve the last good result, flagged, rather than
+    # blanking the UI every time Wi-Fi drops.
+    if cached:
+        return {**cached, "stale": True, "cached": True, "error": err}
+    return {"available": False, "error": err, "repos": []}
+
+
+def _ci_transitions(old, new):
+    """Notify when a repo goes red, and when it goes green again."""
+    before = {r["slug"]: r.get("state") for r in (old or {}).get("repos", [])}
+    for r in new["repos"]:
+        prev, cur = before.get(r["slug"]), r.get("state")
+        if prev is None or prev == cur:
+            continue
+        name = r["slug"].split("/")[-1]
+        if cur == "failing":
+            wf = next((w for w in r["workflows"] if w["conclusion"] in
+                       ("failure", "timed_out", "startup_failure")), {})
+            emit("ci-failed", repo=r["slug"], workflow=wf.get("name"), url=wf.get("url"))
+            notify(f"CI failed · {name}", f"{wf.get('name', '')}: {wf.get('title', '')}",
+                   urgency="critical", icon="dialog-error")
+        elif prev == "failing" and cur == "passing":
+            emit("ci-fixed", repo=r["slug"])
+            notify(f"CI green again · {name}", icon="emblem-ok")
+
+
+def _docker_rows():
+    rc, out = run(["docker", "ps", "-a", "--format",
+                   "{{.ID}}\t{{.Names}}\t{{.State}}\t{{.HealthStatus}}\t{{.Status}}\t{{.Ports}}"
+                   "\t{{.Label \"com.docker.compose.project\"}}"
+                   "\t{{.Label \"com.docker.compose.service\"}}"
+                   "\t{{.Label \"com.docker.compose.project.working_dir\"}}"], timeout=8)
+    if rc != 0:
+        return None
+    rows = []
+    for line in out.splitlines():
+        f = line.split("\t")
+        if len(f) != 9:
+            continue
+        rows.append({"id": f[0], "name": f[1], "state": f[2],
+                     "health": f[3] if f[3] not in ("", "none") else None,
+                     "status": f[4], "ports": f[5], "compose": f[6] or None,
+                     "service": f[7] or None, "dir": f[8] or None})
+    return rows
+
+
+def sec_services():
+    rows = _docker_rows()
+    if rows is None:
+        return {"available": False, "error": "docker unavailable (daemon stopped or no permission)",
+                "projects": []}
+    groups = {}
+    for r in rows:
+        if r["compose"]:
+            g = groups.setdefault(r["compose"], {"name": r["compose"], "dir": r["dir"],
+                                                 "project": project_of(r["dir"]),
+                                                 "containers": []})
+            g["containers"].append(r)
+        elif r["state"] == "running":
+            # Standalone containers only while running — exited one-off
+            # `docker run`s would otherwise pile up here forever.
+            groups.setdefault("(standalone)", {"name": "(standalone)", "dir": None,
+                                               "project": None, "containers": []})["containers"].append(r)
+    out = []
+    for g in groups.values():
+        cs = g["containers"]
+        running = sum(1 for c in cs if c["state"] == "running")
+        unhealthy = [c["service"] or c["name"] for c in cs if c["health"] == "unhealthy" and c["state"] == "running"]
+        g["running"], g["total"] = running, len(cs)
+        g["state"] = ("down" if running == 0 else
+                      "degraded" if unhealthy or running < len(cs) else "up")
+        g["unhealthy"] = unhealthy
+        g["containers"] = [{"name": c["service"] or c["name"], "state": c["state"],
+                            "health": c["health"], "status": c["status"], "ports": c["ports"]}
+                           for c in cs]
+        out.append(g)
+    order = {"up": 0, "degraded": 1, "down": 2}
+    return {"available": True,
+            "running": sum(g["running"] for g in out),
+            "projects": sorted(out, key=lambda g: (order[g["state"]], g["name"]))}
+
+
+def sec_ports():
+    rc, out = run(["ss", "-ltnpH"])
+    found = {}
+    if rc == 0:
+        for line in out.splitlines():
+            m_addr = re.search(r"\s(\S+):(\d+)\s+\S+:\*", line)
+            m_proc = re.search(r'users:\(\("([^"]+)",pid=(\d+)', line)
+            if not (m_addr and m_proc):
+                continue  # no pid = not ours (root/docker-proxy) — handled below
+            port, pid = int(m_addr.group(2)), int(m_proc.group(2))
+            cwd = cwd_of(pid)
+            proj = project_of(cwd) if cwd and Path(cwd) != HOME else None
+            if not proj:
+                continue  # sccache, desktop daemons, ... — not dev servers
+            args = procs().get(pid, {}).get("args", "")
+            found.setdefault((port, pid), {
+                "port": port, "addr": m_addr.group(1).strip("[]"), "pid": pid,
+                "process": m_proc.group(1), "cmd": args[:160], "project": proj,
+                "url": f"http://localhost:{port}", "source": "process"})
+    # Published container ports: docker-proxy runs as root so ss shows no
+    # pid for them; the compose labels say which project they belong to.
+    rows = _docker_rows() or []
+    for r in rows:
+        if r["state"] != "running":
+            continue
+        for m in re.finditer(r"(?:([\d.]+|\[::\]|::):)?(\d+)->(\d+)/tcp", r["ports"]):
+            port = int(m.group(2))
+            if any(k[0] == port for k in found):
+                continue
+            found[(port, r["name"])] = {
+                "port": port, "addr": m.group(1) or "0.0.0.0", "pid": None,
+                "process": "docker", "cmd": f"{r['compose'] or ''} {r['service'] or r['name']}".strip(),
+                "project": project_of(r["dir"]) or r["compose"],
+                "url": f"http://localhost:{port}", "source": "docker"}
+    return sorted(found.values(), key=lambda p: (p["project"] or "", p["port"]))
+
+
+def _agent_kind(p):
+    if p["comm"] == "claude":
+        return "claude"
+    first = p["args"].split(" ", 1)[0]
+    if p["comm"] == "codex" or os.path.basename(first) == "codex" or "/codex " in f"{p['args']} " \
+            or re.search(r"(^|/)codex(\.js)?(\s|$)", p["args"]):
+        return "codex"
+    return None
+
+
+def _load_agent_states():
+    states = {}
+    if AGENT_STATE.is_dir():
+        for f in AGENT_STATE.glob("*.json"):
+            try:
+                s = json.loads(f.read_text())
+            except (OSError, ValueError):
+                continue
+            pid = s.get("pid")
+            if pid and not Path(f"/proc/{pid}").exists():
+                f.unlink(missing_ok=True)   # session's process is gone
+                continue
+            states[pid] = s
+    return states
+
+
+def sec_agents():
+    table = procs()
+    states = _load_agent_states()
+    panes = tmux_panes()
+    clients = hypr_clients()
+    sessions = []
+    for p in table.values():
+        kind = _agent_kind(p)
+        if not kind:
+            continue
+        # A codex child of a codex (its sandbox helpers) is one session.
+        parent = table.get(p["ppid"])
+        if parent and _agent_kind(parent) == kind:
+            continue
+        cwd = cwd_of(p["pid"])
+        tty = tty_of(p["pid"])
+        win = window_for_pid(p["pid"], clients)
+        st = states.get(p["pid"], {})
+        sessions.append({
+            "kind": kind, "pid": p["pid"], "cwd": cwd, "project": project_of(cwd),
+            "started": p["start"],
+            "status": st.get("status", "running"),   # running = no hook data
+            "since": st.get("since"),
+            "message": st.get("message"),
+            "tmux": panes.get(tty, {}).get("target") if tty else None,
+            "window": win.get("address") if win else None,
+            "workspace": (win.get("workspace") or {}).get("name") if win else None,
+        })
+    orchestra = None
+    if shutil.which("orq-wall"):
+        orchestra = run_json(["orq-wall", "--once"], timeout=10)
+    order = {"needs-input": 0, "working": 1, "running": 2, "idle": 3, "done": 3}
+    return {"sessions": sorted(sessions, key=lambda s: (order.get(s["status"], 9), -s["started"])),
+            "orchestra": orchestra}
+
+
+WATCHER_PATTERNS = [
+    ("bacon", re.compile(r"(^|/)bacon(\s|$)")),
+    ("cargo-watch", re.compile(r"cargo[- ]watch")),
+    ("vitest", re.compile(r"(^|/|\s)vitest(\.mjs)?(\s|$)(?!.*\brun\b)")),
+    ("jest", re.compile(r"(^|/)jest(\.js)?\s.*--watch")),
+    ("tsx-watch", re.compile(r"(^|/)tsx\s+watch")),
+    ("turbo-dev", re.compile(r"(^|/)turbo\s+(run\s+)?dev")),
+    ("nodemon", re.compile(r"(^|/)nodemon(\s|$)")),
+]
+
+
+def sec_watchers():
+    out = []
+    table = procs()
+    for p in table.values():
+        for kind, pat in WATCHER_PATTERNS:
+            if pat.search(p["args"]):
+                # Skip a wrapper's child matching the same pattern (pnpm ->
+                # node vitest): report the outermost one only.
+                parent = table.get(p["ppid"], {})
+                if pat.search(parent.get("args", "")):
+                    break
+                cwd = cwd_of(p["pid"])
+                out.append({"kind": kind, "pid": p["pid"], "project": project_of(cwd),
+                            "cwd": cwd, "started": p["start"], "cmd": p["args"][:160]})
+                break
+    return sorted(out, key=lambda w: (w["project"] or "", w["kind"]))
+
+
+def sec_projects():
+    out = []
+    for root in projects_roots():
+        for d in sorted(root.iterdir()):
+            if d.is_dir() and not d.name.startswith("."):
+                out.append({"name": d.name, "path": str(d),
+                            "git": (d / ".git").exists(),
+                            "justfile": any((d / n).exists() for n in ("justfile", "Justfile", ".justfile")),
+                            "layout": (HOME / ".tmux/sessions" / f"{d.name}.sh").exists()
+                                      or (d / ".tmux-session").exists()})
+    return out
+
+
+SECTIONS = {
+    "focus": sec_focus, "ci": sec_ci, "services": sec_services, "ports": sec_ports,
+    "agents": sec_agents, "watchers": sec_watchers, "projects": sec_projects,
+}
+
+
+# --------------------------------------------------------------------------
+# hook entry points — must never fail loudly or print to stdout
+# --------------------------------------------------------------------------
+def agent_event(kind_arg):
+    """Agent hook. Records the session's state, and notifies when the agent
+    needs the user or finishes while the user is looking elsewhere.
+
+    Stdout stays empty on purpose: on SessionStart/UserPromptSubmit the
+    agent would read printed text as context, and printed JSON is parsed as
+    a hook decision. Always exits 0 — a hook error must never interrupt a
+    session over a status display."""
+    try:
+        data = json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+        data = {}
+    event = data.get("hook_event_name", "")
+    sid = data.get("session_id") or "unknown"
+    cwd = data.get("cwd")
+    # The agent process is an ancestor of this hook (agent -> sh -> python).
+    pid = next((p for p in ancestors(os.getppid()) if procs()[p]["comm"] in ("claude", "codex")), None)
+
+    AGENT_STATE.mkdir(parents=True, exist_ok=True)
+    f = AGENT_STATE / f"{re.sub(r'[^A-Za-z0-9_-]', '_', sid)}.json"
+    try:
+        prev = json.loads(f.read_text())
+    except (OSError, ValueError):
+        prev = {}
+    if os.environ.get("DEVSTAT_DEBUG"):
+        with (STATE / "debug.log").open("a") as log:
+            log.write(f"{time.time():.3f} {event:<16} {kind_arg or '':<12} prev={prev.get('status')} pid={pid} sid={sid[:8]}\n")
+
+    if event == "SessionEnd":
+        f.unlink(missing_ok=True)
+        return
+    # SessionStart is async (~80ms of Python startup), while
+    # UserPromptSubmit is synchronous — so if a first prompt ever arrived
+    # within that window, SessionStart would land second and reset
+    # "working" back to "idle". Not observed (traces show it landing
+    # first), but a defensive guard costs nothing: it only ever
+    # initialises a session it hasn't seen.
+    if event == "SessionStart" and prev:
+        return
+
+    ntype = kind_arg or data.get("notification_type") or ""
+    status = {
+        "SessionStart": "idle",
+        "UserPromptSubmit": "working",
+        "PreToolUse": "working",
+        "Stop": "done",
+    }.get(event)
+    if event == "Notification":
+        status = "idle" if ntype == "idle_prompt" else "needs-input"
+    if status is None:
+        return
+
+    project = project_of(cwd) or (Path(cwd).name if cwd else "agent")
+    state = {"session_id": sid, "pid": pid, "cwd": cwd, "project": project,
+             "status": status,
+             "since": prev.get("since") if prev.get("status") == status else now(),
+             "message": data.get("message") if status == "needs-input" else None}
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state))
+    tmp.replace(f)
+
+    if prev.get("status") == status:
+        return
+    if status == "needs-input":
+        emit("agent-needs-input", project=project, session=sid, message=state["message"])
+        if not (pid and is_visible(pid)):
+            notify(f"Agent needs input · {project}", state["message"] or "",
+                   urgency="critical", icon="dialog-question")
+    elif status == "done" and prev.get("status") == "working":
+        took = now() - prev.get("since", now())
+        emit("agent-done", project=project, session=sid, seconds=took)
+        # Only worth a notification for a turn long enough to look away.
+        if took >= 20 and not (pid and is_visible(pid)):
+            notify(f"Agent finished · {project}", f"after {took // 60}m {took % 60}s",
+                   icon="emblem-ok")
+
+
+def cmd_done(a):
+    """zsh precmd hook for commands that ran >= the shell's threshold."""
+    word = os.path.basename((a.cmd.split() or [""])[0])
+    if word in ("sudo", "time", "env", "nice", "nohup") and len(a.cmd.split()) > 1:
+        word = os.path.basename(a.cmd.split()[1])
+    if word in INTERACTIVE:
+        return
+    project = project_of(a.cwd) if a.cwd and Path(a.cwd) != HOME else None
+    ok = a.status == 0
+    emit("cmd-done", cmd=a.cmd[:200], status=a.status, seconds=a.elapsed, project=project)
+    if a.pid and is_visible(a.pid):
+        return
+    mins, secs = divmod(a.elapsed, 60)
+    took = f"{mins}m {secs}s" if mins else f"{secs}s"
+    title = ("✓ " if ok else f"✗ exit {a.status} · ") + (a.cmd if len(a.cmd) <= 60 else a.cmd[:57] + "…")
+    notify(title, f"{project + ' · ' if project else ''}{took}",
+           urgency="normal" if ok else "critical",
+           icon="emblem-ok" if ok else "dialog-error")
+
+
+# --------------------------------------------------------------------------
+def main():
+    argv = sys.argv[1:]
+    if argv[:1] == ["agent-event"]:
+        try:
+            agent_event(argv[1] if len(argv) > 1 else None)
+        except Exception:   # noqa: BLE001 — see agent_event's docstring
+            # Swallowed so a hook can never disrupt a session — which also
+            # hides bugs. DEVSTAT_DEBUG=1 in the agent's environment writes
+            # the traceback to $STATE/debug.log instead.
+            if os.environ.get("DEVSTAT_DEBUG"):
+                import traceback
+                STATE.mkdir(parents=True, exist_ok=True)
+                with (STATE / "debug.log").open("a") as f:
+                    f.write(f"--- {time.ctime()} {argv}\n{traceback.format_exc()}")
+        return 0
+    if argv[:1] == ["cmd-done"]:
+        ap = argparse.ArgumentParser(prog="devstat cmd-done")
+        ap.add_argument("--elapsed", type=int, required=True)
+        ap.add_argument("--status", type=int, required=True)
+        ap.add_argument("--cmd", required=True)
+        ap.add_argument("--cwd")
+        ap.add_argument("--pid", type=int)
+        try:
+            cmd_done(ap.parse_args(argv[1:]))
+        except Exception:   # noqa: BLE001 — a shell hook must never error
+            pass
+        return 0
+
+    ap = argparse.ArgumentParser(prog="devstat", description=__doc__.split("USAGE")[0].strip(),
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    # Validated by hand below: argparse `choices` with nargs="*" rejects
+    # the empty default list, and the [] workaround leaks into its errors.
+    ap.add_argument("sections", nargs="*", metavar="SECTION",
+                    help=f"any of: {', '.join(SECTIONS)} (default: all except projects)")
+    ap.add_argument("--refresh", action="store_true", help="bypass the CI cache")
+    ap.add_argument("--pretty", action="store_true", help="indented JSON")
+    a = ap.parse_args(argv)
+    bad = [x for x in a.sections if x not in SECTIONS]
+    if bad:
+        ap.error(f"unknown section(s): {', '.join(bad)} — choose from {', '.join(SECTIONS)}")
+    wanted = a.sections or [s for s in SECTIONS if s != "projects"]
+
+    def one(name):
+        try:
+            return SECTIONS[name](a.refresh) if name == "ci" else SECTIONS[name]()
+        except Exception as e:   # noqa: BLE001 — one broken section must not
+            return {"error": f"{type(e).__name__}: {e}"}   # blank the rest
+    # Sections are independent; ci and services wait on the network/daemon,
+    # so gather them concurrently.
+    with ThreadPoolExecutor(max_workers=len(wanted)) as pool:
+        results = dict(zip(wanted, pool.map(one, wanted)))
+    out = results[wanted[0]] if len(wanted) == 1 and a.sections else {"generated_at": now(), **results}
+    json.dump(out, sys.stdout, indent=2 if a.pretty else None)
+    sys.stdout.write("\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

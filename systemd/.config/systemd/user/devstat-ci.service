@@ -1,0 +1,17 @@
+# ~/dotfiles/systemd/.config/systemd/user/devstat-ci.service
+#
+# Refreshes devstat's CI cache (bin/bin/devstat, `ci` section). The point
+# isn't the cache itself — the bar reads that on its own — it's that a
+# refresh compares against the previous state and sends a notification the
+# moment a repo's default-branch CI turns red (or green again), whether or
+# not any dev UI is open.
+#
+# Output goes nowhere: `devstat ci` prints the JSON it cached, which is
+# only noise in the journal. Failures still show as a failed unit.
+[Unit]
+Description=Refresh devstat CI status (GitHub Actions)
+
+[Service]
+Type=oneshot
+ExecStart=%h/bin/devstat ci --refresh
+StandardOutput=null
