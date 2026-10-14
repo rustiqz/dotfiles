@@ -17,9 +17,13 @@ second. Built on one laptop, then replayed on other machines.
 - **Git identity** lives in untracked `~/.config/git/config.local`, not
   in this repo — see `hooks/50-git-identity.sh`.
 - **Editor:** Neovim/lazy.nvim, plugin specs under `nvim/.config/nvim/lua/plugins/`.
-  Mason installs LSP binaries (vtsls, lua_ls, eslint) on nvim's first
-  real launch, not at bootstrap time — needs mise's node active in the
-  launching shell (npm-based installs fail silently otherwise).
+  LSP on 0.11+'s native `vim.lsp.config`/`vim.lsp.enable` (lspconfig is
+  a data-only plugin now). Mason installs the server binaries (vtsls,
+  eslint, lua_ls, tailwindcss, jsonls, yamlls, dockerls, compose, taplo)
+  on nvim's first real launch, not at bootstrap time — needs mise's node
+  active in the launching shell (npm-based installs fail silently
+  otherwise). rust-analyzer is the exception: rustup component, driven by
+  rustaceanvim (`plugins/rust.lua`), never mason.
 - **`~/bin/work`** — tmux project sessionizer, searches `~/projects`.
 - **Phase 4 and Phase 5 complete and verified** (`scripts/verify-phase4.sh`,
   `scripts/verify-phase5.sh`, 0 failures each). Confirmed via a full
@@ -189,6 +193,38 @@ second. Built on one laptop, then replayed on other machines.
       multi-machine goal anyway) — see "Clean-machine findings" below
       for what that replay found and fixed, all now merged into `main`.
 
+Phases 7–12: developer-focused shell + rice, on branch `dev-shell`.
+Design borrowed (not copied) from the Prism and surface-dots Quickshell
+setups; everything stays wired into `bin/bin/theme` + matugen. Priority
+is development speed — anything in those references that isn't for
+developers (weather, screen time, pomodoro, phone, shaders) is out.
+
+- [x] **7 — Developer toolchain.** rustup + components/targets
+      (`hooks/55-rust-toolchain.sh`), mold + sccache via stowed
+      `cargo/.cargo/config.toml`, cargo tools and `just` from pacman,
+      Neovim: treesitter `main`-branch rewrite, native LSP API, Rust/
+      tailwind/YAML/JSON/Docker/TOML servers, neotest, trouble.
+- [ ] **8 — `devstat` data layer.** `bin/bin/devstat` (Python stdlib,
+      JSON out): ci, services, ports, agents, watchers, focus. Long-
+      command + Claude Code hook notifications. Per-project `.work.sh`
+      layouts + `just dev/test/up/down` recipes live in each project's
+      own repo, not here.
+- [ ] **9 — Quickshell base + bar.** Theme integration
+      (`themes/<name>/quickshell.json` + matugen template), three-island
+      bar with the dev island (focus project/branch, agents, containers,
+      OSD). waybar stays installed as the one-line rollback.
+- [ ] **10 — Dev hub.** `$mod+Space` right drawer, keyboard-first
+      (`a` agents, `c` CI, `s` services, `p` ports, `w` watchers) + one
+      quick-controls row. Retires the ags sidebar.
+- [ ] **11 — Pokédex launcher.** Replaces rofi drun on `$mod+D`; `/`
+      projects, `>` run, `@` windows, `=` calc, `:` emoji.
+- [ ] **12 — Wallpaper cards + polish.** Pokémon-card wallpaper picker
+      (matugen palette cache, hue-derived type), power menu, hyprlock
+      restyle, `$mod+/` cheatsheet from `bindd` descriptions, swaync.
+
+Parked: Vaultiq mobile (adb/Metro), monitra uptime row, cluster/queue
+sections.
+
 ## Repo layout
 
 ```
@@ -327,6 +363,35 @@ scripts/
   any of this belongs in the repo: `hyprlock.conf` enables fingerprint
   unconditionally and self-disables wherever there's no reader, and PAM
   wiring (`/etc/pam.d/*`) is machine-local by nature.
+
+- **nvim-treesitter's `main` branch is a different plugin from
+  `master`.** No `nvim-treesitter.configs` module, no `ensure_installed`/
+  `highlight.enable` options, no lazy-loading; parsers are compiled
+  locally and need `tree-sitter-cli` (pacman, not npm) + a C compiler.
+  lazy.nvim moved this repo onto `main` without anyone noticing: the old
+  config threw "module not found" on every file open and every buffer
+  silently fell back to regex highlighting. Caught by a headless probe
+  reading `vim.treesitter.highlighter.active`, not by eye — regex
+  highlighting looks close enough to pass casually.
+- **mason-lspconfig skips `ensure_installed` when nvim is headless**
+  (`not platform.is_headless` in its init.lua). That's the real reason
+  servers only appear "on first real launch". To install headlessly for
+  testing, call `require("mason-lspconfig.features.ensure_installed")()`
+  directly.
+- **Upstream tailwindcss LSP config attaches in every git repo** — its
+  root_dir falls back to `.git` to support tailwind v4 (no config file).
+  Narrowed in `plugins/lsp.lua` to config files or a `package.json`
+  mentioning tailwind, with both a negative (Vaultiq server) and a
+  positive (throwaway v4 project) control.
+- **Compose files need the compound filetype `yaml.docker-compose`** for
+  the compose language server to attach; Neovim assigns plain `yaml`.
+  Set in `config/options.lua`, plus `vim.treesitter.language.register`
+  so the compound filetype still gets the yaml parser.
+- **`~/.cargo/config.toml` must not be stowed before mold + sccache
+  exist.** It names both as the linker/rustc wrapper, so linking it
+  early makes *every* cargo build on the machine fail. bootstrap.sh
+  installs packages before stowing, which is the right order; by hand,
+  install first.
 
 ## Clean-machine findings (second machine, 2026-08-15)
 

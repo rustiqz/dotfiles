@@ -169,3 +169,10 @@ function y() {
 # env, whatever). See .gitignore for the *.local convention.
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 export PATH="$HOME/.local/bin:$PATH"
+
+# Cargo-installed binaries (`cargo install` / `cargo binstall`). Appended,
+# not prepended: every cargo tool this repo cares about comes from pacman
+# (packages/pacman.txt, Phase 7) into /usr/bin, and an older hand-installed
+# copy left in ~/.cargo/bin must not shadow it. Anything *only* installed
+# via cargo is still found, just last.
+export PATH="$PATH:$HOME/.cargo/bin"
