@@ -5,6 +5,13 @@
 # devstat — see agent-hooks/.local/share/agent-hooks/README.md for why
 # this is a plugin rather than hooks in ~/.claude/settings.json.
 #
+# Also sets the status line to `devstat statusline`: the status-line JSON
+# is the only place Claude Code exposes plan limits (rate_limits.five_hour
+# / seven_day), so that command snapshots them for the bar and hub — and
+# draws a compact line in the session itself. A plugin can't set this
+# (plugin settings only accept agent/subagentStatusLine), so it goes in
+# settings.json, added only when no statusLine is configured already.
+#
 # Idempotent: the marketplace and the plugin are each only added when the
 # CLI doesn't already list them. Skips quietly on a machine without the
 # agent CLI installed — nothing else in the repo depends on it.
@@ -32,8 +39,11 @@ fi
 SETTINGS="$HOME/.claude/settings.json"
 has_keys() {
   jq -e --arg m "$NAME" --arg p "$PLUGIN@$NAME" \
-    '(.extraKnownMarketplaces[$m] != null) and (.enabledPlugins[$p] == true)' "$1" &>/dev/null
+    '(.extraKnownMarketplaces[$m] != null) and (.enabledPlugins[$p] == true) and (.statusLine != null)' "$1" &>/dev/null
 }
+# $HOME is left for the shell Claude Code runs the command through to
+# expand — the settings file stays free of this account's home path.
+STATUSLINE='{"type": "command", "command": "\"$HOME/bin/devstat\" statusline", "padding": 0}' 
 if [[ -L $SETTINGS ]]; then
   target=$(readlink -f "$SETTINGS")
   if has_keys "$target"; then
@@ -42,7 +52,8 @@ if [[ -L $SETTINGS ]]; then
     echo "warning: $SETTINGS is a symlink to $target, which doesn't enable" >&2
     echo "  $PLUGIN@$NAME. Add to that file:" >&2
     echo "  \"extraKnownMarketplaces\": {\"$NAME\": {\"source\": {\"source\": \"directory\", \"path\": \"$MARKET\"}}}," >&2
-    echo "  \"enabledPlugins\": {\"$PLUGIN@$NAME\": true}" >&2
+    echo "  \"enabledPlugins\": {\"$PLUGIN@$NAME\": true}," >&2
+    echo "  \"statusLine\": $STATUSLINE" >&2
   fi
   exit 0
 fi
@@ -57,6 +68,13 @@ fi
 installed=$(claude plugin list 2>/dev/null || true)
 if ! grep -q "$PLUGIN@$NAME" <<<"$installed"; then
   claude plugin install "$PLUGIN@$NAME"
+fi
+
+# Status line — only when none is set, so a status line of your own wins.
+if ! jq -e '.statusLine != null' "$SETTINGS" &>/dev/null; then
+  tmp=$(mktemp)
+  jq --argjson sl "$STATUSLINE" '.statusLine = $sl' "$SETTINGS" >"$tmp" && mv "$tmp" "$SETTINGS"
+  echo "Status line: devstat statusline"
 fi
 
 echo "Agent hooks: $PLUGIN@$NAME installed"

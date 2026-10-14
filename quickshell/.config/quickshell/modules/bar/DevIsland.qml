@@ -63,6 +63,13 @@ Island {
                             detail: ev.message || "", level: -1,
                             action: () => root.focusAgent(ev.project, "needs-input") }, 8000)
                 break
+            case "limit-warning":
+                root.show({ icon: Icons.alert, color: ev.level >= 95 ? Theme.err : Theme.warn,
+                            title: `Session limit ${ev.level}%`,
+                            detail: ev.resets_at ? `resets ${Qt.formatTime(new Date(ev.resets_at * 1000), "HH:mm")}` : "",
+                            level: Math.min(1, ev.used / 100),
+                            action: () => Quickshell.execDetached(["qs", "ipc", "call", "hub", "openSection", "a"]) }, 8000)
+                break
             case "agent-done":
                 root.show({ icon: Icons.robot, color: Theme.ok, title: `Agent finished · ${ev.project}`,
                             detail: ev.seconds ? `after ${took(ev.seconds)}` : "", level: -1,
@@ -214,6 +221,23 @@ Island {
                     text: DevStat.sessions.length
                     color: Theme.subtle
                     font.pixelSize: Theme.smallSize + 1
+                }
+            }
+
+            // Claude's 5-hour session usage (from the status-line snapshot),
+            // coloured like the status line itself: green, yellow from 60%,
+            // red from 85%. Click → the hub's Party, which has both windows.
+            Hover {
+                readonly property real u: DevStat.claudeSession
+                visible: u >= 0
+                hpad: 5
+                onClicked: Quickshell.execDetached(["qs", "ipc", "call", "hub", "openSection", "a"])
+                Txt { text: "5h"; color: Theme.muted; font.pixelSize: Theme.smallSize }
+                Txt {
+                    text: `${Math.round(parent.parent.u)}%`
+                    color: parent.parent.u >= 85 ? Theme.err : parent.parent.u >= 60 ? Theme.warn : Theme.ok
+                    font.pixelSize: Theme.smallSize + 1
+                    font.bold: true
                 }
             }
 

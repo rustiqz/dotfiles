@@ -27,6 +27,8 @@ USAGE
       agents    running agent sessions (process scan + hook-reported state)
       watchers  watch-mode builders/test runners (bacon, vitest, tsx...)
       projects  project directories (for the launcher)
+      usage     agent plan limits: Claude (5-hour session + weekly, from the
+                status-line snapshot) and Codex (from its session logs)
 
     Actions (the dev hub's buttons; usable from a terminal too):
       devstat act up|down DIR      start/stop a project's services — the
@@ -34,6 +36,13 @@ USAGE
                                    justfile has that recipe, else `docker
                                    compose up -d`/`down` in DIR. Result is
                                    a cmd-done event (bar flash + notification).
+
+    Claude Code status line (set as statusLine.command in settings.json):
+      devstat statusline           reads Claude Code's status JSON on stdin,
+                                   saves its rate_limits snapshot (the only
+                                   source of Claude plan limits), alerts at
+                                   80%/95% of the 5-hour window, prints the
+                                   line Claude Code shows at its bottom
 
     Hook entry points (not for interactive use):
       devstat agent-event [TYPE]   agent hook; reads the hook JSON on stdin
@@ -366,6 +375,8 @@ def title(kind, **k):
         "agent-input": ("Agent needs input · {project}",    "{project} is waiting for your command!"),
         "agent-done":  ("Agent finished · {project}",       "{project} used Finish! It's super effective!"),
         "act-failed":  ("✗ {label} · {dir}",                "✗ {label} · {dir} — it missed!"),
+        "limit":       ("Claude session limit {pct}% · resets {when}",
+                        "Your party is getting tired! · {pct}% of the session limit (resets {when})"),
     }[kind][0 if plain else 1]
     return t.format(**k)
 
@@ -672,7 +683,16 @@ def sec_ports():
     return sorted(found.values(), key=lambda p: (p["project"] or "", p["port"]))
 
 
+# Background helpers the agent CLIs spawn that outlive any session —
+# not sessions themselves. Codex starts `codex app-server
+# --managed-daemon` and keeps it around after the TUI exits; counting it
+# showed a phantom "codex · monitra" party member with no window.
+AGENT_DAEMON_ARGS = ("app-server",)
+
+
 def _agent_kind(p):
+    if any(f" {a}" in p["args"] for a in AGENT_DAEMON_ARGS):
+        return None
     if p["comm"] == "claude":
         return "claude"
     first = p["args"].split(" ", 1)[0]
@@ -776,9 +796,139 @@ def sec_projects():
     return out
 
 
+LIMITS_SNAPSHOT = STATE / "claude-limits.json"
+LIMIT_LEVELS = (80, 95)          # 5-hour usage %s that alert, once per window
+
+
+def _window(used, resets_at, now):
+    """A rate-limit window as {used, resets_at, reset}. A window whose
+    reset time has passed is reported as 0% used — the snapshot predates
+    the reset, so the old number would be a lie — with reset: true so the
+    UI can say "reset" instead of showing a fresh-looking 0."""
+    if used is None:
+        return None
+    reset = resets_at is not None and resets_at <= now
+    return {"used": 0.0 if reset else round(float(used), 1), "resets_at": resets_at, "reset": reset}
+
+
+def _claude_limits(now):
+    try:
+        snap = json.loads(LIMITS_SNAPSHOT.read_text())
+    except (OSError, ValueError):
+        return {"available": False,
+                "reason": "no snapshot yet — written by `devstat statusline` from any "
+                          "Claude Code session (claude.ai Pro/Max plans only)"}
+    rl = snap.get("rate_limits") or {}
+    five, week = rl.get("five_hour") or {}, rl.get("seven_day") or {}
+    return {"available": True, "as_of": snap.get("ts"), "model": snap.get("model"),
+            "session": _window(five.get("used_percentage"), five.get("resets_at"), now),
+            "week": _window(week.get("used_percentage"), week.get("resets_at"), now)}
+
+
+def _codex_limits(now):
+    """Codex logs a rate_limits block with every token_count event in its
+    session logs (~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl): primary =
+    the 5-hour window, secondary = weekly. Read from the newest log's
+    tail only — they grow to megabytes."""
+    root = Path(os.environ.get("CODEX_HOME", HOME / ".codex")) / "sessions"
+    logs = sorted(root.glob("*/*/*/rollout-*.jsonl"), key=lambda f: f.stat().st_mtime, reverse=True) \
+        if root.is_dir() else []
+    for f in logs[:3]:
+        try:
+            with f.open("rb") as fh:
+                fh.seek(0, os.SEEK_END)
+                fh.seek(max(0, fh.tell() - 262144))
+                tail = fh.read().decode(errors="replace").splitlines()
+        except OSError:
+            continue
+        for line in reversed(tail):
+            if '"rate_limits"' not in line:
+                continue
+            try:
+                ev = json.loads(line)
+            except ValueError:
+                continue
+            rl = (ev.get("payload") or {}).get("rate_limits") or {}
+            if not rl.get("primary"):
+                continue
+            p, sec = rl.get("primary") or {}, rl.get("secondary") or {}
+            try:
+                as_of = int(time.mktime(time.strptime(ev["timestamp"][:19], "%Y-%m-%dT%H:%M:%S")) - time.timezone)
+            except (KeyError, ValueError):
+                as_of = int(f.stat().st_mtime)
+            return {"available": True, "as_of": as_of, "plan": rl.get("plan_type"),
+                    "session": _window(p.get("used_percent"), p.get("resets_at"), now),
+                    "week": _window(sec.get("used_percent"), sec.get("resets_at"), now)}
+    return {"available": False, "reason": "no Codex session logs with rate limits yet"}
+
+
+def sec_usage():
+    now = time.time()
+    return {"claude": _claude_limits(now), "codex": _codex_limits(now)}
+
+
+def statusline():
+    """Claude Code status line: snapshot rate limits, alert on thresholds,
+    print a compact line. Runs on every status update of every session, so
+    it must be quick and must never fail — a broken status line is a
+    visible error at the bottom of every session."""
+    try:
+        d = json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+        d = {}
+    now = int(time.time())
+    rl = d.get("rate_limits") or {}
+    model = (d.get("model") or {}).get("display_name") or ""
+
+    five = rl.get("five_hour") or {}
+    if five.get("used_percentage") is not None:
+        try:
+            prev = json.loads(LIMITS_SNAPSHOT.read_text())
+        except (OSError, ValueError):
+            prev = {}
+        STATE.mkdir(parents=True, exist_ok=True)
+        tmp = LIMITS_SNAPSHOT.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"ts": now, "rate_limits": rl, "model": model}))
+        tmp.replace(LIMITS_SNAPSHOT)
+        # Alert once per level per window: compare against the previous
+        # snapshot of the *same* window (same resets_at).
+        pfive = (prev.get("rate_limits") or {}).get("five_hour") or {}
+        before = pfive.get("used_percentage") if pfive.get("resets_at") == five.get("resets_at") else 0
+        used = five["used_percentage"]
+        for level in LIMIT_LEVELS:
+            if (before or 0) < level <= used:
+                when = time.strftime("%H:%M", time.localtime(five.get("resets_at") or now))
+                emit("limit-warning", agent="claude", used=used, level=level, resets_at=five.get("resets_at"))
+                notify(title("limit", pct=level, when=when), f"{used:.0f}% of the 5-hour window used",
+                       urgency="critical" if level >= 95 else "normal", icon="dialog-warning")
+
+    # The line itself (ANSI colours resolve through the terminal's theme):
+    #   ◓ dotfiles · Opus 5.5 · ctx 34% · 5h 72% ⟳18:50 · wk 41%
+    def pct(v, warn=60, crit=85):
+        c = "31" if v >= crit else "33" if v >= warn else "32"
+        return f"\033[{c}m{v:.0f}%\033[0m"
+    parts = []
+    cwd = (d.get("workspace") or {}).get("current_dir") or d.get("cwd")
+    proj = project_of(cwd) if cwd else None
+    parts.append(f"\033[1;35m\U000F041D\033[0m \033[1m{proj or (Path(cwd).name if cwd else '')}\033[0m")
+    if model:
+        parts.append(model)
+    ctx = (d.get("context_window") or {}).get("used_percentage")
+    if ctx is not None:
+        parts.append("ctx " + pct(ctx, 50, 80))
+    if five.get("used_percentage") is not None:
+        r = time.strftime("%H:%M", time.localtime(five["resets_at"])) if five.get("resets_at") else "?"
+        parts.append(f"5h {pct(five['used_percentage'])} \033[2m⟳{r}\033[0m")
+    week = rl.get("seven_day") or {}
+    if week.get("used_percentage") is not None:
+        parts.append(f"wk {pct(week['used_percentage'])}")
+    print(" \033[2m·\033[0m ".join(parts))
+
+
 SECTIONS = {
     "focus": sec_focus, "ci": sec_ci, "services": sec_services, "ports": sec_ports,
     "agents": sec_agents, "watchers": sec_watchers, "projects": sec_projects,
+    "usage": sec_usage,
 }
 
 
@@ -939,6 +1089,12 @@ def main():
                 STATE.mkdir(parents=True, exist_ok=True)
                 with (STATE / "debug.log").open("a") as f:
                     f.write(f"--- {time.ctime()} {argv}\n{traceback.format_exc()}")
+        return 0
+    if argv[:1] == ["statusline"]:
+        try:
+            statusline()
+        except Exception:   # noqa: BLE001 — never break the session's status bar
+            print("◓")
         return 0
     if argv[:1] == ["act"]:
         if len(argv) != 3:
