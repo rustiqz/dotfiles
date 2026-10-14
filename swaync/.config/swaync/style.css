@@ -579,4 +579,129 @@ notificationwindow, blankwindow {
 }
 
 
+/* ===========================================================================
+ * Design layer — makes swaync read as part of the Quickshell shell (bar
+ * islands, dev hub, launcher): same 14/18px radii, translucent cards on a
+ * frosted panel, small-caps metadata, pill buttons. Colours stay in the
+ * :root variables the theme file sets, so every theme still applies.
+ *
+ * Selectors repeat the stock chains above on purpose: GTK CSS has no
+ * !important, so a shorter selector simply loses to the stock rule's
+ * higher specificity and does nothing.
+ *
+ * Sits BEFORE the theme import, so a theme (e.g. the F1 pixel-art
+ * breakaway) can still override any of it.
+ * ======================================================================== */
+
+/* --- panel: a floating drawer like the dev hub ---------------------------- */
+.control-center {
+  border-radius: 18px;
+  border: 1px solid var(--noti-border-color);
+  padding: 6px;
+}
+
+/* Title row: big label left, "Clear All" as a quiet pill on the right */
+.widget-title > label {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.widget-title > button {
+  border-radius: 999px;
+  padding: 2px 14px;
+  font-size: 0.8rem;
+  background: alpha(var(--bg-selected), 0.15);
+  color: var(--bg-selected);
+  border: 1px solid alpha(var(--bg-selected), 0.4);
+}
+.widget-title > button:hover {
+  background: alpha(var(--noti-close-bg-hover), 0.25);
+  color: var(--noti-close-bg-hover);
+  border-color: var(--noti-close-bg-hover);
+}
+
+/* Do Not Disturb as a card row, like the hub's toggle tiles */
+.widget-dnd {
+  background: rgba(var(--noti-bg), 0.55);
+  border: 1px solid var(--noti-border-color);
+  padding: 10px 14px;
+}
+.widget-dnd label {
+  font-size: 0.95rem;
+}
+
+/* Empty state: quieter than the stock 50% */
+.control-center .control-center-list-placeholder {
+  opacity: 0.35;
+}
+
+/* --- cards (both the panel list and the popups) ------------------------------ */
+.notification-row .notification-background .notification {
+  border-radius: 14px;
+  border: 1px solid var(--noti-border-color);
+  background: rgba(var(--noti-bg), var(--noti-bg-alpha));
+  margin: 4px 6px;
+  padding: 2px;
+}
+.notification-row .notification-background .notification .notification-default-action {
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.notification-row .notification-background .notification .notification-default-action .notification-content .image {
+  border-radius: 10px;
+  margin-right: 10px;
+}
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .summary {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .body {
+  font-size: 0.85rem;
+  color: alpha(var(--text-color), 0.75);
+}
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .time {
+  font-size: 0.7rem;
+  color: var(--text-color-disabled);
+  letter-spacing: 0.5px;
+}
+
+/* Action buttons: pills */
+.notification-row .notification-background .notification .notification-action > button {
+  border-radius: 999px;
+}
+
+/* Close button: a small round chip, red on hover */
+.close-button {
+  min-width: 22px;
+  min-height: 22px;
+  margin: 8px;
+}
+
+/* Groups (several notifications from one app): same card language */
+.notification-group {
+  border-radius: 14px;
+}
+.notification-group .notification-group-headers .notification-group-header {
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+/* Keyboard focus: the stock rules paint the whole *row* and *group* behind
+   the card (the group one was the actual culprit — the first card always
+   sits in a focused group),
+   which read as a second box around the focused card. Put the focus cue
+   on the card's own border instead. */
+.notification-row:focus,
+.notification-group:focus {
+  background: transparent;
+}
+.notification-row:focus .notification-background .notification {
+  border-color: alpha(var(--bg-selected), 0.7);
+}
+
+/* Popups float with the same lift as the bar islands */
+.floating-notifications .notification {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
 @import url("active-theme.css");
