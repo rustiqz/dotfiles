@@ -194,7 +194,8 @@ Scope {
                     if (p.layout) badges.push({ name: "layout", color: Dex.types.grass.color })
                     return {
                         key: "proj:" + p.name, no, title: p.name, glyph: Icons.folder,
-                        subtitle: p.path, desc: `Opens the ${p.name} tmux session (work).`,
+                        subtitle: p.path.replace(Quickshell.env("HOME"), "~"),
+                        desc: `Opens the ${p.name} tmux session (work).`,
                         types: badges, caught: !!st, count: st ? st.n : 0, last: st ? st.last : 0,
                         rank: score(p.name, "", t) * 10 + frecency("proj:" + p.name),
                         run: () => Quickshell.execDetached(["uwsm", "app", "--", "kitty", "--title", p.name,
@@ -246,7 +247,10 @@ Scope {
             interval: 120
             onTriggered: {
                 const expr = dex.query.slice(1).trim()
-                if (!expr) { dex.calcResult = ""; return }
+                // Missing qalc: the install hint is already showing — don't
+                // spawn a doomed process per keystroke (each one logged a
+                // "Process failed to start" warning).
+                if (!expr || dex.qalcMissing) { dex.calcResult = ""; return }
                 calcProc.command = ["qalc", "-t", expr]
                 calcProc.running = true
             }
@@ -329,8 +333,16 @@ Scope {
         readonly property var selected: rows[Math.min(cursor, rows.length - 1)] || null
 
         // --- device ---------------------------------------------------------------------------
-        readonly property color shell: Theme.err          // the red body, from the theme
-        readonly property color shellDark: Qt.darker(Theme.err, 1.35)
+        // The body is the theme's own surface, like every other panel in
+        // the shell; the Pokédex identity lives in the details instead —
+        // lens, the three LEDs, a red seam under the header, the red dots
+        // over the screen, Pokéballs. The first version painted the whole
+        // device in Theme.err, which under TokyoNight is #f7768e: a pink
+        // slab that fought the rest of the theme (user feedback).
+        readonly property color shell: Theme.surface
+        readonly property color shellDark: Theme.bg
+        readonly property color trim: Theme.border        // bezels, outlines
+        readonly property color red: Theme.err            // identity accents only
 
         Rectangle {
             id: body
@@ -340,8 +352,8 @@ Scope {
                 GradientStop { position: 0; color: dex.shell }
                 GradientStop { position: 1; color: dex.shellDark }
             }
-            border.width: 2
-            border.color: Qt.darker(Theme.err, 1.8)
+            border.width: 1
+            border.color: Theme.alpha(dex.trim, 0.9)
 
             // Open/close: a quick scale-up from 94%, like the device popping open.
             scale: dex.open ? 1 : 0.94
@@ -356,8 +368,8 @@ Scope {
                 spacing: 12
                 Rectangle {   // the big lens
                     width: 58; height: 58; radius: 29
-                    color: "#f2f2f2"
-                    border.width: 2; border.color: Qt.darker(Theme.err, 1.8)
+                    color: Theme.surfaceHi
+                    border.width: 2; border.color: Theme.alpha(Theme.fg, 0.55)
                     Rectangle {
                         anchors.centerIn: parent
                         width: 44; height: 44; radius: 22
@@ -379,7 +391,7 @@ Scope {
                     }
                 }
                 Repeater {
-                    model: [Qt.darker(Theme.err, 1.2), Theme.warn, Theme.ok]
+                    model: [dex.red, Theme.warn, Theme.ok]
                     delegate: Rectangle {
                         required property color modelData
                         y: 6
@@ -391,10 +403,25 @@ Scope {
                 Column {
                     y: 4
                     leftPadding: 10
-                    Text { text: "DEVDEX"; color: "#ffffff"; font.family: Theme.font; font.pixelSize: 20; font.bold: true; font.letterSpacing: 3 }
+                    Text { text: "DEVDEX"; color: Theme.fg; font.family: Theme.font; font.pixelSize: 20; font.bold: true; font.letterSpacing: 3 }
                     Text { text: `${dex.mode.name.toUpperCase()} MODE · ${dex.rows.length} ${dex.mode.p === "" ? "SEEN" : "FOUND"}`
-                           color: Qt.rgba(1, 1, 1, 0.75); font.family: Theme.font; font.pixelSize: 10; font.letterSpacing: 1.5 }
+                           color: Theme.subtle; font.family: Theme.font; font.pixelSize: 10; font.letterSpacing: 1.5 }
                 }
+            }
+
+            // The red seam: the device's hinge line, fading out at both
+            // ends — the one large stroke of Pokédex red.
+            Rectangle {
+                x: 22; y: 82
+                width: parent.width - 44; height: 2
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0; color: "transparent" }
+                    GradientStop { position: 0.15; color: dex.red }
+                    GradientStop { position: 0.85; color: dex.red }
+                    GradientStop { position: 1; color: "transparent" }
+                }
+                opacity: 0.85
             }
 
             // --- left: the dex screen ---------------------------------------------------
@@ -403,12 +430,12 @@ Scope {
                 x: 22; y: 92
                 width: 340; height: parent.height - y - 64
                 radius: 14
-                color: "#e8e8ec"
-                border.width: 2; border.color: Qt.darker(Theme.err, 1.8)
+                color: Theme.surfaceHi
+                border.width: 1; border.color: Theme.alpha(dex.trim, 0.9)
 
                 Row {   // the two little red dots above the screen
                     x: (parent.width - width) / 2; y: 8; spacing: 10
-                    Repeater { model: 2; delegate: Rectangle { width: 7; height: 7; radius: 4; color: Theme.err } }
+                    Repeater { model: 2; delegate: Rectangle { width: 7; height: 7; radius: 4; color: dex.red } }
                 }
 
                 Rectangle {
@@ -536,7 +563,7 @@ Scope {
                 height: 44
                 radius: 12
                 color: Theme.bg
-                border.width: 2; border.color: Qt.darker(Theme.err, 1.8)
+                border.width: 1; border.color: Theme.alpha(Theme.accent, 0.6)
 
                 Text {
                     id: modeGlyph
@@ -606,7 +633,7 @@ Scope {
                     width: list.width
                     height: 46
                     radius: 10
-                    color: sel ? Theme.alpha(Theme.bg, 0.92) : Theme.alpha(Theme.bg, 0.55)
+                    color: sel ? Theme.alpha(Theme.accent, 0.14) : Theme.alpha(Theme.surfaceHi, 0.45)
                     border.width: sel ? 2 : 0
                     border.color: Theme.accent
                     Behavior on color { ColorAnimation { duration: Theme.animFast } }
@@ -694,8 +721,8 @@ Scope {
             Item {   // decorative D-pad
                 x: 26; anchors.bottom: parent.bottom; anchors.bottomMargin: 14
                 width: 36; height: 36
-                Rectangle { anchors.centerIn: parent; width: 12; height: 36; radius: 3; color: "#2a2a30" }
-                Rectangle { anchors.centerIn: parent; width: 36; height: 12; radius: 3; color: "#2a2a30" }
+                Rectangle { anchors.centerIn: parent; width: 12; height: 36; radius: 3; color: Theme.surfaceHi }
+                Rectangle { anchors.centerIn: parent; width: 36; height: 12; radius: 3; color: Theme.surfaceHi }
             }
             Row {
                 anchors.left: bezel.right; anchors.leftMargin: 18
@@ -708,7 +735,7 @@ Scope {
                         required property var modelData
                         spacing: 4
                         Keycap { key: modelData[0] }
-                        Text { text: modelData[1]; color: Qt.rgba(1, 1, 1, 0.85); font.family: Theme.font; font.pixelSize: 10
+                        Text { text: modelData[1]; color: Theme.subtle; font.family: Theme.font; font.pixelSize: 10
                                anchors.verticalCenter: parent.verticalCenter }
                     }
                 }
