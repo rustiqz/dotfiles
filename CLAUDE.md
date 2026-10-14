@@ -74,7 +74,10 @@ second. Built on one laptop, then replayed on other machines.
   opens, `l` failed log in a terminal), `s` compose services (Enter logs,
   `u`/`d` up/down via `devstat act`, `z` lazydocker), `p` listening dev
   servers, `w` watchers — plus volume/brightness/mic sliders,
-  Wi-Fi/Bluetooth/Silence/Caffeine toggles and now-playing. It replaced
+  Wi-Fi/Bluetooth/Silence/Caffeine toggles, a power-profile selector
+  (Saver/Balanced/Performance, also an icon in the bar's status island —
+  click cycles up, right-click down; both read `services/PowerProf.qml`)
+  and now-playing. It replaced
   the ags sidebar (Docker + now-playing); ags is gone from the repo and
   manifests. `qs ipc call hub openSection <letter>` opens a section from
   a script.

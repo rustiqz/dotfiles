@@ -64,6 +64,9 @@ Singleton {
     readonly property string hub: "\u{f0a1d}"            // md-view_dashboard_outline
     readonly property string orchestra: "\u{f0b9f}"      // md-folder_star_outline
     readonly property string coffee: "\u{f06ca}"         // md-coffee_outline
+    readonly property string profSaver: "\u{f032a}"     // md-leaf
+    readonly property string profBalanced: "\u{f05d1}"  // md-scale_balance
+    readonly property string profPerf: "\u{f04c5}"      // md-speedometer
     // --- launcher (Phase 11) ---
     readonly property string pokeball: "\u{f041d}"       // md-pokeball
     readonly property string calc: "\u{f15a6}"           // md-calculator_variant_outline
