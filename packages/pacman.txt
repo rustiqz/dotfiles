@@ -504,3 +504,6 @@ xdg-utils             # xdg-open — hub/bar open CI runs, PRs, dev-server URLs
 less                  # hub `l`: failed CI logs paged in a terminal
 nm-connection-editor  # bar's network glyph opens it (also pulled by network-manager-applet)
 librsvg               # rsvg-convert — bin/bin/lockinfo renders the lock screen's fallback Pokéball avatar (and scripts/generate-wallpaper.py)
+
+# --- Pokémon terminal greeter (bin/bin/pokefetch) ---------------------------
+fastfetch             # system info beside the sprite; config in fastfetch/.config/fastfetch/
