@@ -265,14 +265,17 @@ developers (weather, screen time, pomodoro, phone, shaders) is out.
       windows, `=` qalc, `:` emoji (rofimoji's data), `?` help. Apps
       launch as `uwsm app -- <id>.desktop`. Replaced rofi drun; rofi
       stays for the pickers. `scripts/verify-phase11.sh` 19/19.
-- [ ] **12 — Wallpaper cards + polish.** In progress. Done: `$mod+/`
-      cheatsheet (live from `hyprctl binds -j`), `$mod+P` power menu
-      (Cassini style; wlogout kept as fallback), `$mod+W` Pokémon-card
-      wallpaper picker (type/HP/attacks from each image's own palette via
-      ColorQuantizer; Enter sets, Shift+Enter also `theme wallpaper`;
-      `bin/bin/wallpaper NAME` sets directly), blurred backdrop behind
-      centred popups. Left: hyprlock restyle, swaync restyle,
-      verify-phase12.sh.
+- [x] **12 — Wallpaper cards + polish.** `$mod+/` cheatsheet (live
+      from `hyprctl binds -j`), `$mod+P` power menu (Cassini style; reboot/
+      shutdown need a second press; wlogout kept as fallback), `$mod+W`
+      Pokémon-card wallpaper picker (type/HP/attacks from each image's own
+      palette via ColorQuantizer; Enter sets via `bin/bin/wallpaper NAME`,
+      Shift+Enter also `theme wallpaper`), blurred backdrop behind centred
+      popups, hyprlock restyle (big clock, spaced date, `@$USER`, pill
+      input, battery/now-playing corners), swaync floating under the bar
+      at 14px radius. `scripts/verify-phase12.sh` 26/26 — config-level for
+      hyprlock: it has no check-only mode and a killed lock strands the
+      session, so its first real look is a manual `$mod+Escape`.
 
 Parked: Vaultiq mobile (adb/Metro), monitra uptime row, cluster/queue
 sections.

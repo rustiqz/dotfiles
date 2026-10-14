@@ -33,7 +33,7 @@
   --notification-app-icon-size: calc(var(--notification-icon-size) / 3);
   --notification-group-icon-size: 32px;
   --border: 1px solid var(--noti-border-color);
-  --border-radius: 12px;
+  --border-radius: 14px;   /* matches windows, bar islands, hub (hypr/look.conf rounding) */
   --notification-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3),
     0 1px 3px 1px rgba(0, 0, 0, 0.7), 0 2px 6px 2px rgba(0, 0, 0, 0.3);
   --font-size-body: 15px;
