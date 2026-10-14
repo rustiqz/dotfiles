@@ -7,6 +7,7 @@
 # terminal it's rendered in.
 
 format = """
+${custom.pokeball}\
 $directory\
 $git_branch\
 $git_status\
@@ -82,3 +83,17 @@ only_with_files = true
 min_time = 2000
 style = "#565f89"
 format = "[took $duration]($style) "
+
+# --- Pokéball: git state at a glance -------------------------------------------
+# bin/bin/prompt-pokeball prints a Pokéball tinted by git state (green
+# clean, yellow changes, blue unpushed, red conflicts) — see that script.
+# require_repo: only inside a git repo. unsafe_no_escape: the script's
+# output carries ANSI colour codes (theme-following), which starship
+# would otherwise escape into literal text.
+[custom.pokeball]
+command = "prompt-pokeball"
+require_repo = true
+when = true
+shell = ["bash", "--noprofile", "--norc"]
+unsafe_no_escape = true
+format = "$output "
