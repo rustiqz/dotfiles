@@ -19,6 +19,7 @@ import qs.modules.bar
 import qs.modules.hub
 import qs.modules.launcher
 import qs.modules.cheatsheet
+import qs.modules.power
 
 ShellRoot {
     Variants {
@@ -35,4 +36,7 @@ ShellRoot {
 
     // Keybind cheatsheet — $mod+/ (qs ipc call cheatsheet toggle).
     Cheatsheet {}
+
+    // Power menu — $mod+P and the bar's power glyph (qs ipc call power toggle).
+    PowerMenu {}
 }

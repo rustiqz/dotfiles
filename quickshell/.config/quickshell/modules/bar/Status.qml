@@ -219,7 +219,7 @@ Island {
     // --- power ------------------------------------------------------------------------------------
     Hover {
         hpad: 7
-        onClicked: root.run(["wlogout", "-b", "5"])
+        onClicked: Quickshell.execDetached(["qs", "ipc", "call", "power", "toggle"])
         Txt { text: Icons.power; color: Theme.err; font.pixelSize: Theme.iconSize }
     }
 }
