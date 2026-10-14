@@ -58,7 +58,8 @@ hdr "Every command used comes from a tracked package"
 CMDS="python3 gh git docker tmux kitty lazydocker jq ss notify-send swaync swaync-client
 pavucontrol blueman-manager nm-connection-editor nm-online nmcli uwsm xdg-open wl-copy
 brightnessctl playerctl wpctl systemd-inhibit qs rofimoji just bacon btop wlogout rofi
-hyprctl stow matugen fzf less curl rustup mold sccache tree-sitter nvim grim slurp cliphist"
+hyprctl stow matugen fzf less curl rustup mold sccache tree-sitter nvim grim slurp cliphist
+uptime hyprlock qalc"
 guaranteed=$(pacman -Qgq base-devel 2>/dev/null; pacman -Si base 2>/dev/null | awk -F': ' '/^Depends On/{print $2}' | tr ' ' '\n')
 for c in $CMDS; do
   path=$(command -v "$c") || { wa "$c not installed here — can't check its package"; continue; }
