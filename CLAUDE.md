@@ -265,9 +265,14 @@ developers (weather, screen time, pomodoro, phone, shaders) is out.
       windows, `=` qalc, `:` emoji (rofimoji's data), `?` help. Apps
       launch as `uwsm app -- <id>.desktop`. Replaced rofi drun; rofi
       stays for the pickers. `scripts/verify-phase11.sh` 19/19.
-- [ ] **12 — Wallpaper cards + polish.** Pokémon-card wallpaper picker
-      (matugen palette cache, hue-derived type), power menu, hyprlock
-      restyle, `$mod+/` cheatsheet from `bindd` descriptions, swaync.
+- [ ] **12 — Wallpaper cards + polish.** In progress. Done: `$mod+/`
+      cheatsheet (live from `hyprctl binds -j`), `$mod+P` power menu
+      (Cassini style; wlogout kept as fallback), `$mod+W` Pokémon-card
+      wallpaper picker (type/HP/attacks from each image's own palette via
+      ColorQuantizer; Enter sets, Shift+Enter also `theme wallpaper`;
+      `bin/bin/wallpaper NAME` sets directly), blurred backdrop behind
+      centred popups. Left: hyprlock restyle, swaync restyle,
+      verify-phase12.sh.
 
 Parked: Vaultiq mobile (adb/Metro), monitra uptime row, cluster/queue
 sections.
