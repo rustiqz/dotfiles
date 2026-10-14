@@ -114,6 +114,7 @@ Scope {
             { p: "@", name: "Windows", glyph: Icons.windows },
             { p: "=", name: "Calc", glyph: Icons.calc },
             { p: ":", name: "Emoji", glyph: Icons.emoji },
+            { p: "+", name: "Agents", glyph: Icons.robot },
             { p: "?", name: "Help", glyph: Icons.help },
         ]
         readonly property var mode: modes.find(m => m.p && query.startsWith(m.p)) || modes[0]
@@ -318,17 +319,43 @@ Scope {
             }))
         }
 
+        // --- agents (+) --------------------------------------------------------------
+        // Start a new agent session in a project: Enter = Claude, Shift+Enter =
+        // Codex, via bin/bin/agent-start (own kitty window, interactive shell so
+        // mise's codex resolves). The focused project sorts first; each row says
+        // how many agents are already working there.
+        readonly property var agentRows: {
+            const t = term
+            const focusProj = DevStat.focus && DevStat.focus.project
+            const busy = name => DevStat.sessions.filter(x => x.project === name).length
+            return projects.map((p, i) => ({ p, no: i + 1 }))
+                .filter(({ p }) => score(p.name, p.path, t))
+                .map(({ p, no }) => {
+                    const n = busy(p.name)
+                    return {
+                        key: "agent:" + p.name, no, title: p.name, glyph: Icons.robot,
+                        subtitle: `Enter: Claude  ·  Shift+Enter: Codex${n ? `  ·  ${n} already here` : ""}`,
+                        desc: `New agent session in ${p.path.replace(Quickshell.env("HOME"), "~")}, in its own terminal.`,
+                        types: [Dex.types.psychic], caught: false,
+                        rank: (p.name === focusProj ? 1000 : 0) + score(p.name, "", t) * 10 + frecency("agent:" + p.name),
+                        run: (alt) => Quickshell.execDetached([Quickshell.env("HOME") + "/bin/agent-start",
+                                                               alt ? "codex" : "claude", p.path]),
+                    }
+                })
+                .sort((a, b) => b.rank - a.rank)
+        }
+
         readonly property var helpRows: modes.filter(m => m.p).map(m => ({
             glyph: m.glyph, title: `${m.p}  ${m.name}`, types: [],
             subtitle: ({ "/": "open a project's tmux session", ">": "run a shell command",
                          "@": "jump to an open window", "=": "calculator (qalc)",
-                         ":": "copy an emoji", "?": "this list" })[m.p],
+                         ":": "copy an emoji", "+": "start an agent in a project", "?": "this list" })[m.p],
             run: () => { search.text = m.p; dex.open = true },
         }))
 
         readonly property var rows: ({
             "": appRows, "/": projectRows, ">": runRows, "@": windowRows,
-            "=": calcRows, ":": emojiRows, "?": helpRows,
+            "=": calcRows, ":": emojiRows, "+": agentRows, "?": helpRows,
         })[mode.p] || []
         readonly property var selected: rows[Math.min(cursor, rows.length - 1)] || null
 
@@ -584,7 +611,7 @@ Scope {
 
                     Text {
                         visible: search.text === ""
-                        text: "Search apps · / projects · > run · @ windows · = calc · : emoji"
+                        text: "Search apps · / projects · + agents · > run · @ windows · = calc · : emoji"
                         color: Theme.muted; font: search.font
                         elide: Text.ElideRight; width: parent.width
                     }
@@ -603,7 +630,7 @@ Scope {
                         } else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
                             dex.launch(dex.selected, !!(e.modifiers & Qt.ShiftModifier)); e.accepted = true
                         } else if (e.key === Qt.Key_Tab || e.key === Qt.Key_Backtab) {
-                            const list = dex.modes.slice(0, 6)   // skip help
+                            const list = dex.modes.filter(m => m.p !== "?")   // every mode but help
                             const i = list.findIndex(m => m.p === dex.mode.p)
                             const d = e.key === Qt.Key_Backtab ? -1 : 1
                             text = list[(i + d + list.length) % list.length].p
@@ -729,7 +756,8 @@ Scope {
                 anchors.bottom: parent.bottom; anchors.bottomMargin: 22
                 spacing: 6
                 Repeater {
-                    model: [["↑↓", "select"], ["↵", dex.mode.p === ">" ? "run · ⇧↵ term" : dex.mode.p === "=" || dex.mode.p === ":" ? "copy" : "launch"],
+                    model: [["↑↓", "select"], ["↵", dex.mode.p === ">" ? "run · ⇧↵ term" : dex.mode.p === "+" ? "claude · ⇧↵ codex"
+                                                    : dex.mode.p === "=" || dex.mode.p === ":" ? "copy" : "launch"],
                             ["tab", "mode"], ["?", "help"], ["esc", "close"]]
                     delegate: Row {
                         required property var modelData

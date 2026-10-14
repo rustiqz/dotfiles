@@ -78,6 +78,47 @@ PanelWindow {
         open = false
     }
     function url(u) { Quickshell.execDetached(["xdg-open", u]); open = false }
+    // New agent session in the focused project (or, with no project in
+    // focus, the launcher's `+` mode to pick one) — bin/bin/agent-start.
+    function newAgent(kind) {
+        const f = DevStat.focus
+        const dir = f && f.git && f.git.root ? f.git.root : null
+        open = false
+        if (dir) Quickshell.execDetached([Quickshell.env("HOME") + "/bin/agent-start", kind, dir])
+        else Quickshell.execDetached(["qs", "ipc", "call", "launcher", "openWith", "+"])
+    }
+
+    // One Party row per agent's plan limits: the bar is the energy left in
+    // the 5-hour session window (100% − used), same HP colours as members.
+    function limitRow(label, u, icon) {
+        if (!u || !u.available)
+            return { icon, iconColor: Theme.muted, title: `${label} · limits unknown`,
+                     subtitle: u && u.reason ? u.reason : "", actions: {} }
+        // Reset times: bare HH:mm only when it's today — "resets 08:30" for
+        // tomorrow morning read as already past.
+        const t = e => {
+            if (!e) return "?"
+            const d = new Date(e * 1000)
+            return Qt.formatDateTime(d, d.toDateString() === new Date().toDateString() ? "HH:mm" : "ddd HH:mm")
+        }
+        const win = (name, w) => !w ? "" : w.reset ? `${name} reset` : `${name} ${Math.round(w.used)}% · resets ${t(w.resets_at)}`
+        const sess = u.session ? u.session.used : 0
+        const age = u.as_of ? Date.now() / 1000 - u.as_of : 0
+        const stale = age > 3600
+        // "as of 261h 6m ago" said nothing at a glance; past two days, a date.
+        const asOf = age > 172800 ? Qt.formatDateTime(new Date(u.as_of * 1000), "d MMM") : `${hub.ago(u.as_of)} ago`
+        return {
+            icon, iconColor: sess >= 85 ? Theme.err : sess >= 60 ? Theme.warn : Theme.ok,
+            title: `${label}${u.plan ? " · " + u.plan : u.model ? " · " + u.model : ""} — energy`,
+            subtitle: [win("session", u.session), win("week", u.week),
+                       stale ? `as of ${asOf}` : ""].filter(Boolean).join("  ·  "),
+            hp: 1 - sess / 100,
+            chip: u.session && !u.session.reset ? `${Math.round(sess)}%` : "",
+            chipColor: sess >= 85 ? Theme.err : sess >= 60 ? Theme.warn : Theme.ok,
+            actions: {},
+        }
+    }
+
     function focusAgent(s) {
         if (s.window) Hyprland.dispatch(`focuswindow address:${s.window}`)
         if (s.tmux) Quickshell.execDetached(["tmux", "switch-client", "-t", s.tmux])
@@ -94,7 +135,7 @@ PanelWindow {
 
     // --- sections ----------------------------------------------------------------------
     readonly property var sections: [
-        { key: "a", name: "Party", hints: [["↵", "jump to"]] },
+        { key: "a", name: "Party", hints: [["↵", "jump to"], ["n", "new claude"], ["x", "new codex"]] },
         { key: "c", name: "CI", hints: [["↵", "open"], ["l", "failed log"], ["o", "actions"]] },
         { key: "s", name: "Services", hints: [["↵", "logs"], ["u", "up"], ["d", "down"], ["z", "lazydocker"]] },
         { key: "p", name: "Ports", hints: [["↵", "open"]] },
@@ -114,7 +155,9 @@ PanelWindow {
         const said = { "needs-input": "awaiting command", working: "in battle", idle: "resting",
                        done: "victorious", running: "in the field" }
         const now = Date.now() / 1000
-        const out = DevStat.sessions.map(s => ({
+        const usage = DevStat.usage || {}
+        const limits = [limitRow("Claude", usage.claude, Icons.robot), limitRow("Codex", usage.codex, Icons.term)]
+        const out = limits.concat(DevStat.sessions.map(s => ({
             icon: s.status === "needs-input" ? Icons.hand : s.kind === "claude" ? Icons.robot : Icons.term,
             iconColor: color[s.status] || Theme.info,
             title: s.project || (s.cwd ? s.cwd.split("/").pop() : s.kind),
@@ -126,7 +169,7 @@ PanelWindow {
             chip: said[s.status] || "",
             chipColor: color[s.status] || Theme.muted,
             actions: { Enter: () => hub.focusAgent(s) },
-        }))
+        })))
         // Orchestra delegations: only projects with something in flight.
         const orq = DevStat.agents && DevStat.agents.orchestra
         for (const p of (orq && orq.projects) || []) {
@@ -229,7 +272,7 @@ PanelWindow {
     }
 
     readonly property var items: ({ a: agentItems, c: ciItems, s: serviceItems, p: portItems, w: watcherItems })[section] || []
-    readonly property var empty: ({ a: "Your party is empty — no agents running", c: "No repos", s: "No compose projects",
+    readonly property var empty: ({ a: "Your party is empty — n: new claude · x: new codex", c: "No repos", s: "No compose projects",
                                     p: "No dev servers listening", w: "No watchers running" })[section]
     onSectionChanged: cursor = 0
     onItemsChanged: if (cursor >= items.length) cursor = Math.max(0, items.length - 1)
@@ -278,6 +321,7 @@ PanelWindow {
                     hub.section = hub.sections[(i + d + hub.sections.length) % hub.sections.length].key
                 }
                 else if (k === "r") DevStat.refreshAll()
+                else if (hub.section === "a" && (k === "n" || k === "x")) hub.newAgent(k === "n" ? "claude" : "codex")
                 else if (hub.sections.some(s => s.key === k)) hub.section = k
                 else if (k) hub.act(k)
                 e.accepted = true

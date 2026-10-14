@@ -28,6 +28,11 @@ Singleton {
     property var focus: null
     property var agents: ({ sessions: [], orchestra: null })
     property var services: ({ available: false, running: 0, projects: [] })
+    // Agent plan limits (devstat usage): claude from the status-line
+    // snapshot, codex from its session logs. -1 = unknown.
+    property var usage: ({ claude: { available: false }, codex: { available: false } })
+    readonly property real claudeSession: usage && usage.claude && usage.claude.available && usage.claude.session
+                                          ? usage.claude.session.used : -1
     property var ci: ({ available: false, repos: [] })
     property var ports: []
     property var watchers: []
@@ -78,8 +83,8 @@ Singleton {
     }
     Poll {
         id: liveProc
-        command: [root.bin, "agents", "services"]
-        target: d => { root.agents = d.agents; root.services = d.services }
+        command: [root.bin, "agents", "services", "usage"]
+        target: d => { root.agents = d.agents; root.services = d.services; root.usage = d.usage }
     }
     Poll {
         id: ciProc

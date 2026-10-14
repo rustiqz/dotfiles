@@ -23,6 +23,10 @@ $character"""
 # Fully custom prompt, so nothing from the default config leaks in.
 add_newline = false
 
+# Default 30ms is too tight for directories with lots of entries (e.g. $HOME) —
+# scanning for language-version files (nodejs/python/rust/golang) was timing out.
+scan_timeout = 100
+
 [directory]
 style = "bold #7aa2f7"
 truncation_length = 4
