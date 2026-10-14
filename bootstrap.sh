@@ -196,6 +196,9 @@ cd "$DOTFILES"
 for pkg in */; do
   pkg=${pkg%/}
   case $pkg in packages|hooks|host|themes|scripts|matugen) continue ;; esac
+  # Same tracked-only rule as step 6 — never move a file aside to make
+  # room for a directory that isn't going to be stowed.
+  [[ -z $(git -C "$DOTFILES" ls-files -- "$pkg" | head -1) ]] && continue
   while IFS= read -r rel; do
     [[ -z $rel ]] && continue
     target="$HOME/$rel"
@@ -231,11 +234,41 @@ done
 # matugen/templates/*.tpl are generation input bin/bin/theme reads
 # from directly (via `matugen --config`), never symlinked into $HOME.
 log "Stowing configs"
-mkdir -p "$HOME/.config"     # stow links INTO this; it must exist first
+# Directories that must be REAL before stowing, never symlinks into this
+# repo. stow tree-folds: when a target directory doesn't exist yet, it
+# links the whole directory instead of the files inside it. On a fresh
+# account that turned out to mean (simulated with `stow -n` against an
+# empty $HOME):
+#   ~/.local              -> agent-hooks/.local       every app's data and
+#                                                      state written into the repo
+#   ~/.cargo              -> cargo/.cargo             cargo's registry and
+#                                                      build cache (GBs) in the repo
+#   ~/.config/systemd     -> systemd/.config/systemd  `systemctl --user enable`
+#                                                      writing *.wants/ links into the repo
+#   ~/.ssh                -> ssh/.ssh                 the first `ssh-keygen` writing the
+#                                                      private key into the repo tree, and
+#                                                      known_hosts (not gitignored) one
+#                                                      `git add -A` from being committed
+# None of it showed on the first machine only because these all already
+# existed there — the same "state that exists by accident" shape as the
+# clean-machine findings in CLAUDE.md. Creating them first makes stow
+# link individual files into real directories, on any machine/account.
+for d in .config .config/systemd/user .local/share .local/state .local/bin .cargo .ssh; do
+  mkdir -p "$HOME/$d"
+done
+chmod 700 "$HOME/.ssh"   # ssh refuses keys in a group/world-readable dir
 cd "$DOTFILES"
 for pkg in */; do
   pkg=${pkg%/}                                                # strip trailing slash
   case $pkg in packages|hooks|host|themes|scripts|matugen) continue ;; esac  # not config packages
+  # Only stow directories git tracks. An untracked top-level directory
+  # (a project parked here, an experiment) would otherwise be symlinked
+  # into $HOME wholesale — its README.md becoming ~/README.md. `git add`
+  # a new package to have bootstrap pick it up.
+  if [[ -z $(git -C "$DOTFILES" ls-files -- "$pkg" | head -1) ]]; then
+    log "  skipping untracked directory $pkg/ (not a stow package until committed)"
+    continue
+  fi
   stow -R -t "$HOME" "$pkg"                          # -R = idempotent restow
 done
 

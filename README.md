@@ -9,8 +9,13 @@ on demand and a pixel-art breakaway theme for notifications.
 
 ## Quick start
 
+HTTPS, not SSH: a fresh machine has no SSH key registered with GitHub
+yet, so an SSH clone fails before anything else can run. (Private repo:
+`gh auth login` first, or use a token.) Works for any account and any
+username — nothing in the repo bakes in a home path.
+
 ```sh
-git clone git@github.com:rustiqz/dotfiles.git ~/dotfiles
+git clone https://github.com/rustiqz/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 ./bootstrap.sh
 ```

@@ -510,6 +510,21 @@ scripts/
   read** — it never starts. Check presence up front (`sh -c 'command -v
   x'`) instead of waiting for a 127 that never comes.
 
+- **Portability is checked, not assumed: `scripts/verify-portability.sh`.**
+  Run it before committing anything that adds a dependency or a stow
+  package. It fails on a tracked file containing this account's home
+  path/username, on any command the shell/scripts call whose package
+  isn't in a manifest (or base/base-devel), and on stow tree-folding
+  `~/.local`, `~/.cargo`, `~/.ssh` or `~/.config/systemd` into the repo
+  on an empty `$HOME`. Its first run (2026-10-14) found all three kinds:
+  `gh` hand-installed and required by nothing, `python`/`libnotify`/
+  `xdg-utils`/`less` only present via GNOME's dependencies, and on a
+  fresh account stow would have folded `~/.local` (every app's data),
+  `~/.cargo` (cargo's registry) and `~/.ssh` (the first private key)
+  into the repo. bootstrap.sh now pre-creates those as real directories
+  (`~/.ssh` at 0700) and stows only directories git tracks — an
+  untracked `orchestra/` would otherwise have landed in `$HOME`.
+
 ## Clean-machine findings (second machine, 2026-08-15)
 
 The Phase 6 clean-machine replay finally happened, onto an existing

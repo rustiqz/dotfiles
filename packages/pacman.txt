@@ -490,3 +490,16 @@ quickshell
 # percentages ("5 GiB to MB", "now + 3 days") — far beyond JS eval. The
 # launcher checks for it and shows this package name if it's missing.
 libqalculate
+
+# --- Runtime dependencies of the dev surfaces (Phases 8-11) ------------------
+# Each of these was present on the first machine only as some *other*
+# package's dependency (mostly GNOME's) or installed by hand — found by
+# auditing every binary devstat / the Quickshell shell calls against
+# these manifests with `pacman -Qo`. On a clean machine that drops GNOME
+# or never had them, the bar/hub would quietly lose features.
+github-cli            # gh — devstat's CI section and the hub's CI/PR views (was hand-installed, required by nothing)
+python                # bin/bin/devstat is Python (stdlib only)
+libnotify             # notify-send — every CI/agent/long-command notification
+xdg-utils             # xdg-open — hub/bar open CI runs, PRs, dev-server URLs
+less                  # hub `l`: failed CI logs paged in a terminal
+nm-connection-editor  # bar's network glyph opens it (also pulled by network-manager-applet)

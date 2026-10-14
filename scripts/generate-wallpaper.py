@@ -12,7 +12,14 @@ output — this is "generated," not "randomized on every run."
 Requires: rsvg-convert (librsvg — already a system dependency of GTK,
 not separately tracked in packages/pacman.txt for that reason).
 
-Usage: scripts/generate-wallpaper.py
+Usage: scripts/generate-wallpaper.py [--size WxH]
+
+Rendered at 3840x2160 by default. The artwork is vector, drawn in fixed
+1920x1080 design units (W, H below) — only the *render* size changes, so
+the composition is identical at any size. Rendering big means any display
+up to 4K gets a crisp downscale instead of a blurry upscale; the PNG is a
+committed asset shared by every machine, so it can't be sized to one
+monitor. hyprpaper/hyprlock scale it to whatever screen they're on.
 """
 
 import random
@@ -20,7 +27,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-W, H = 1920, 1080
+W, H = 1920, 1080          # design units — geometry below is laid out in these
+OUT_W, OUT_H = 3840, 2160  # default render size (--size overrides)
 
 # Same hex values used throughout this repo (kitty/tokyonight.conf,
 # waybar/style.css, rofi/config.rasi).
@@ -105,7 +113,7 @@ def build_svg() -> str:
     return "\n".join(parts)
 
 
-def main() -> None:
+def main(out_w: int, out_h: int) -> None:
     repo_root = Path(__file__).resolve().parent.parent
     out_png = repo_root / "wallpapers/.local/share/wallpapers/tokyonight-mountains.png"
     out_png.parent.mkdir(parents=True, exist_ok=True)
@@ -114,16 +122,25 @@ def main() -> None:
     svg_path.write_text(build_svg())
     try:
         subprocess.run(
-            ["rsvg-convert", "-w", str(W), "-h", str(H), "-o", str(out_png), str(svg_path)],
+            ["rsvg-convert", "-w", str(out_w), "-h", str(out_h), "-o", str(out_png), str(svg_path)],
             check=True,
         )
     finally:
         svg_path.unlink(missing_ok=True)
 
-    print(f"wrote {out_png}")
+    print(f"wrote {out_png} ({out_w}x{out_h})")
 
 
 if __name__ == "__main__":
     if subprocess.run(["which", "rsvg-convert"], capture_output=True).returncode != 0:
         sys.exit("rsvg-convert not found (librsvg) — install it first")
-    main()
+    size = (OUT_W, OUT_H)
+    if len(sys.argv) == 3 and sys.argv[1] == "--size":
+        try:
+            size = tuple(int(n) for n in sys.argv[2].lower().split("x"))
+            assert len(size) == 2 and min(size) > 0
+        except (ValueError, AssertionError):
+            sys.exit("usage: generate-wallpaper.py [--size WxH]")
+    elif len(sys.argv) != 1:
+        sys.exit("usage: generate-wallpaper.py [--size WxH]")
+    main(*size)
