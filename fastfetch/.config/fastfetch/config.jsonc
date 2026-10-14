@@ -1,0 +1,55 @@
+// ~/dotfiles/fastfetch/.config/fastfetch/config.jsonc
+//
+// The system-info half of `pokefetch` (bin/bin/pokefetch), which supplies
+// a random Pokémon sprite as the logo. Plain `fastfetch` uses this too,
+// with the distro logo.
+//
+// Colours are ANSI names ("blue", "magenta"), not hex: they resolve
+// through kitty's palette, so `theme <name>` recolours this along with
+// everything else, with no per-theme copy.
+//
+// The last block is developer state, all from fast local sources: CI from
+// devstat's cache file (never a network call — devstat-ci.timer keeps it
+// fresh), containers from `docker ps`, agents from the process table.
+// Each prints nothing when there's nothing to say or the tool is missing,
+// and fastfetch hides a command module with empty output.
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "padding": { "top": 1, "right": 3 }
+  },
+  "display": {
+    "separator": "  ",
+    "color": { "keys": "blue", "title": "magenta" },
+    "key": { "width": 11 }
+  },
+  "modules": [
+    "title",
+    "separator",
+    { "type": "os", "key": "os" },
+    { "type": "kernel", "key": "kernel" },
+    { "type": "uptime", "key": "uptime" },
+    { "type": "packages", "key": "packages" },
+    { "type": "wm", "key": "wm" },
+    { "type": "terminal", "key": "terminal" },
+    { "type": "cpu", "key": "cpu", "showPeCoreCount": false },
+    { "type": "memory", "key": "memory" },
+    { "type": "disk", "key": "disk", "folders": "/" },
+    { "type": "battery", "key": "battery" },
+    "break",
+    {
+      "type": "command", "key": "ci",
+      "text": "f=${XDG_CACHE_HOME:-$HOME/.cache}/devstat/ci.json; [ -f \"$f\" ] && jq -r '[.repos[] | select(.state == \"failing\") | .slug | split(\"/\")[1]] as $f | if ($f | length) == 0 then \"all green\" else \"\\($f | length) failing · \\($f | join(\", \"))\" end' \"$f\" 2>/dev/null"
+    },
+    {
+      "type": "command", "key": "containers",
+      "text": "n=$(docker ps -q 2>/dev/null | wc -l); [ \"$n\" -gt 0 ] && echo \"$n running\""
+    },
+    {
+      "type": "command", "key": "agents",
+      "text": "n=$(pgrep -cx 'claude|codex' 2>/dev/null); [ \"${n:-0}\" -gt 0 ] && echo \"$n running\""
+    },
+    "break",
+    { "type": "colors", "symbol": "circle" }
+  ]
+}

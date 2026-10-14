@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# prompt-pokeball — the Pokéball at the start of the starship prompt
+# (starship/.config/starship.toml, [custom.pokeball]), tinted by git state:
+#   green clean · yellow uncommitted changes · blue unpushed commits ·
+#   red merge conflicts
+#
+# A script rather than inline TOML: shell regexes inside a TOML basic
+# string need every backslash doubled (`\+` alone is a TOML parse error —
+# the first attempt), which made the logic unreadable.
+#
+# Colours are ANSI codes (31-34), not hex, so they resolve through kitty's
+# palette and follow `theme <name>`. One `git status` per prompt.
+# Glyph: md-pokeball, U+F041D (nerd-fonts glyphnames.json) — printed via
+# bash's printf \U escape, never a pasted character.
+
+s=$(git status --porcelain=v2 --branch 2>/dev/null) || exit 0
+if   grep -q '^u ' <<<"$s";               then c=31   # unmerged = conflict
+elif grep -qv '^#' <<<"$s";               then c=33   # any change entry
+elif grep -Eq '^# branch.ab \+[1-9]' <<<"$s"; then c=34   # ahead of upstream
+else                                           c=32
+fi
+printf '\e[%sm\U000F041D\e[0m' "$c"

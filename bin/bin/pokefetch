@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# pokefetch — a random Pokémon next to system + dev info, for a fresh
+# terminal (zsh/.zshrc calls it in new kitty windows only).
+#
+#   A wild Drilbur appeared!
+#   <sprite>   os / kernel / uptime / … / ci / containers / agents
+#
+# pokeget (AUR) prints the sprite; its sprites are compiled into the
+# binary, so this works offline and fast. fastfetch shows it as the logo
+# (--file-raw keeps the sprite's own ANSI colours) beside the modules in
+# ~/.config/fastfetch/config.jsonc.
+#
+# Shiny odds are the modern games' 1 in 4096: a shiny gets a sparkle and
+# its own line. POKEFETCH_SHINY_ODDS overrides (1 = always — for testing).
+#
+# Without pokeget it falls back to plain fastfetch; without fastfetch it
+# does nothing — a greeter must never be why a terminal errors on open.
+#
+# Usage: pokefetch [pokemon]      e.g. `pokefetch pikachu`; default random
+
+set -uo pipefail
+command -v fastfetch >/dev/null || exit 0
+
+if ! command -v pokeget >/dev/null; then
+  fastfetch
+  exit
+fi
+
+odds=${POKEFETCH_SHINY_ODDS:-4096}
+shiny=()
+(( odds > 0 && RANDOM % odds == 0 )) && shiny=(--shiny)
+# $RANDOM is 0..32767, so for odds above that a single draw can't express
+# the chance; combine two draws (fine for any odds up to ~10^9).
+if (( odds > 32767 )); then
+  shiny=()
+  (( (RANDOM * 32768 + RANDOM) % odds == 0 )) && shiny=(--shiny)
+fi
+
+# Without --hide-name the first line is the Pokémon's name; keep it for
+# the encounter line and hand the rest (the sprite) to fastfetch.
+# Merged 2>&1, from ONE call: pokeget writes the name (and, depending on
+# where stdout points, the sprite) to stderr — reading stdout alone took a
+# sprite row as the "name". The merged stream is consistent: name, then
+# sprite, nothing doubled. One call keeps a random pick's name and sprite
+# the same Pokémon.
+out=$(pokeget "${1:-random}" "${shiny[@]}" 2>&1) || out=""
+if [[ -z $out ]]; then
+  fastfetch
+  exit
+fi
+name=${out%%$'\n'*}
+sprite=${out#*$'\n'}
+
+if (( ${#shiny[@]} )); then
+  printf '\n  \e[1;33m✨ A shiny %s appeared!\e[0m  \e[2m(1 in %s)\e[0m\n' "$name" "$odds"
+else
+  printf '\n  \e[1mA wild \e[1;35m%s\e[0;1m appeared!\e[0m\n' "$name"
+fi
+fastfetch --file-raw <(printf '%s\n' "$sprite")

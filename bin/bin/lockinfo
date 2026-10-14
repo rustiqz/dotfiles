@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+#
+# lockinfo — the text and images the lock screen shows (hypr/hyprlock.conf
+# calls it from cmd[] labels and an image's reload_cmd).
+#
+# Why a script instead of inline commands in hyprlock.conf: hyprlang reads
+# `{{ … }}` as an arithmetic expression, so playerctl's `{{ title }}`
+# format inline was a config error ("Invalid expression type") and the
+# label fell back to hyprlock's "Sample Text". Anything with braces, or
+# more than one line of logic, lives here.
+#
+# Every subcommand prints nothing (and exits 0) when it has nothing to say
+# — no battery on a desktop, nothing playing — so the lock screen just
+# leaves that spot empty, on any machine, with no per-host config.
+#
+# Usage: lockinfo battery|music|uptime|greeting|caught|avatar
+
+set -uo pipefail
+
+case "${1:-}" in
+  battery)
+    c=$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1)
+    s=$(cat /sys/class/power_supply/BAT*/status 2>/dev/null | head -1)
+    [[ -n $c ]] && printf '%s%%%s\n' "$c" "$([[ $s == Charging ]] && echo ' · charging')"
+    ;;
+  music)
+    # A short notice to show on the lock screen instead of now-playing,
+    # until a deadline: ~/.cache/lockinfo/notice holds "<epoch>\t<text>".
+    # The lock screen can't show notifications, and this corner refreshes
+    # every 3s — the one channel to someone looking at a locked screen.
+    nf="${XDG_CACHE_HOME:-$HOME/.cache}/lockinfo/notice"
+    if [[ -f $nf ]]; then
+      IFS=$'\t' read -r until text <"$nf"
+      if (( $(date +%s) < until )); then echo "$text"; exit 0; fi
+      rm -f "$nf"
+    fi
+    t=$(playerctl metadata --format '{{ title }} — {{ artist }}' 2>/dev/null | cut -c1-60)
+    [[ -n $t ]] && echo "$t"
+    ;;
+  uptime)
+    # Compact ("5h 55m"), not `uptime -p` ("5 hours, 55 minutes"), which
+    # overflowed the Trainer Card's width in the first preview.
+    secs=$(cut -d. -f1 /proc/uptime)
+    d=$((secs / 86400)); h=$((secs % 86400 / 3600)); m=$((secs % 3600 / 60))
+    if (( d > 0 )); then echo "${d}d ${h}h"; elif (( h > 0 )); then echo "${h}h ${m}m"; else echo "${m}m"; fi
+    ;;
+  greeting)
+    h=$(date +%H)
+    if   (( 10#$h < 5 ));  then echo "Up late"
+    elif (( 10#$h < 12 )); then echo "Good morning"
+    elif (( 10#$h < 18 )); then echo "Good afternoon"
+    else                        echo "Good evening"
+    fi
+    ;;
+  caught)
+    # Apps launched at least once from the Pokédex launcher ($mod+D). Its
+    # stats live in Quickshell's per-shell state dir, whose name is a hash
+    # — globbed rather than hardcoded so it's right on any machine.
+    f=$(ls -t "${XDG_STATE_HOME:-$HOME/.local/state}"/quickshell/by-shell/*/launcher.json 2>/dev/null | head -1)
+    n=0
+    [[ -n $f ]] && n=$(jq 'keys | map(select(startswith("app:"))) | length' "$f" 2>/dev/null || echo 0)
+    echo "$n"
+    ;;
+  avatar)
+    # ~/.face if the account has one (the freedesktop convention GDM also
+    # uses), else a Pokéball rendered once into the cache. Prints a path —
+    # hyprlock's image widget reads it via reload_cmd.
+    if [[ -f $HOME/.face ]]; then echo "$HOME/.face"; exit 0; fi
+    out="${XDG_CACHE_HOME:-$HOME/.cache}/lockinfo/pokeball.png"
+    if [[ ! -f $out ]]; then
+      mkdir -p "$(dirname "$out")"
+      rsvg-convert -w 256 -h 256 -o "$out" /dev/stdin <<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="48" fill="#f7768e"/>
+  <path d="M2 50 A48 48 0 0 0 98 50 Z" fill="#c0caf5"/>
+  <rect x="2" y="46" width="96" height="8" fill="#1a1b26"/>
+  <circle cx="50" cy="50" r="15" fill="#1a1b26"/>
+  <circle cx="50" cy="50" r="9" fill="#c0caf5"/>
+  <circle cx="50" cy="50" r="48" fill="none" stroke="#1a1b26" stroke-width="4"/>
+</svg>
+SVG
+    fi
+    echo "$out"
+    ;;
+  *)
+    echo "usage: lockinfo battery|music|uptime|greeting|caught|avatar" >&2
+    exit 2
+    ;;
+esac
+exit 0

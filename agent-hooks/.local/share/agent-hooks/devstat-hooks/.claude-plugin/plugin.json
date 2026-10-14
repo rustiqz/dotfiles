@@ -1,0 +1,6 @@
+{
+  "name": "devstat-hooks",
+  "version": "1.0.0",
+  "description": "Report agent session state (working / needs input / done) to devstat for the desktop's dev surfaces and notifications.",
+  "author": { "name": "dotfiles" }
+}

@@ -1,0 +1,19 @@
+# ~/dotfiles/systemd/.config/systemd/user/devstat-ci.timer
+#
+# Every 3 minutes — matches devstat's CI_TTL. Three or four repos at two
+# `gh` calls each is ~160 API requests/hour against a 5000/hour limit.
+# Offline runs are harmless: devstat serves the last good cache marked
+# stale instead of failing.
+#
+# No Persistent=: a missed tick during suspend just means the next one,
+# 3 minutes after wake, catches up — there's nothing to "make up".
+[Unit]
+Description=Refresh devstat CI status every 3 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=3min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

@@ -106,6 +106,35 @@ eval "$(mise activate zsh)"
 # refusing to blind-execute shell code from a directory you just entered.
 eval "$(direnv hook zsh)"
 
+# --- Long-command notifications ------------------------------------------------
+# A command that ran >= 30s reports when it finishes — `cargo build
+# --release`, `pnpm install`, a test suite — so you can look away and get
+# called back. The decision of *whether* to notify lives in `devstat
+# cmd-done` (bin/bin/devstat), not here: it skips interactive programs
+# (nvim, ssh, lazygit, ...) and stays silent when this terminal is the
+# focused window, or the active tmux pane in a focused client — you're
+# already watching it. It also logs a cmd-done event for the bar island.
+#
+# preexec records the start; precmd fires before the next prompt. `&!`
+# runs devstat in the background *and* disowns it, so the prompt never
+# waits on it and there's no "[1] Done" job noise. $? must be read first
+# thing in precmd, before any other command overwrites it.
+zmodload zsh/datetime   # $EPOCHSECONDS
+autoload -Uz add-zsh-hook
+_devstat_preexec() { _devstat_start=$EPOCHSECONDS; _devstat_cmd=$1 }
+_devstat_precmd() {
+  local st=$?
+  [[ -n ${_devstat_start:-} ]] || return 0
+  local elapsed=$(( EPOCHSECONDS - _devstat_start ))
+  unset _devstat_start
+  (( elapsed >= 30 )) && (( $+commands[devstat] )) &&
+    devstat cmd-done --elapsed $elapsed --status $st --cmd "$_devstat_cmd" \
+      --cwd "$PWD" --pid $$ &!
+  return 0
+}
+add-zsh-hook preexec _devstat_preexec
+add-zsh-hook precmd _devstat_precmd
+
 # --- starship ----------------------------------------------------------------
 # Must be the last shell-init line — starship's own docs call this out,
 # since it needs to observe the prompt state other inits may have set.
@@ -274,3 +303,22 @@ b64env() {
 # env, whatever). See .gitignore for the *.local convention.
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 export PATH="$HOME/.local/bin:$PATH"
+
+# Cargo-installed binaries (`cargo install` / `cargo binstall`). Appended,
+# not prepended: every cargo tool this repo cares about comes from pacman
+# (packages/pacman.txt, Phase 7) into /usr/bin, and an older hand-installed
+# copy left in ~/.cargo/bin must not shadow it. Anything *only* installed
+# via cargo is still found, just last.
+export PATH="$PATH:$HOME/.cargo/bin"
+
+# --- Pokémon greeter ----------------------------------------------------------
+# A random Pokémon beside system + dev info (bin/bin/pokefetch) — only for
+# a brand-new terminal window: the shell's parent must be kitty itself.
+# That rules out tmux panes (parent: tmux), Neovim's :terminal, subshells,
+# `zsh -c` scripts and SSH sessions without needing a list of exceptions —
+# more reliable than $SHLVL, which inherits whatever the session started
+# with. POKEFETCH_OFF=1 (e.g. in ~/.zshrc.local) turns it off.
+if [[ -o interactive && -z ${POKEFETCH_OFF:-} && $(ps -o comm= -p $PPID 2>/dev/null) == kitty ]] \
+   && (( $+commands[pokefetch] )); then
+  pokefetch
+fi
