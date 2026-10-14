@@ -97,6 +97,22 @@ Island {
         }
     }
 
+    // --- power profile -------------------------------------------------------------------
+    // Left-click cycles toward performance, right-click back toward saver
+    // (the same convention waybar's module had). The glyph is the state;
+    // the hub's selector spells the names out.
+    Hover {
+        hpad: 6
+        onClicked: PowerProf.cycle(1)
+        onRightClicked: PowerProf.cycle(-1)
+        onScrolled: (d) => PowerProf.cycle(d > 0 ? 1 : -1)
+        Txt {
+            text: PowerProf.icon(PowerProf.profile)
+            color: PowerProf.color(PowerProf.profile)
+            font.pixelSize: Theme.iconSize
+        }
+    }
+
     // --- battery capsule ---------------------------------------------------------------
     // A drawn battery rather than a glyph, so the fill level is literal:
     // the inner bar is the charge, tinted by state.
