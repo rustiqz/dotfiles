@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# codex-task — the single entry point Claude Code uses to delegate work to Codex.
+#
+# WHY THIS EXISTS
+#   Calling `codex exec` directly from Claude Code streams Codex's entire
+#   reasoning transcript back into Claude's context window. A 20-file refactor
+#   can easily be 30k tokens of noise that Claude will never reference again.
+#   This wrapper inverts that: Codex writes its full output to a log file on
+#   disk, and returns to stdout ONLY a small structured JSON report. Claude
+#   reads ~40 lines instead of ~3000.
+#
+# CONTRACT
+#   Input : a spec file (an LLD task doc) — never a prose prompt.
+#   Output: JSON on stdout matching templates/codex-report.schema.json,
+#           plus a full transcript at .design/runs/<id>/transcript.jsonl
+#
+# USAGE
+#   codex-task --spec .design/lld/TASK-014-invoice-voucher.md
+#   codex-task --spec ... --profile review --sandbox read-only
+#   codex-task --resume <session-id> --spec .design/lld/TASK-014-fixups.md
+#
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Defaults. Override per-invocation with flags; override globally in
+# ~/.codex/config.toml or the profile files.
+# ---------------------------------------------------------------------------
+PROFILE="impl"            # which ~/.codex/<name>.config.toml to layer on
+SANDBOX="workspace-write" # read-only | workspace-write | danger-full-access
+SPEC=""                   # path to the LLD/task spec Codex must implement
+RESUME=""                 # session id to continue, for fix-up loops only
+RUN_ROOT="${CODEX_TASK_RUN_ROOT:-.design/runs}"
+SCHEMA="${CODEX_TASK_SCHEMA:-$HOME/.config/orchestra/codex-report.schema.json}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --spec)     SPEC="$2";     shift 2 ;;
+    --profile)  PROFILE="$2";  shift 2 ;;
+    --sandbox)  SANDBOX="$2";  shift 2 ;;
+    --resume)   RESUME="$2";   shift 2 ;;
+    *) echo "codex-task: unknown flag $1" >&2; exit 64 ;;
+  esac
+done
+
+[[ -z "$SPEC" ]]     && { echo "codex-task: --spec is required" >&2; exit 64; }
+[[ ! -f "$SPEC" ]]   && { echo "codex-task: spec not found: $SPEC" >&2; exit 66; }
+
+# ---------------------------------------------------------------------------
+# Per-run working directory. Everything verbose lands here, not in context.
+# ---------------------------------------------------------------------------
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$(basename "$SPEC" .md)"
+RUN_DIR="$RUN_ROOT/$RUN_ID"
+mkdir -p "$RUN_DIR"
+
+# Snapshot the tree before Codex touches it, so we can produce an accurate
+# changed-files list without asking Codex to self-report (models lie about
+# what they edited; git does not).
+BASE_REF="$(git rev-parse HEAD 2>/dev/null || echo '')"
+
+# Write meta.json BEFORE invoking Codex. report.json only appears when the run
+# finishes, so without this a run in progress is indistinguishable from a
+# directory that was never populated. Anything watching the design store reads
+# this to know a run is live, which profile it is using, and on which machine.
+cat > "$RUN_DIR/meta.json" <<META
+{
+  "run_id":   "$RUN_ID",
+  "spec":     "$SPEC",
+  "profile":  "$PROFILE",
+  "sandbox":  "$SANDBOX",
+  "host":     "$(hostname 2>/dev/null || echo unknown)",
+  "repo":     "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")",
+  "started":  "$(date -u +%FT%TZ)",
+  "resumed":  $([ -n "$RESUME" ] && echo true || echo false)
+}
+META
+
+# Heartbeat: touched periodically so a watcher can tell a live run from one
+# whose process died. A stale heartbeat with no report means the run crashed.
+( while kill -0 $$ 2>/dev/null; do
+    date -u +%FT%TZ > "$RUN_DIR/heartbeat"; sleep 20
+  done ) &
+HEARTBEAT_PID=$!
+trap 'kill "$HEARTBEAT_PID" 2>/dev/null || true' EXIT
+
+# ---------------------------------------------------------------------------
+# The prompt. Deliberately tiny: the *spec file* carries the requirements, and
+# Codex reads it from disk itself. We never inline the spec here — that would
+# duplicate it into both agents' context.
+# ---------------------------------------------------------------------------
+read -r -d '' PROMPT <<EOF || true
+Read the task specification at: $SPEC
+
+Implement exactly what that spec describes — no more. Constraints:
+- Follow AGENTS.md in the repository root. It is authoritative.
+- Do not redesign. If the spec is ambiguous or you believe it is wrong,
+  stop and report it in "blockers" rather than improvising.
+- Do not add dependencies not named in the spec.
+- Run the verification commands listed in the spec's "Acceptance" section.
+- Keep the diff minimal and reviewable.
+
+When finished, your FINAL message must be a single JSON object matching the
+provided output schema. No prose outside the JSON.
+EOF
+
+# ---------------------------------------------------------------------------
+# Build the argv.
+#   --json               : newline-delimited events -> transcript file
+#   --output-last-message: final message (our JSON report) -> report file
+#   --output-schema      : forces the final message into our report shape
+#   approval_policy=never + explicit --sandbox: no interactive stalls, but
+#                          still sandboxed. Never use --yolo here. (`codex exec`
+#                          no longer accepts --ask-for-approval; the config
+#                          override is the supported equivalent.)
+#   --skip-git-repo-check: allows running in non-git scratch dirs
+# ---------------------------------------------------------------------------
+ARGS=(exec
+  --profile "$PROFILE"
+  --sandbox "$SANDBOX"
+  -c 'approval_policy="never"'
+  --json
+  --output-last-message "$RUN_DIR/report.json"
+  --skip-git-repo-check
+)
+
+# Only pass --output-schema if the schema file is actually present, so the
+# wrapper degrades gracefully on a machine that hasn't been fully set up.
+[[ -f "$SCHEMA" ]] && ARGS+=(--output-schema "$SCHEMA")
+
+# `codex exec resume` continues a prior session, keeping its context. Use this
+# ONLY for fix-up loops on the same task — a fresh `exec` is cheaper for new
+# work because it starts from a clean, small context.
+if [[ -n "$RESUME" ]]; then
+  ARGS=(exec resume "$RESUME" "${ARGS[@]:1}")
+fi
+
+# ---------------------------------------------------------------------------
+# Run. stdout (the event stream) goes to the transcript file; stderr is kept
+# separately so a crash is diagnosable without reading 3000 lines of events.
+# ---------------------------------------------------------------------------
+set +e
+printf '%s' "$PROMPT" | codex "${ARGS[@]}" - \
+  > "$RUN_DIR/transcript.jsonl" \
+  2> "$RUN_DIR/stderr.log"
+EXIT_CODE=$?
+set -e
+
+# ---------------------------------------------------------------------------
+# Post-run: derive ground truth from git rather than from Codex's self-report.
+# ---------------------------------------------------------------------------
+if [[ -n "$BASE_REF" ]]; then
+  git status --porcelain > "$RUN_DIR/changed-files.txt" 2>/dev/null || true
+  git diff --stat > "$RUN_DIR/diffstat.txt" 2>/dev/null || true
+fi
+
+# Pull token usage out of the event stream for the budget ledger.
+# Codex emits usage on token_count / turn-complete events; we grep defensively
+# so a schema change degrades to "unknown" rather than breaking the run.
+if command -v jq >/dev/null 2>&1; then
+  jq -s '[.[] | .. | objects
+          | select(has("input_tokens") or has("total_token_usage"))]
+         | last // {}' "$RUN_DIR/transcript.jsonl" \
+    > "$RUN_DIR/usage.json" 2>/dev/null || echo '{}' > "$RUN_DIR/usage.json"
+fi
+
+# ---------------------------------------------------------------------------
+# Emit the compact report to stdout. This — and only this — reaches Claude.
+# ---------------------------------------------------------------------------
+echo "=== codex-task run: $RUN_ID (exit $EXIT_CODE) ==="
+echo "transcript: $RUN_DIR/transcript.jsonl   (read only if you must debug)"
+echo
+if [[ -s "$RUN_DIR/report.json" ]]; then
+  cat "$RUN_DIR/report.json"
+else
+  echo '{"status":"failed","summary":"Codex produced no final report.","blockers":["see stderr.log"]}'
+  tail -n 20 "$RUN_DIR/stderr.log" >&2
+fi
+echo
+echo "--- files changed (from git, not self-reported) ---"
+head -n 40 "$RUN_DIR/diffstat.txt" 2>/dev/null || echo "(no git diff available)"
+
+exit "$EXIT_CODE"

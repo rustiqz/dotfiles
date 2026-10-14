@@ -1,0 +1,78 @@
+{
+  "//": "~/.claude/settings.json \u2014 orchestrator-wide settings. Project overrides go in <repo>/.claude/settings.json.",
+  "env": {
+    "//1": "Mechanical subagents (codex-implementer, verifier) declare model: haiku in their own frontmatter. This is the fallback for any subagent that does not, so an unlabelled helper never silently runs on Opus.",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku",
+    "//2": "Deliberately NOT set to 1. Forcing every subagent onto haiku would also demote spec-auditor, which needs real judgement. Leaving it unset lets per-agent frontmatter win.",
+    "//3": "Cap nesting at 2 layers. The orchestrator delegates to codex-implementer; codex-implementer must not spawn its own tree of helpers. Deep nesting makes token spend unattributable.",
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2",
+    "//4": "Three concurrent delegations is about the limit before you cannot reason about what changed. The default of 20 is for read-only research fan-out, not for agents writing to one working tree.",
+    "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "3",
+    "//5": "Compact earlier than default so compaction happens at a task boundary rather than mid-delegation.",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(codex-task:*)",
+      "Bash(codex review:*)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm build)",
+      "Bash(git diff:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)"
+    ],
+    "//deny": "Codex is only ever invoked through the codex-task wrapper. A bare `codex exec` streams its entire transcript into context, which defeats the whole architecture.",
+    "deny": [
+      "Bash(codex exec:*)",
+      "Bash(codex --yolo:*)",
+      "Bash(codex exec --yolo:*)",
+      "Read(.design/runs/**/transcript.jsonl)",
+      "Read(./.env)",
+      "Read(./**/.env.*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "//": "After Claude itself edits a TS file, typecheck just that file. Catches breakage immediately, at a cost of ~2 lines of context instead of a failed test run later.",
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/post-edit-typecheck.sh"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "//": "Append every delegation's token usage to a running ledger so spend is visible without asking either agent about it.",
+        "matcher": "codex-implementer|codex-reviewer",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/log-delegation.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "//": "Refuse a delegation whose --spec file does not exist. Cheaper to block here than to let Codex start and improvise.",
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/require-spec.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "includeGitInstructions": true,
+  "skillOverrides": {
+    "gen-e2e": "off"
+  }
+}

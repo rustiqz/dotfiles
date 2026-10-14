@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+#
+# hdmi-mirror — toggle the external display between mirroring the laptop
+# panel and extending beside it. Bound to $mod SHIFT, M (keybinds.conf).
+#
+# Usage:
+#   hdmi-mirror            toggle mirror <-> extend
+#   hdmi-mirror mirror     force mirror
+#   hdmi-mirror extend     force extend
+#
+# Why this exists: monitors.conf deliberately keeps the wildcard rule
+# `monitor = ,preferred,auto,1` so the repo replays unmodified on any
+# machine. `auto` places each new output *beside* the others, i.e. every
+# external display extends by default — which reads as "HDMI isn't
+# working" when you plug into a TV and get an empty second desktop
+# rather than a copy. Rather than pin a named HDMI rule in the shared
+# config (that would force mirroring on every machine forever), the
+# wildcard stays and this flips the mode at runtime via `hyprctl
+# keyword`, which overrides the wildcard for the current session only.
+#
+# The external is auto-detected as the first connected non-eDP output
+# instead of being hardcoded to HDMI-A-1, so this also covers DP-1/DP-2
+# on a dock.
+#
+# Mirror resolution matches the *source* panel rather than the sink's
+# preferred mode. The Fire TV this was written against prefers
+# 3840x2160@30; mirroring a 1080p desktop onto it would upscale at half
+# the refresh rate for no gain. Matching the source gives a 1:1 copy at
+# 60Hz. If the sink can't do that exact mode, fall back to `preferred`.
+
+set -euo pipefail
+
+# mirrorOf for a given output. Parsed from the *text* output, not
+# `hyprctl -j`: a monitor that is currently mirroring is hidden from the
+# plain `monitors` list, so `monitors all` is required, and the text form
+# is the one confirmed to carry the field for mirrored outputs.
+mirror_of() {
+  hyprctl monitors all | awk -v want="$1" '
+    /^Monitor /      { cur = $2 }
+    cur == want && /mirrorOf:/ { print $2; exit }
+  '
+}
+
+internal="$(hyprctl -j monitors all | jq -r '
+  [.[] | select(.name | startswith("eDP") or startswith("LVDS"))][0].name // empty')"
+[ -n "$internal" ] || { notify-send "hdmi-mirror" "No internal panel found"; exit 1; }
+
+# `|| true`: grep -v exits 1 when it filters out every line (the common
+# case — nothing plugged in), which under `set -e` would kill the script
+# before the friendly message below.
+external="$(hyprctl monitors all | awk '/^Monitor /{print $2}' \
+  | grep -v "^$internal$" | head -1 || true)"
+if [ -z "$external" ]; then
+  notify-send "hdmi-mirror" "No external display connected"
+  exit 0
+fi
+
+# Source geometry, used both as the mirror mode and to place the extend.
+read -r width height <<<"$(hyprctl -j monitors all \
+  | jq -r --arg n "$internal" '.[] | select(.name==$n) | "\(.width) \(.height)"')"
+
+mode="${width}x${height}@60"
+hyprctl monitors all | grep -q "${width}x${height}@60" || mode="preferred"
+
+case "${1:-toggle}" in
+  mirror) action="mirror" ;;
+  extend) action="extend" ;;
+  toggle)
+    # mirrorOf is "none" when extending, otherwise the source's ID.
+    if [ "$(mirror_of "$external")" = "none" ]; then action="mirror"; else action="extend"; fi
+    ;;
+  *) echo "usage: hdmi-mirror [mirror|extend|toggle]" >&2; exit 2 ;;
+esac
+
+if [ "$action" = "mirror" ]; then
+  hyprctl keyword monitor "$external,$mode,auto,1,mirror,$internal"
+  notify-send "Display" "$external mirroring $internal ($mode)"
+else
+  # Back to the wildcard's behaviour: native mode, placed to the right.
+  hyprctl keyword monitor "$external,preferred,${width}x0,1"
+  notify-send "Display" "$external extending to the right of $internal"
+fi

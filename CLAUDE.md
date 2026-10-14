@@ -417,6 +417,22 @@ scripts/
   breakage `ssh-connect`'s own header warns about. Escape hatch for a
   remote that can't run the wrapper (restricted shell, embedded box):
   `TERM=xterm-256color ssh <host>` — worse, but universally understood.
+- **`$EDITOR` was never set anywhere, and Arch has no `/usr/bin/vi`.**
+  k9s's `e` (edit resource) shells out to `kubectl edit`, which with no
+  `$KUBE_EDITOR`/`$EDITOR` falls back to the literal command `vi` — a
+  binary the `vim` package does not install (it's the separate `vi`
+  package, in no manifest here). The exec fails, k9s flashes "Edit
+  command failed" for a frame and returns to the table, which reads as
+  *the editor opening and instantly closing*, not as a missing config.
+  Only the `k9s.log` line (`Pipe Exec failed ... cmd=[kubectl edit ...]
+  exit status 1`) names the real cause. Now `EDITOR=nvim` in **both**
+  `zsh/.zshrc` and `uwsm/.config/uwsm/env`, deliberately duplicated for
+  the same reason `PATH` already is: `$mod+C` runs `kitty -e k9s` with
+  no login shell, so .zshrc alone would fix the typed-`k9s` case and
+  leave the keybind broken — while uwsm's env alone would miss a tty
+  login and the GNOME fallback session. General lesson: any tool that
+  delegates to "the editor" is a shell-less-launch trap, and its
+  fallback binary may not exist on Arch.
 - Fingerprint sensors differ per machine, so this repo deliberately names
   no specific reader — an earlier version of this note hardcoded one
   machine's sensor and was simply wrong on the next one. Always derive

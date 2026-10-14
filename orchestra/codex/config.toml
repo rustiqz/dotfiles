@@ -1,0 +1,32 @@
+# ~/.codex/config.toml — base Codex configuration.
+#
+# Precedence (lowest to highest):
+#   this file  <  $CODEX_HOME/<profile>.config.toml (via --profile)  <  -c key=value flags
+#
+# Profiles in current Codex are SEPARATE FILES sitting next to this one, not
+# [profiles.x] tables inside it. See impl.config.toml / review.config.toml /
+# cheap.config.toml in this directory.
+
+# Default model for ad-hoc interactive `codex` sessions. Delegated runs
+# override this per-profile so the orchestrator controls cost explicitly.
+model = "gpt-5.6"
+
+# Default reasoning effort. Kept at medium here because interactive use is
+# usually exploratory; the impl profile raises it, the cheap profile drops it.
+model_reasoning_effort = "medium"
+
+# Sandbox: workspace-write lets Codex edit the repo but not the wider system.
+# `codex exec` defaults to read-only, so the wrapper passes --sandbox explicitly.
+sandbox_mode = "workspace-write"
+
+# Pause for approval only when Codex itself asks. Delegated runs override this
+# to `never` via the wrapper so unattended batches don't stall.
+approval_policy = "on-request"
+
+# Cached web search is cheaper and usually sufficient for library lookups.
+# Pass --search on the CLI when you genuinely need live browsing.
+web_search = "cached"
+
+[tui]
+# Keeps scrollback intact in tmux/Kitty instead of swallowing it in the alt screen.
+alternate_screen = false

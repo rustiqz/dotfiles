@@ -1,0 +1,564 @@
+#!/usr/bin/env python3
+"""
+orq-wall - an ambient workshop scene for the Orchestra setup.
+
+WHAT THIS IS
+    A decorative, glanceable view of every project in your design store. Each
+    project gets a workstation. A station with a live delegation has someone
+    working at it; an idle one sits empty. Completed work accumulates as
+    finished pieces around the bench, so a project with forty shipped tasks
+    looks visibly different from one with four.
+
+    It is not a dashboard and makes no attempt to be informative. The TUI is
+    where you go for answers. This is what sits on a second monitor.
+
+WHY IT NEEDS NO AGENT INSTRUMENTATION
+    ~/design/ is already the cross-project index - every project's runs land
+    under it. One scan of one directory sees every project on this machine.
+    Cross-machine works too, if the design store is synced (see --sync-note).
+
+HOW A RUN'S STATE IS DERIVED
+    meta.json, no report.json, fresh heartbeat   -> WORKING
+    meta.json, no report.json, stale heartbeat   -> STALLED (process died)
+    report.json status=completed                 -> DONE
+    report.json status=partial|blocked           -> BLOCKED
+    no runs at all                               -> IDLE
+
+USAGE
+    orq-wall                      serve on http://localhost:7717
+    orq-wall --port 8080
+    orq-wall --theme forge        forge (default) | bay
+    orq-wall --once               print the JSON state and exit (for debugging)
+
+No dependencies. Python 3.9+ standard library only.
+"""
+
+import argparse, json, os, re, sys, time
+from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+
+STORE = Path(os.environ.get("DESIGN_STORE", Path.home() / "design"))
+
+# A run whose heartbeat is older than this is considered dead rather than slow.
+# Delegations routinely take several minutes; the heartbeat ticks every 20s, so
+# two minutes of silence is a confident signal without being twitchy.
+STALE_AFTER = 120
+
+
+def _read_json(path: Path):
+    """Read JSON, tolerating absence and truncation.
+
+    Both are expected states, not errors: report.json does not exist until a
+    run finishes, and a file can be caught mid-write by a scan. Either way the
+    caller treats it as 'not available yet'.
+    """
+    try:
+        return json.loads(path.read_text())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+
+
+def _heartbeat_age(run_dir: Path):
+    """Seconds since the run last reported alive, or None if it never did."""
+    hb = run_dir / "heartbeat"
+    try:
+        return time.time() - hb.stat().st_mtime
+    except OSError:
+        # Fall back to the directory's own mtime for runs that predate the
+        # heartbeat, so old run dirs still classify rather than erroring.
+        try:
+            return time.time() - run_dir.stat().st_mtime
+        except OSError:
+            return None
+
+
+def scan_run(run_dir: Path):
+    """Classify one run directory into a state the scene can draw."""
+    meta = _read_json(run_dir / "meta.json") or {}
+    report = _read_json(run_dir / "report.json")
+    age = _heartbeat_age(run_dir)
+
+    # Spec name: prefer meta.json, else recover it from the directory name,
+    # which codex-task formats as <timestamp>-<spec-basename>.
+    spec = meta.get("spec") or re.sub(r"^\d{8}T\d{6}Z-", "", run_dir.name)
+
+    if report is None:
+        state = "working" if (age is not None and age < STALE_AFTER) else "stalled"
+        status = None
+    else:
+        status = report.get("status")
+        state = {"completed": "done", "partial": "blocked", "blocked": "blocked"}.get(status, "stalled")
+
+    return {
+        "id": run_dir.name,
+        "spec": Path(spec).stem,
+        "profile": meta.get("profile", "impl"),
+        "host": meta.get("host", "local"),
+        "started": meta.get("started"),
+        "state": state,
+        "status": status,
+        "age": round(age) if age is not None else None,
+        # Kept short on purpose - this is a tooltip, not a report viewer.
+        "summary": (report or {}).get("summary", "")[:240],
+        "files": len((report or {}).get("changed_files", [])),
+        "blockers": (report or {}).get("blockers", [])[:3],
+    }
+
+
+def scan():
+    """Build the whole scene state from one pass over the design store."""
+    if not STORE.is_dir():
+        return {"store": str(STORE), "missing": True, "projects": []}
+
+    projects = []
+    for pdir in sorted(p for p in STORE.iterdir() if p.is_dir() and not p.name.startswith(".")):
+        runs_dir = pdir / "runs"
+        runs = []
+        if runs_dir.is_dir():
+            # Newest first; cap the scan so a project with a thousand runs
+            # does not make the poll slow.
+            entries = sorted((d for d in runs_dir.iterdir() if d.is_dir()),
+                             key=lambda d: d.name, reverse=True)[:200]
+            runs = [scan_run(d) for d in entries]
+
+        active = [r for r in runs if r["state"] == "working"]
+        blocked = [r for r in runs[:10] if r["state"] == "blocked"]
+        done = [r for r in runs if r["state"] == "done"]
+
+        # The accumulated record: what this project has produced over its life.
+        # This is what makes the scene worth looking at rather than a status light.
+        projects.append({
+            "name": pdir.name,
+            "active": active,
+            "blocked": blocked,
+            "done_count": len(done),
+            "total_runs": len(runs),
+            "files_touched": sum(r["files"] for r in done),
+            "specs": len(list((pdir / "lld").glob("*.md"))) if (pdir / "lld").is_dir() else 0,
+            "hlds": len(list((pdir / "hld").glob("*.md"))) if (pdir / "hld").is_dir() else 0,
+            "adrs": len(list((pdir / "adr").glob("*.md"))) if (pdir / "adr").is_dir() else 0,
+            "last": runs[0]["started"] if runs and runs[0].get("started") else None,
+        })
+
+    return {
+        "store": str(STORE),
+        "missing": False,
+        "now": datetime.now(timezone.utc).isoformat(),
+        "hour": datetime.now().hour,          # drives the day/night lighting
+        "projects": projects,
+    }
+
+
+class Handler(BaseHTTPRequestHandler):
+    theme = "forge"
+
+    def do_GET(self):
+        if self.path.startswith("/state"):
+            body = json.dumps(scan()).encode()
+            ctype = "application/json"
+        else:
+            body = SCENE_HTML.replace("__THEME__", self.theme).encode()
+            ctype = "text/html; charset=utf-8"
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *a):
+        pass  # a polling page would otherwise spam the terminal
+
+
+SCENE_HTML = r"""<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>orq wall</title>
+<style>
+  /* TokyoNight, to match the rest of the environment. */
+  :root{
+    --bg:#1a1b26; --bg2:#16161e; --panel:#1f2335; --line:#292e42;
+    --fg:#c0caf5; --dim:#565f89; --blue:#7aa2f7; --cyan:#7dcfff;
+    --green:#9ece6a; --yellow:#e0af68; --red:#f7768e; --purple:#bb9af7;
+    --orange:#ff9e64;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--fg);
+       font:13px/1.5 ui-monospace,"JetBrainsMono Nerd Font",SFMono-Regular,Menlo,monospace;
+       overflow:hidden}
+  #scene{display:block;width:100%;height:100%}
+  #hud{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;
+       display:flex;gap:16px;align-items:center;padding:10px 14px;
+       background:linear-gradient(180deg,rgba(26,27,38,.92),rgba(26,27,38,0));
+       pointer-events:none;font-size:12px}
+  #hud .k{color:var(--dim)}
+  #hud .v{color:var(--cyan)}
+  #panel{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));
+         width:min(380px,calc(100vw - 28px));max-height:60vh;overflow:auto;
+         background:var(--panel);border:1px solid var(--line);border-radius:10px;
+         padding:14px;display:none;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  #panel h2{margin:0 0 4px;font-size:14px;color:var(--blue)}
+  #panel .sub{color:var(--dim);margin-bottom:10px}
+  #panel dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0 0 10px}
+  #panel dt{color:var(--dim)}
+  #panel dd{margin:0}
+  #panel .run{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}
+  #panel .tag{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px}
+  .t-working{background:#2a3a55;color:var(--cyan)}
+  .t-blocked{background:#4a2b36;color:var(--red)}
+  .t-stalled{background:#3a3550;color:var(--purple)}
+  .t-idle{background:#232842;color:var(--dim)}
+  #panel button{float:right;background:none;border:1px solid var(--line);
+                color:var(--dim);border-radius:6px;cursor:pointer;padding:2px 8px}
+  #empty{position:fixed;inset:0;display:none;place-items:center;text-align:center;
+         color:var(--dim);padding:24px}
+  code{color:var(--yellow)}
+</style></head><body>
+
+<canvas id="scene"></canvas>
+
+<div id="hud">
+  <span><span class="k">orq wall</span></span>
+  <span><span class="k">projects</span> <span class="v" id="h-proj">–</span></span>
+  <span><span class="k">working</span> <span class="v" id="h-work">–</span></span>
+  <span><span class="k">blocked</span> <span class="v" id="h-block">–</span></span>
+  <span><span class="k">shipped</span> <span class="v" id="h-done">–</span></span>
+</div>
+
+<div id="empty">
+  <div>
+    <p>No design store found.</p>
+    <p>Run <code>design-store init</code>, then <code>design-store link</code> in a repo.</p>
+  </div>
+</div>
+
+<div id="panel"></div>
+
+<script>
+const THEME = "__THEME__";
+const cv = document.getElementById('scene'), cx = cv.getContext('2d');
+let DPR = 1, W = 0, H = 0, state = null, stations = [], t = 0, hover = null, picked = null;
+
+function resize(){
+  DPR = window.devicePixelRatio || 1;
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  cx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize', resize);
+
+// ---------------------------------------------------------------------------
+// Layout: one station per project, wrapped into rows. Sized so a handful of
+// projects get big benches and twenty still fit without scrolling.
+// ---------------------------------------------------------------------------
+function layout(){
+  stations = [];
+  if(!state || !state.projects.length) return;
+  const n = state.projects.length;
+  const cols = Math.min(n, Math.max(2, Math.floor(W / 260)));
+  const rows = Math.ceil(n / cols);
+  const cw = W / cols, chh = Math.min(300, (H - 70) / rows);
+  state.projects.forEach((p,i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    stations.push({ p, x: c*cw + cw/2, y: 70 + r*chh + chh*0.72, w: cw, h: chh });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Drawing. Everything is procedural - no image assets, so this stays one file.
+// ---------------------------------------------------------------------------
+const C = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+
+function night(){ const h = state ? state.hour : 12; return h < 7 || h >= 19; }
+
+function bg(){
+  const g = cx.createLinearGradient(0,0,0,H);
+  if(THEME === 'bay'){ g.addColorStop(0,'#0e1020'); g.addColorStop(1,'#1a1b26'); }
+  else { g.addColorStop(0, night()?'#15161f':'#1d1f2e'); g.addColorStop(1,'#1a1b26'); }
+  cx.fillStyle = g; cx.fillRect(0,0,W,H);
+
+  if(THEME === 'bay'){
+    // Starfield, seeded so it does not shimmer between frames.
+    cx.fillStyle = 'rgba(192,202,245,.5)';
+    for(let i=0;i<90;i++){
+      const x = ((i*7919)%1000)/1000*W, y = ((i*104729)%1000)/1000*H*0.55;
+      const tw = 0.5 + 0.5*Math.sin(t/40 + i);
+      cx.globalAlpha = 0.25 + tw*0.4; cx.fillRect(x,y,1.4,1.4);
+    }
+    cx.globalAlpha = 1;
+  }
+}
+
+// A small human figure. Pose varies by state; nothing here is anatomical.
+function figure(x, y, s, col, st){
+  const bob = st==='working' ? Math.sin(t/7)*1.6 : 0;
+  const lean = st==='working' ? 3 : st==='blocked' ? -4 : 0;
+  cx.save(); cx.translate(x, y + bob);
+  cx.strokeStyle = col; cx.fillStyle = col;
+  cx.lineWidth = 2*s; cx.lineCap = 'round';
+
+  // head
+  cx.beginPath(); cx.arc(lean*s, -26*s, 5*s, 0, 7); cx.fill();
+  // torso
+  cx.beginPath(); cx.moveTo(lean*s,-21*s); cx.lineTo(0,-7*s); cx.stroke();
+  // legs
+  cx.beginPath(); cx.moveTo(0,-7*s); cx.lineTo(-5*s,0); cx.moveTo(0,-7*s); cx.lineTo(5*s,0); cx.stroke();
+  // arms - hammering when working, crossed when blocked, resting otherwise
+  cx.beginPath();
+  if(st==='working'){
+    const sw = Math.sin(t/5)*8;
+    cx.moveTo(lean*s,-18*s); cx.lineTo((10+sw*0.4)*s, (-22 - sw)*s);
+    cx.moveTo(lean*s,-18*s); cx.lineTo(9*s,-12*s);
+  } else if(st==='blocked'){
+    cx.moveTo(-6*s,-15*s); cx.lineTo(6*s,-15*s);
+    cx.moveTo(lean*s,-18*s); cx.lineTo(-6*s,-15*s);
+  } else {
+    cx.moveTo(lean*s,-18*s); cx.lineTo(8*s,-11*s);
+    cx.moveTo(lean*s,-18*s); cx.lineTo(-7*s,-11*s);
+  }
+  cx.stroke();
+  cx.restore();
+}
+
+// Sparks from the anvil, or a pulsing indicator on a console.
+function effects(x, y, s, st){
+  if(st === 'working'){
+    for(let i=0;i<7;i++){
+      const a = (t/3 + i*1.4) % 14;
+      const px = x + 14*s + a*1.7*s, py = y - 12*s - a*1.3*s + a*a*0.09*s;
+      cx.globalAlpha = Math.max(0, 1 - a/14);
+      cx.fillStyle = THEME==='bay' ? C('--cyan') : C('--orange');
+      cx.fillRect(px, py, 2*s, 2*s);
+    }
+    cx.globalAlpha = 1;
+  }
+  if(st === 'blocked'){
+    const pulse = 0.45 + 0.55*Math.abs(Math.sin(t/14));
+    cx.globalAlpha = pulse; cx.fillStyle = C('--red');
+    cx.beginPath(); cx.arc(x, y - 52*s, 4.5*s, 0, 7); cx.fill();
+    cx.globalAlpha = pulse*0.25;
+    cx.beginPath(); cx.arc(x, y - 52*s, 13*s, 0, 7); cx.fill();
+    cx.globalAlpha = 1;
+  }
+}
+
+// The accumulated record: finished work stacked around the bench. This is the
+// part that rewards looking at the scene weeks apart rather than minutes.
+function accumulation(x, y, s, count){
+  if(count <= 0) return;
+  const shown = Math.min(count, 40);
+  cx.fillStyle = THEME==='bay' ? '#2b3a5a' : '#3b3450';
+  cx.strokeStyle = C('--line'); cx.lineWidth = 1;
+  for(let i=0;i<shown;i++){
+    const col = Math.floor(i/5), row = i%5;
+    const px = x + (26 + col*7)*s, py = y - 2 - row*5*s;
+    cx.fillRect(px, py, 6*s, 4*s);
+    cx.strokeRect(px, py, 6*s, 4*s);
+  }
+  if(count > 40){
+    cx.fillStyle = C('--dim'); cx.font = `${9*s}px ui-monospace,monospace`;
+    cx.fillText(`+${count-40}`, x + 26*s, y - 5*5*s - 6);
+  }
+}
+
+function station(st){
+  const {p, x, y} = st;
+  const s = Math.min(1.25, st.w/230);
+  const working = p.active.length > 0;
+  const blocked = p.blocked.length > 0;
+  const mode = working ? 'working' : blocked ? 'blocked' : 'idle';
+  const isHover = hover === st;
+
+  // Bench / console
+  cx.fillStyle = isHover ? '#242a42' : C('--panel');
+  cx.strokeStyle = isHover ? C('--blue') : C('--line');
+  cx.lineWidth = isHover ? 2 : 1;
+  const bw = 96*s, bh = 12*s;
+  cx.beginPath(); cx.roundRect(x - bw/2, y, bw, bh, 3*s); cx.fill(); cx.stroke();
+  // legs
+  cx.fillStyle = C('--line');
+  cx.fillRect(x - bw/2 + 6*s, y+bh, 4*s, 16*s);
+  cx.fillRect(x + bw/2 - 10*s, y+bh, 4*s, 16*s);
+
+  // Lamp, lit at night or whenever someone is at the bench
+  if(night() || working){
+    const g = cx.createRadialGradient(x, y-46*s, 2, x, y-46*s, 58*s);
+    g.addColorStop(0, THEME==='bay' ? 'rgba(125,207,255,.20)' : 'rgba(224,175,104,.20)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    cx.fillStyle = g; cx.beginPath(); cx.arc(x, y-46*s, 58*s, 0, 7); cx.fill();
+  }
+
+  accumulation(x, y, s, p.done_count);
+
+  // Figure colour encodes the Codex profile, so a glance tells you which tier
+  // is running: impl (blue), cheap (green), review (purple).
+  const prof = working ? p.active[0].profile : null;
+  const col = mode==='blocked' ? C('--red')
+            : prof==='cheap'   ? C('--green')
+            : prof==='review'  ? C('--purple')
+            : working          ? C('--blue') : C('--dim');
+
+  if(working || blocked) figure(x - 22*s, y, s, col, mode);
+  else { // empty stool
+    cx.strokeStyle = C('--dim'); cx.globalAlpha = .4; cx.lineWidth = 2*s;
+    cx.beginPath(); cx.moveTo(x-30*s, y+2); cx.lineTo(x-30*s, y+16*s);
+    cx.moveTo(x-38*s, y+2); cx.lineTo(x-22*s, y+2); cx.stroke(); cx.globalAlpha = 1;
+  }
+
+  effects(x, y, s, mode);
+
+  // Label
+  cx.textAlign = 'center';
+  cx.fillStyle = working ? C('--fg') : C('--dim');
+  cx.font = `${11*s}px ui-monospace,monospace`;
+  const label = p.name.length > 26 ? p.name.slice(0,24)+'…' : p.name;
+  cx.fillText(label, x, y + 40*s);
+
+  cx.fillStyle = C('--dim'); cx.font = `${9.5*s}px ui-monospace,monospace`;
+  const sub = working ? p.active[0].spec.slice(0,28)
+            : blocked ? `${p.blocked.length} needs attention`
+            : p.done_count ? `${p.done_count} shipped` : 'quiet';
+  cx.fillText(sub, x, y + 53*s);
+  cx.textAlign = 'left';
+
+  st.hit = {x: x-bw/2-40*s, y: y-70*s, w: bw+80*s, h: 130*s};
+}
+
+function draw(){
+  t++;
+  bg();
+  if(state && !state.missing) stations.forEach(station);
+  requestAnimationFrame(draw);
+}
+
+// ---------------------------------------------------------------------------
+// Interaction
+// ---------------------------------------------------------------------------
+function at(mx,my){
+  return stations.find(s => s.hit && mx>s.hit.x && mx<s.hit.x+s.hit.w
+                                 && my>s.hit.y && my<s.hit.y+s.hit.h);
+}
+cv.addEventListener('mousemove', e => {
+  hover = at(e.clientX, e.clientY);
+  cv.style.cursor = hover ? 'pointer' : 'default';
+});
+cv.addEventListener('click', e => {
+  const s = at(e.clientX, e.clientY);
+  if(s){ picked = s.p.name; panel(s.p); } else { picked = null; hide(); }
+});
+
+const P = document.getElementById('panel');
+function hide(){ P.style.display = 'none'; }
+function esc(s){ return String(s??'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+
+function panel(p){
+  const runs = [...p.active, ...p.blocked].slice(0,4);
+  P.innerHTML = `
+    <button onclick="document.getElementById('panel').style.display='none'">close</button>
+    <h2>${esc(p.name)}</h2>
+    <div class="sub">${p.active.length ? 'working' : p.blocked.length ? 'needs attention' : 'quiet'}</div>
+    <dl>
+      <dt>shipped</dt><dd>${p.done_count} runs · ${p.files_touched} files</dd>
+      <dt>specs</dt><dd>${p.specs} LLD · ${p.hlds} HLD · ${p.adrs} ADR</dd>
+      <dt>last run</dt><dd>${p.last ? esc(p.last.replace('T',' ').replace('Z','')) : '–'}</dd>
+    </dl>
+    ${runs.map(r => `
+      <div class="run">
+        <span class="tag t-${r.state}">${r.state}</span>
+        <span style="color:var(--cyan)"> ${esc(r.spec)}</span>
+        <div style="color:var(--dim);margin-top:4px">
+          ${esc(r.profile)} · ${r.host ? esc(r.host)+' · ' : ''}${r.age!=null ? r.age+'s ago' : ''}
+        </div>
+        ${r.summary ? `<div style="margin-top:6px">${esc(r.summary)}</div>` : ''}
+        ${r.blockers.length ? `<div style="margin-top:6px;color:var(--red)">${
+          r.blockers.map(b=>'• '+esc(b)).join('<br>')}</div>` : ''}
+      </div>`).join('') || '<div class="run" style="color:var(--dim)">Nothing running.</div>'}
+  `;
+  P.style.display = 'block';
+}
+
+// ---------------------------------------------------------------------------
+// Poll. Five seconds is plenty - delegations take minutes, and a tighter loop
+// would just burn CPU on a window nobody is staring at.
+// ---------------------------------------------------------------------------
+async function tick(){
+  try{
+    const r = await fetch('/state');
+    state = await r.json();
+    document.getElementById('empty').style.display = state.missing ? 'grid' : 'none';
+    if(!state.missing){
+      const w = state.projects.reduce((a,p)=>a+p.active.length,0);
+      const b = state.projects.reduce((a,p)=>a+p.blocked.length,0);
+      const d = state.projects.reduce((a,p)=>a+p.done_count,0);
+      document.getElementById('h-proj').textContent = state.projects.length;
+      document.getElementById('h-work').textContent = w;
+      document.getElementById('h-block').textContent = b;
+      document.getElementById('h-done').textContent = d;
+      layout();
+      if(picked){
+        const p = state.projects.find(x=>x.name===picked);
+        if(p) panel(p);
+      }
+    }
+  }catch(e){ /* server restarted; next tick recovers */ }
+}
+resize(); tick(); draw(); setInterval(tick, 5000);
+</script></body></html>
+"""
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Ambient workshop view of the Orchestra design store.")
+    ap.add_argument("--port", type=int, default=7717)
+    ap.add_argument("--theme", choices=["forge", "bay"], default="forge",
+                    help="forge = workshop; bay = sci-fi hangar")
+    ap.add_argument("--once", action="store_true", help="print state JSON and exit")
+    ap.add_argument("--sync-note", action="store_true", help="explain cross-machine setup")
+    a = ap.parse_args()
+
+    if a.sync_note:
+        print(__doc__)
+        print("""
+CROSS-MACHINE
+    The design store is a git repo, and `runs/` is gitignored because
+    transcripts are large. To see other machines' activity on one wall, commit
+    only the small files:
+
+        # in ~/design/.gitignore, replace  */runs/  with:
+        */runs/*/transcript.jsonl
+        */runs/*/stderr.log
+
+    meta.json, report.json, heartbeat, and usage.json are a few hundred bytes
+    each and are what the wall actually reads. Then push on one machine and
+    pull on the other - a cron pulling every minute is enough, since the wall
+    polls its local copy either way.
+
+    Worth knowing: a machine that is powered off leaves its last runs showing
+    as `stalled`, which is accurate but can look alarming. That is the honest
+    behaviour - the wall cannot distinguish a dead process from a dead laptop.
+""")
+        return
+
+    if a.once:
+        print(json.dumps(scan(), indent=2)); return
+
+    Handler.theme = a.theme
+    srv = HTTPServer(("127.0.0.1", a.port), Handler)
+    print(f"orq wall  →  http://localhost:{a.port}   (theme: {a.theme})")
+    print(f"store: {STORE}")
+    if not STORE.is_dir():
+        print("  note: design store not found - the page will say so", file=sys.stderr)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("\nbye")
+
+
+if __name__ == "__main__":
+    main()

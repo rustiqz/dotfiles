@@ -1,0 +1,13 @@
+# ~/.codex/review.config.toml — second-opinion review lane.
+# Selected by: codex exec --profile review  /  codex review --profile review
+#
+# Rationale: the point of this lane is an independent model catching what
+# Claude's own review missed. It must be incapable of "fixing" what it finds,
+# so its findings stay reviewable rather than silently applied.
+
+model = "gpt-5.6"
+model_reasoning_effort = "high"
+
+# Hard read-only. Review output is a findings list, never a patch.
+sandbox_mode = "read-only"
+approval_policy = "never"
