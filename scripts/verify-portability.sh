@@ -86,7 +86,7 @@ for d in $dirs; do mkdir -p "$H/$d"; done
 skipped=""
 for pkg in */; do
   pkg=${pkg%/}
-  case $pkg in packages|hooks|host|themes|scripts|matugen) continue ;; esac
+  case $pkg in packages|hooks|host|themes|scripts|matugen|orchestra) continue ;; esac
   if [[ -z $(git ls-files -- "$pkg" | head -1) ]]; then skipped+="$pkg "; continue; fi
   stow -t "$H" "$pkg" 2>"$TMP/err" || no "stow $pkg failed on an empty home: $(head -2 "$TMP/err")"
 done

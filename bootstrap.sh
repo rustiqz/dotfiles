@@ -195,7 +195,7 @@ log "Checking for pre-existing files that would conflict with stow"
 cd "$DOTFILES"
 for pkg in */; do
   pkg=${pkg%/}
-  case $pkg in packages|hooks|host|themes|scripts|matugen) continue ;; esac
+  case $pkg in packages|hooks|host|themes|scripts|matugen|orchestra) continue ;; esac
   # Same tracked-only rule as step 6 — never move a file aside to make
   # room for a directory that isn't going to be stowed.
   [[ -z $(git -C "$DOTFILES" ls-files -- "$pkg" | head -1) ]] && continue
@@ -260,7 +260,7 @@ chmod 700 "$HOME/.ssh"   # ssh refuses keys in a group/world-readable dir
 cd "$DOTFILES"
 for pkg in */; do
   pkg=${pkg%/}                                                # strip trailing slash
-  case $pkg in packages|hooks|host|themes|scripts|matugen) continue ;; esac  # not config packages
+  case $pkg in packages|hooks|host|themes|scripts|matugen|orchestra) continue ;; esac  # not config packages
   # Only stow directories git tracks. An untracked top-level directory
   # (a project parked here, an experiment) would otherwise be symlinked
   # into $HOME wholesale — its README.md becoming ~/README.md. `git add`
