@@ -13,7 +13,7 @@
 
 # --- Hyprland compositor (look.conf) ---------------------------------------
 $border_active = rgb({{ colors.primary.default.hex_stripped }})
-$border_active_alt = rgb({{ colors.tertiary.default.hex_stripped }})
+$border_gradient = rgb({{ colors.tertiary.default.hex_stripped }})
 $border_inactive = rgb({{ colors.outline_variant.default.hex_stripped }})
 $shadow_color = rgba({{ colors.shadow.default.hex_alpha | to_color | set_alpha: 0.67 | format: "hex_alpha_stripped" }})
 
