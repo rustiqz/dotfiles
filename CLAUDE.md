@@ -473,6 +473,16 @@ scripts/
   sizes from its content) — warned on every open, caught by the verify
   script's clean-log check.
 
+- **`HyprlandFocusGrab` never clears on a layer with exclusive keyboard
+  focus.** The hub's grab went active on open but never fired `cleared`
+  — not on an outside click (reported by use), not even when focus moved
+  to another window via `hyprctl dispatch focuswindow` (traced with
+  console.info). Click-outside-to-close is a full-screen transparent
+  scrim layer one level under the hub instead; it needs nothing from
+  the compositor. There's no input simulator installed (ydotool/wtype),
+  so verify-phase10 asserts the scrim's geometry and stacking, not the
+  click itself.
+
 ## Clean-machine findings (second machine, 2026-08-15)
 
 The Phase 6 clean-machine replay finally happened, onto an existing

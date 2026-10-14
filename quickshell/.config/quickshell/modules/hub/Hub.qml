@@ -20,6 +20,43 @@ import qs.widgets
 //
 // Replaces the ags sidebar (Docker + now-playing): both live here now,
 // alongside everything else.
+Scope {
+    id: scope
+
+// Click-outside-to-close. A full-screen transparent layer under the hub
+// that catches any click not on the hub itself (and lightly dims, so the
+// open drawer reads as modal).
+//
+// Not HyprlandFocusGrab, which was the first attempt: the grab activated
+// on open but never reported `cleared` — not on an outside click, not even
+// when focus moved to another window (`hyprctl dispatch focuswindow`,
+// traced with console.info). With the hub holding exclusive keyboard
+// focus, Hyprland never considers the grab broken. A scrim needs no
+// compositor cooperation at all.
+PanelWindow {
+    id: scrim
+    screen: hub.screen
+    visible: hub.visible
+    anchors { top: true; bottom: true; left: true; right: true }
+    exclusionMode: ExclusionMode.Ignore   // cover the bar too: clicking it closes the hub
+    color: "transparent"
+    WlrLayershell.namespace: "quickshell-hub-scrim"
+    WlrLayershell.layer: WlrLayer.Top
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+    Rectangle {
+        anchors.fill: parent
+        color: Qt.rgba(0, 0, 0, hub.open ? 0.18 : 0)
+        Behavior on color { ColorAnimation { duration: Theme.animMed } }
+    }
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        onPressed: hub.open = false
+        onWheel: hub.open = false
+    }
+}
+
 PanelWindow {
     id: hub
 
@@ -41,20 +78,12 @@ PanelWindow {
     visible: open || slideOut.running
 
     WlrLayershell.namespace: "quickshell-hub"
-    WlrLayershell.layer: WlrLayer.Top
+    WlrLayershell.layer: WlrLayer.Overlay   // above the scrim (Top)
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     onOpenChanged: {
         DevStat.hubOpen = open
         if (open) { cursor = 0; controls.refresh(); keys.forceActiveFocus() }
-    }
-
-    // Click anywhere outside the hub → close (Hyprland grabs focus for the
-    // listed windows and reports when something else is clicked).
-    HyprlandFocusGrab {
-        windows: [hub]
-        active: hub.open
-        onCleared: hub.open = false
     }
 
     IpcHandler {
@@ -361,4 +390,5 @@ PanelWindow {
             }
         }
     }
+}
 }
