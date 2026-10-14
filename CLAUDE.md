@@ -78,6 +78,17 @@ second. Built on one laptop, then replayed on other machines.
   the ags sidebar (Docker + now-playing); ags is gone from the repo and
   manifests. `qs ipc call hub openSection <letter>` opens a section from
   a script.
+- **Pokémon layer** (on top of the dev tooling, never in its way):
+  `pokefetch` greets each *fresh* kitty window ("A wild Stoutland
+  appeared!", sprite from AUR `pokeget`, fastfetch info + a CI/
+  containers/agents block; parent-process check skips tmux/nvim/ssh;
+  shiny 1-in-4096, `POKEFETCH_SHINY_ODDS`; `POKEFETCH_OFF=1` disables).
+  devstat notifications use game wording ("A wild CI failure appeared!")
+  unless `~/.config/devstat/plain` exists. The hub's agents section is
+  the Party (HP bars draining over 30 min of work). The starship prompt
+  starts with a Pokéball tinted by git state (`bin/bin/prompt-pokeball`).
+  Launcher, wallpaper cards and cheatsheet share type badges from
+  `common/Dex.qml`; the lock screen is a Trainer Card.
 - yazi (`$mod+Y`, opens in a kitty window) is themed through the same
   switcher as everything else — flavors are looked up by *directory*
   name (`~/.config/yazi/flavors/<name>.yazi/`), so `bin/bin/theme`
