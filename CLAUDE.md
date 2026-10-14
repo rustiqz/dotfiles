@@ -17,9 +17,13 @@ second. Built on one laptop, then replayed on other machines.
 - **Git identity** lives in untracked `~/.config/git/config.local`, not
   in this repo — see `hooks/50-git-identity.sh`.
 - **Editor:** Neovim/lazy.nvim, plugin specs under `nvim/.config/nvim/lua/plugins/`.
-  Mason installs LSP binaries (vtsls, lua_ls, eslint) on nvim's first
-  real launch, not at bootstrap time — needs mise's node active in the
-  launching shell (npm-based installs fail silently otherwise).
+  LSP on 0.11+'s native `vim.lsp.config`/`vim.lsp.enable` (lspconfig is
+  a data-only plugin now). Mason installs the server binaries (vtsls,
+  eslint, lua_ls, tailwindcss, jsonls, yamlls, dockerls, compose, taplo)
+  on nvim's first real launch, not at bootstrap time — needs mise's node
+  active in the launching shell (npm-based installs fail silently
+  otherwise). rust-analyzer is the exception: rustup component, driven by
+  rustaceanvim (`plugins/rust.lua`), never mason.
 - **`~/bin/work`** — tmux project sessionizer, searches `~/projects`.
 - **Phase 4 and Phase 5 complete and verified** (`scripts/verify-phase4.sh`,
   `scripts/verify-phase5.sh`, 0 failures each). Confirmed via a full
@@ -55,10 +59,36 @@ second. Built on one laptop, then replayed on other machines.
   `~/.ssh/config` `Host` entries — real hostnames/IPs live in untracked
   `~/.ssh/config.local` (`ssh/.ssh/config`'s tracked base just has an
   `Include`), same `*.local` pattern as git identity.
-- Now-playing and Docker status live in the ags desktop widget sidebar
-  (`$mod+grave`), not waybar — waybar's `mpris`/`custom/docker` modules
-  were removed once the sidebar covered both in more detail (see the
-  "desktop widget sidebar" note below).
+- **The bar is Quickshell, not waybar** (Phase 9). `qs ipc show` lists
+  its IPC: `theme reload|name`, `bar brightness|flash <title> <detail>`
+  — any script can flash the dev island. waybar's config is kept in the
+  repo, unused, as the rollback.
+- **Launcher** (`$mod+D`) is the Pokédex in `quickshell/.../modules/
+  launcher/`; `qs ipc call launcher openWith /` opens straight into a
+  mode. Launch counts ("caught") live in Quickshell's state dir
+  (`launcher.json`) and drive ranking. The click-outside scrim shared
+  with the hub is `widgets/Scrim.qml`.
+- **Dev hub** (`$mod+Space`, also `$mod+grave`): Quickshell drawer,
+  `quickshell/.config/quickshell/modules/hub/`. Sections by letter — `a`
+  agents (Enter jumps to the window/tmux pane), `c` CI + PRs (Enter
+  opens, `l` failed log in a terminal), `s` compose services (Enter logs,
+  `u`/`d` up/down via `devstat act`, `z` lazydocker), `p` listening dev
+  servers, `w` watchers — plus volume/brightness/mic sliders,
+  Wi-Fi/Bluetooth/Silence/Caffeine toggles and now-playing. It replaced
+  the ags sidebar (Docker + now-playing); ags is gone from the repo and
+  manifests. `qs ipc call hub openSection <letter>` opens a section from
+  a script.
+- **Pokémon layer** (on top of the dev tooling, never in its way):
+  `pokefetch` greets each *fresh* kitty window ("A wild Stoutland
+  appeared!", sprite from AUR `pokeget`, fastfetch info + a CI/
+  containers/agents block; parent-process check skips tmux/nvim/ssh;
+  shiny 1-in-4096, `POKEFETCH_SHINY_ODDS`; `POKEFETCH_OFF=1` disables).
+  devstat notifications use game wording ("A wild CI failure appeared!")
+  unless `~/.config/devstat/plain` exists. The hub's agents section is
+  the Party (HP bars draining over 30 min of work). The starship prompt
+  starts with a Pokéball tinted by git state (`bin/bin/prompt-pokeball`).
+  Launcher, wallpaper cards and cheatsheet share type badges from
+  `common/Dex.qml`; the lock screen is a Trainer Card.
 - yazi (`$mod+Y`, opens in a kitty window) is themed through the same
   switcher as everything else — flavors are looked up by *directory*
   name (`~/.config/yazi/flavors/<name>.yazi/`), so `bin/bin/theme`
@@ -136,6 +166,21 @@ second. Built on one laptop, then replayed on other machines.
   (logged as `Fail to locate metrics-server`, not a config problem).
   ArgoCD manages the cluster, so anything edited live in k9s gets
   reverted on next sync — k9s is a read/debug tool here.
+- **`bin/bin/devstat`** — what's running/building/waiting across
+  projects, as JSON: the data layer the Phase 9/10 bar and hub render.
+  Every section degrades to a value that says why (docker stopped →
+  `available:false`, gh offline → last result marked `stale`), never an
+  exception. Three feeders keep it live without any UI open:
+  `devstat-ci.timer` (user unit, every 3 min — notifies when a repo's
+  default-branch CI turns red or green), the `devstat-hooks` agent plugin
+  (`agent-hooks/`, registered by `hooks/63-agent-hooks.sh` — session
+  state + "needs input"/"finished" notifications), and a zsh precmd hook
+  (commands >= 30s). All three notify only when you're *not* looking at
+  the source — focused window, or the active pane of a focused tmux
+  client. Events land in `~/.local/state/devstat/events.jsonl`;
+  `DEVSTAT_DEBUG=1` in an agent's environment traces every hook call.
+  Projects are `~/projects` *or* `~/Projects` (machines differ; whichever
+  is non-empty, or `$PROJECTS_DIR`) — same rule in `bin/bin/work`.
 - **`bin/bin/queues`** — BullMQ queue status over `valkey-cli`
   (localhost:6379 by default, `REDIS_HOST`/`REDIS_PORT` to override).
   `queues` prints every queue busiest-first, `queues <name>` adds recent
@@ -188,6 +233,66 @@ second. Built on one laptop, then replayed on other machines.
       machine, and a real clone is a more honest test of the actual
       multi-machine goal anyway) — see "Clean-machine findings" below
       for what that replay found and fixed, all now merged into `main`.
+
+Phases 7–12: developer-focused shell + rice, on branch `dev-shell`.
+Design borrowed (not copied) from the Prism and surface-dots Quickshell
+setups; everything stays wired into `bin/bin/theme` + matugen. Priority
+is development speed — anything in those references that isn't for
+developers (weather, screen time, pomodoro, phone, shaders) is out.
+
+- [x] **7 — Developer toolchain.** rustup + components/targets
+      (`hooks/55-rust-toolchain.sh`), mold + sccache via stowed
+      `cargo/.cargo/config.toml`, cargo tools and `just` from pacman,
+      Neovim: treesitter `main`-branch rewrite, native LSP API, Rust/
+      tailwind/YAML/JSON/Docker/TOML servers, neotest, trouble.
+- [x] **8 — `devstat` data layer.** `bin/bin/devstat` (Python stdlib,
+      JSON out): focus, ci, services, ports, agents, watchers, projects.
+      Agent-state hooks (local plugin, `agent-hooks/`), long-command
+      notifications (zsh), CI timer that notifies on red/green
+      transitions. Per-project layouts use `work`'s existing hooks
+      (`~/.tmux/sessions/<name>.sh` or a repo's `.tmux-session`) rather
+      than a new convention; `just` recipes live in each project's repo.
+- [x] **9 — Quickshell base + bar.** `quickshell/.config/quickshell/`
+      replaces waybar (`uwsm app -- qs` in autostart; waybar stays
+      installed as the one-line rollback). Three islands: workspaces with
+      app icons + window title; the dev island (focused project/branch/
+      dirty, agents, containers, CI — flashes events and doubles as the
+      volume/brightness OSD); status (load, net, bt, audio, battery
+      capsule, bell, clock, tray, power). Themed via
+      `themes/<name>/quickshell.json` + matugen template, cross-fading
+      live. `scripts/verify-phase9.sh` 21/21, and cold start confirmed
+      after a reboot (2026-10-14: boot 18:36, Hyprland 19:07:02, `qs`
+      19:07:03 from autostart in its own uwsm scope, no waybar). An
+      earlier "confirmed" was wrong — that session had only been
+      unlocked, not restarted; process start times are the check.
+- [x] **10 — Dev hub.** `$mod+Space` right drawer, keyboard-first
+      (`a` agents, `c` CI, `s` services, `p` ports, `w` watchers) +
+      quick controls + now-playing. `devstat act up|down` for services
+      (a project's `just up/down` when present). Retired the ags sidebar
+      everywhere. `scripts/verify-phase10.sh` 24/24.
+- [x] **11 — Pokédex launcher.** `$mod+D` (and the bar's Arch button;
+      right-click → projects). Quickshell `modules/launcher/`: a red
+      device with lens + LEDs, a dex "screen" for the selected entry
+      (No., type badges from desktop categories via `common/Dex.qml`,
+      "caught" launch stats), numbered list. Modes: apps (frecency),
+      `/` projects → `work`, `>` run (Shift+Enter in a terminal), `@`
+      windows, `=` qalc, `:` emoji (rofimoji's data), `?` help. Apps
+      launch as `uwsm app -- <id>.desktop`. Replaced rofi drun; rofi
+      stays for the pickers. `scripts/verify-phase11.sh` 19/19.
+- [x] **12 — Wallpaper cards + polish.** `$mod+/` cheatsheet (live
+      from `hyprctl binds -j`), `$mod+P` power menu (Cassini style; reboot/
+      shutdown need a second press; wlogout kept as fallback), `$mod+W`
+      Pokémon-card wallpaper picker (type/HP/attacks from each image's own
+      palette via ColorQuantizer; Enter sets via `bin/bin/wallpaper NAME`,
+      Shift+Enter also `theme wallpaper`), blurred backdrop behind centred
+      popups, hyprlock restyle (big clock, spaced date, `@$USER`, pill
+      input, battery/now-playing corners), swaync floating under the bar
+      at 14px radius. `scripts/verify-phase12.sh` 26/26 — config-level for
+      hyprlock: it has no check-only mode and a killed lock strands the
+      session, so its first real look is a manual `$mod+Escape`.
+
+Parked: Vaultiq mobile (adb/Metro), monitra uptime row, cluster/queue
+sections.
 
 ## Repo layout
 
@@ -343,6 +448,140 @@ scripts/
   any of this belongs in the repo: `hyprlock.conf` enables fingerprint
   unconditionally and self-disables wherever there's no reader, and PAM
   wiring (`/etc/pam.d/*`) is machine-local by nature.
+
+- **nvim-treesitter's `main` branch is a different plugin from
+  `master`.** No `nvim-treesitter.configs` module, no `ensure_installed`/
+  `highlight.enable` options, no lazy-loading; parsers are compiled
+  locally and need `tree-sitter-cli` (pacman, not npm) + a C compiler.
+  lazy.nvim moved this repo onto `main` without anyone noticing: the old
+  config threw "module not found" on every file open and every buffer
+  silently fell back to regex highlighting. Caught by a headless probe
+  reading `vim.treesitter.highlighter.active`, not by eye — regex
+  highlighting looks close enough to pass casually.
+- **mason-lspconfig skips `ensure_installed` when nvim is headless**
+  (`not platform.is_headless` in its init.lua). That's the real reason
+  servers only appear "on first real launch". To install headlessly for
+  testing, call `require("mason-lspconfig.features.ensure_installed")()`
+  directly.
+- **Upstream tailwindcss LSP config attaches in every git repo** — its
+  root_dir falls back to `.git` to support tailwind v4 (no config file).
+  Narrowed in `plugins/lsp.lua` to config files or a `package.json`
+  mentioning tailwind, with both a negative (Vaultiq server) and a
+  positive (throwaway v4 project) control.
+- **Compose files need the compound filetype `yaml.docker-compose`** for
+  the compose language server to attach; Neovim assigns plain `yaml`.
+  Set in `config/options.lua`, plus `vim.treesitter.language.register`
+  so the compound filetype still gets the yaml parser.
+- **`~/.cargo/config.toml` must not be stowed before mold + sccache
+  exist.** It names both as the linker/rustc wrapper, so linking it
+  early makes *every* cargo build on the machine fail. bootstrap.sh
+  installs packages before stowing, which is the right order; by hand,
+  install first.
+
+- **An installed agent plugin is only enabled via settings.json.** The
+  plugin docs say a plugin with no `enabledPlugins` entry starts enabled
+  (`defaultEnabled`); with `~/.claude/settings.json` moved aside,
+  `claude plugin list` reported `devstat-hooks` as `✘ disabled`. And that
+  file is orchestra's: `orchestra on` does a plain `mv` of its parked
+  symlink over whatever is there. So the plugin's two keys
+  (`extraKnownMarketplaces.dotfiles-local`,
+  `enabledPlugins["devstat-hooks@dotfiles-local"]`) must exist in
+  whichever settings file is active; `hooks/63-agent-hooks.sh` checks,
+  and never writes through orchestra's symlink.
+- **Async agent hooks still starting when a session exits are killed.**
+  In a headless run, Stop and SessionEnd launched together and only
+  SessionEnd's code ran (found with `DEVSTAT_DEBUG=1` after a silent
+  `except: pass` hid it), so finished turns were never recorded. Stop and
+  UserPromptSubmit are synchronous (~80ms once per turn); the rest stay
+  async.
+- **`PATH=<narrowed> timeout ...` looks `timeout` up in the narrowed PATH**
+  — resolve helpers with `command -v` *before* narrowing PATH in a test.
+
+- **A file watch on a symlink doesn't see the symlink being repointed.**
+  `ln -sf` replaces the *link*; Quickshell's FileView (`watchChanges`)
+  keeps watching the file it originally resolved to. So `theme <name>`
+  silently left the bar on the old palette — found by pointing the link
+  at a red test palette and screenshotting a still-blue bar. Fixed with an
+  explicit `qs ipc call theme reload` from `bin/bin/theme`, the same
+  "the switcher tells each app" pattern as swaync/waybar. Any future
+  watcher on an `active-theme.*` link needs the same.
+- **QML property names can collide with built-ins.** `console` is
+  reserved ("Illegal property name"), and `Text` already defines a FINAL
+  `top` ("Cannot override FINAL property"). Both surfaced only as a load
+  failure chain naming the outermost type ("Type Bar unavailable") — read
+  the *last* "caused by" line, it names the real file and line.
+
+- **Quickshell IPC function names: avoid CLI words and JS reserved
+  words.** A function named `show` can't take arguments from the CLI —
+  `qs ipc call hub show c` is parsed against the `qs ipc show`
+  subcommand. Renamed to `goto`, the reload logged "Configuration
+  Loaded" yet `qs ipc show` still listed the *old* handler: `goto` is
+  reserved in JS, the new handler silently didn't register. Check `qs
+  ipc show` after adding a function, not just the log.
+- **Animate layer-panel slides with a `Translate`, not `x`.** `x: open ?
+  0 : width + gap` on the hub's content was a binding loop (the window
+  sizes from its content) — warned on every open, caught by the verify
+  script's clean-log check.
+
+- **`HyprlandFocusGrab` never clears on a layer with exclusive keyboard
+  focus.** The hub's grab went active on open but never fired `cleared`
+  — not on an outside click (reported by use), not even when focus moved
+  to another window via `hyprctl dispatch focuswindow` (traced with
+  console.info). Click-outside-to-close is a full-screen transparent
+  scrim layer one level under the hub instead; it needs nothing from
+  the compositor. There's no input simulator installed (ydotool/wtype),
+  so verify-phase10 asserts the scrim's geometry and stacking, not the
+  click itself.
+
+- **Quickshell needs the icon theme set explicitly** —
+  `//@ pragma IconTheme Papirus-Dark` in `shell.qml` (startup-only, a
+  live reload won't apply it). Without it Qt looked in bare hicolor:
+  launcher icons logged "Could not load icon" and the `?fallback=` in
+  `Quickshell.iconPath` didn't help, since the fallback name has to
+  resolve through the same theme.
+- **Hover selection must ignore a pointer that isn't moving.** List rows
+  appearing or reordering under a still pointer fire both `onEntered`
+  and position events; either way the launcher opened with the wrong
+  row selected. Compare `mapToGlobal` coordinates against the last
+  event and only follow real movement.
+- **A missing binary gives a Quickshell `Process` no exit code to
+  read** — it never starts. Check presence up front (`sh -c 'command -v
+  x'`) instead of waiting for a 127 that never comes.
+
+- **Portability is checked, not assumed: `scripts/verify-portability.sh`.**
+  Run it before committing anything that adds a dependency or a stow
+  package. It fails on a tracked file containing this account's home
+  path/username, on any command the shell/scripts call whose package
+  isn't in a manifest (or base/base-devel), and on stow tree-folding
+  `~/.local`, `~/.cargo`, `~/.ssh` or `~/.config/systemd` into the repo
+  on an empty `$HOME`. Its first run (2026-10-14) found all three kinds:
+  `gh` hand-installed and required by nothing, `python`/`libnotify`/
+  `xdg-utils`/`less` only present via GNOME's dependencies, and on a
+  fresh account stow would have folded `~/.local` (every app's data),
+  `~/.cargo` (cargo's registry) and `~/.ssh` (the first private key)
+  into the repo. bootstrap.sh now pre-creates those as real directories
+  (`~/.ssh` at 0700) and stows only directories git tracks — an
+  untracked `orchestra/` would otherwise have landed in `$HOME`.
+
+- **Never end a real (PAM-enabled) hyprlock with a signal to "preview"
+  it.** `hyprlock & … pkill -USR1 hyprlock` does unlock, but it aborts the
+  PAM conversation, and PAM records each abort as a *failed login*.
+  pam_faillock's defaults (`deny=3`, `unlock_time=600`, no
+  `/etc/security/faillock.conf` here) locked password login — and sudo,
+  same PAM stack — out for 10 minutes after three previews on 2026-10-14,
+  right as the screen idle-locked for real. Resetting needs root
+  (`faillock --user $USER --reset`), which the lockout itself blocks, so
+  the only fix is waiting it out. Preview with `scripts/preview-lock.sh`:
+  it sources the real config and sets `auth:pam:enabled = false` on top
+  (fingerprint stays on: with *every* auth method off hyprlock aborts at
+  startup — "At least one authentication method must be enabled!" — and
+  its fingerprint path is fprintd over D-Bus, not PAM), refuses to run
+  while a real lock is up, and fails loudly if PAM ran or hyprlock
+  crashed (a crash leaves the screenshot showing just the desktop).
+- **The lock screen's corners are a message channel.** Notifications are
+  hidden while locked, but hyprlock re-runs `lockinfo music` every 3s;
+  `~/.cache/lockinfo/notice` (`<epoch>\t<text>`) makes that corner show
+  `<text>` until the deadline. Used to tell a locked-out user to wait.
 
 ## Clean-machine findings (second machine, 2026-08-15)
 

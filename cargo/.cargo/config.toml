@@ -1,0 +1,29 @@
+# ~/dotfiles/cargo/.cargo/config.toml  (stowed to ~/.cargo/config.toml)
+#
+# User-wide cargo config: applies to every project on this machine, and
+# merges *under* any project's own .cargo/config.toml (cargo's config
+# hierarchy — a project can still override anything here). CI never sees
+# this file, so it can only make local builds faster, never change what
+# CI builds.
+#
+# Stow note: ~/.cargo already exists as a real directory (registry/, bin/,
+# git/ — cargo's own state), so stow links just this one file into it
+# rather than tree-folding the whole directory. Nothing of cargo's cache
+# ends up in the repo.
+
+[build]
+# sccache wraps every rustc invocation and caches by input hash, shared
+# across projects (~/.cache/sccache, 10 GiB default cap). Dependencies are
+# the win here: monitra and Vaultiq's crypto core compile many of the same
+# crates. It skips incremental compilation units (workspace crates in dev
+# builds) by design, so it doesn't fight cargo's own incremental cache.
+rustc-wrapper = "sccache"
+
+# mold as the linker, host target only. Linking dominates incremental
+# rebuild time in a 12-crate workspace; mold is several times faster than
+# GNU ld. Passed through the normal `cc` driver (gcc >= 12.1 understands
+# -fuse-ld=mold), so no clang dependency. Cross targets (musl, android,
+# wasm) are deliberately untouched — android goes through cargo-ndk's NDK
+# linker and wasm through rust-lld.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]

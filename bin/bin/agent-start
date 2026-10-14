@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#
+# agent-start — open a new agent session in a project, in its own kitty
+# window. The one launch path shared by the dev hub (`n` / `x` in Party),
+# the launcher's `+` mode, and anything else that wants it.
+#
+# Runs the agent through an interactive zsh, not directly: codex is a
+# mise-managed node global, only on PATH once mise has activated (which
+# .zshrc does), and claude lives in ~/.local/bin — an interactive shell
+# resolves both exactly as typing them would. When the agent exits, the
+# window stays as a normal shell in the project instead of vanishing.
+#
+# Usage: agent-start claude|codex [DIR]      (DIR defaults to $PWD)
+
+set -uo pipefail
+
+agent=${1:-}
+dir=${2:-$PWD}
+
+case $agent in
+  claude|codex) ;;
+  *) echo "usage: agent-start claude|codex [DIR]" >&2; exit 2 ;;
+esac
+if [[ ! -d $dir ]]; then
+  notify-send -a devstat -u critical "agent-start: no such directory" "$dir"
+  exit 1
+fi
+# Checked in the same interactive environment the window will use, so a
+# missing agent is reported here (keybinds and hub actions have no
+# terminal to print into) rather than as a window that opens and dies.
+if ! zsh -ic "command -v $agent" &>/dev/null; then
+  notify-send -a devstat -u critical "agent-start: $agent not installed" "not found on PATH in an interactive shell"
+  exit 1
+fi
+
+name=$(basename "$dir")
+exec uwsm app -- kitty --title "$agent · $name" --directory "$dir" \
+  zsh -ic "$agent; exec zsh"

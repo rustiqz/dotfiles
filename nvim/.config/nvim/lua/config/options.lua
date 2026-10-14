@@ -31,3 +31,19 @@ opt.smartcase = true -- ...unless the search pattern has a capital letter
 -- Persistence
 opt.undofile = true
 opt.updatetime = 250 -- default (4000ms) is noticeably laggy for LSP diagnostics/CursorHold
+
+-- Filetypes
+-- Compose files are plain YAML to Neovim by default, but the compose
+-- language server (plugins/lsp.lua) only attaches to the compound
+-- filetype `yaml.docker-compose`. yamlls still attaches too (it lists
+-- that filetype), so this adds compose-aware completion/hover on top of
+-- schema validation rather than replacing it. Treesitter then needs
+-- telling that this filetype is parsed as yaml — a compound filetype
+-- doesn't map to a parser by itself.
+vim.filetype.add({
+  pattern = {
+    [".*/docker%-compose[%w%.%-]*%.ya?ml"] = "yaml.docker-compose",
+    [".*/compose[%w%.%-]*%.ya?ml"] = "yaml.docker-compose",
+  },
+})
+vim.treesitter.language.register("yaml", "yaml.docker-compose")
