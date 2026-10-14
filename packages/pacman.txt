@@ -482,3 +482,11 @@ just
 # Required by nvim-treesitter's `main` branch, which builds parsers
 # locally (its README: pacman package, explicitly not the npm one).
 tree-sitter-cli
+
+# --- Phase 9: Quickshell bar -------------------------------------------------
+
+# QtQuick toolkit for the shell (quickshell/.config/quickshell/): the bar
+# now, the dev hub/launcher/wallpaper cards in later phases. Replaced
+# waybar in hypr/autostart.conf — waybar stays in the Phase 5 section
+# above, deliberately, as the one-line rollback.
+quickshell
