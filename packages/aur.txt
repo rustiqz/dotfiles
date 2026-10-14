@@ -49,27 +49,6 @@ wlogout
 # not from Spotify itself.
 spotify
 
-# --- Phase 5: desktop widgets (docker + music, ags/astal) -------------------
-
-# Desktop-widget framework (JS/TypeScript over GTK4 + libastal), used
-# for the floating Docker/music cards — bottom-right corner, not
-# crammed into waybar which was already out of room. Not `ags` on AUR
-# (that name belongs to an unrelated adventure-game engine) — confirmed
-# via `paru -Ss aylur`. Non-git variant: more votes (18 vs 10), and a
-# pinned release fits this repo's reproducibility goal better than a
-# rolling package.
-aylurs-gtk-shell
-
-# MPRIS backend for the music widget (ags/.config/ags/widget/Music.tsx)
-# — the only individual libastal-* service actually needed here.
-# Deliberately NOT libastal-meta: that pulls in every astal service
-# including libastal-river (a different Wayland compositor entirely,
-# irrelevant on Hyprland), and it plus a couple of unrelated -git
-# packages (notifd, powerprofiles) failed to build — confirmed by
-# actually running it, not assumed. aylurs-gtk-shell's own hard deps
-# (libastal, libastal-4) already cover everything else needed.
-libastal-mpris-git
-
 # --- Database GUI -----------------------------------------------------------
 
 # pgAdmin4, for the two things a terminal client genuinely can't do:

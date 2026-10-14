@@ -165,7 +165,7 @@ hyprland
 
 # Session manager. NOT optional, despite being easy to mistake for one:
 # every `exec-once` in hypr/autostart.conf (waybar, swaync, cliphist,
-# hyprpaper, hypridle, ags) and every application keybind in
+# hyprpaper, hypridle, qs) and every application keybind in
 # hypr/keybinds.conf is written as `uwsm app -- <cmd>`, so without this
 # binary the compositor still starts and the config still parses — and
 # nothing else in the desktop works at all. No bar, no wallpaper, no
@@ -397,15 +397,6 @@ kubectl
 
 # --- Phase 5: wallpaper-driven theme (matugen) ------------------------------
 
-# --- Phase 5: desktop widgets (docker + music, ags/astal) -------------------
-
-# Sass compiler — ags/.config/ags/style.scss needs this on $PATH to
-# build at all (confirmed by testing: `ags run` fails outright with
-# "executable sass not found" without it). Listed as an *optional* dep
-# of aylurs-gtk-shell (packages/aur.txt) but is not actually optional
-# for this setup, since it's what compiles the theming.
-dart-sass
-
 # Material You palette generator: extracts a seed color from the
 # current wallpaper and fills in matugen/templates/*.tpl to produce
 # themes/wallpaper/* — a theme like tokyonight/f1, except generated
@@ -486,7 +477,9 @@ tree-sitter-cli
 # --- Phase 9: Quickshell bar -------------------------------------------------
 
 # QtQuick toolkit for the shell (quickshell/.config/quickshell/): the bar
-# now, the dev hub/launcher/wallpaper cards in later phases. Replaced
-# waybar in hypr/autostart.conf — waybar stays in the Phase 5 section
-# above, deliberately, as the one-line rollback.
+# and the dev hub now, the launcher/wallpaper cards in later phases.
+# Replaced waybar in hypr/autostart.conf — waybar stays in the Phase 5
+# section above, deliberately, as the one-line rollback — and the ags
+# sidebar (Phase 10), whose packages (aylurs-gtk-shell,
+# libastal-mpris-git, dart-sass) were dropped from the manifests.
 quickshell

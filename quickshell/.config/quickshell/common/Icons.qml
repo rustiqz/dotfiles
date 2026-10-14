@@ -42,4 +42,26 @@ Singleton {
     readonly property string brightness: "\u{f00df}"     // md-brightness_6
     readonly property string charging: "\u{f0084}"       // md-battery_charging
     readonly property string timer: "\u{f051f}"          // md-timer_sand
+    // --- dev hub (Phase 10) ---
+    readonly property string pr: "\u{f04c2}"             // md-source_pull
+    readonly property string web: "\u{f059f}"            // md-web
+    readonly property string github: "\u{f02a4}"         // md-github
+    readonly property string logs: "\u{f0eaf}"           // md-text_box_search_outline
+    readonly property string start: "\u{f040d}"          // md-play_circle_outline
+    readonly property string stop: "\u{f0667}"           // md-stop_circle_outline
+    readonly property string watch: "\u{f06d0}"          // md-eye_outline
+    readonly property string keys: "\u{f097b}"           // md-keyboard_outline
+    readonly property string play: "\u{f040a}"           // md-play
+    readonly property string pause: "\u{f03e4}"          // md-pause
+    readonly property string next: "\u{f04ad}"           // md-skip_next
+    readonly property string prev: "\u{f04ae}"           // md-skip_previous
+    readonly property string music: "\u{f0387}"          // md-music_note
+    readonly property string wifiOn: "\u{f05a9}"         // md-wifi
+    readonly property string micOff: "\u{f036d}"         // md-microphone_off
+    readonly property string lan: "\u{f0317}"            // md-lan
+    readonly property string refresh: "\u{f0450}"        // md-refresh
+    readonly property string open: "\u{f03cc}"           // md-open_in_new
+    readonly property string hub: "\u{f0a1d}"            // md-view_dashboard_outline
+    readonly property string orchestra: "\u{f0b9f}"      // md-folder_star_outline
+    readonly property string coffee: "\u{f06ca}"         // md-coffee_outline
 }

@@ -11,10 +11,15 @@
 import QtQuick
 import Quickshell
 import qs.modules.bar
+import qs.modules.hub
 
 ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: Bar {}
     }
+
+    // Dev hub — one instance, follows the focused monitor. Toggled with
+    // $mod+Space (qs ipc call hub toggle), hidden until then.
+    Hub {}
 }
