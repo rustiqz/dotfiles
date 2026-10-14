@@ -205,3 +205,15 @@ export PATH="$HOME/.local/bin:$PATH"
 # copy left in ~/.cargo/bin must not shadow it. Anything *only* installed
 # via cargo is still found, just last.
 export PATH="$PATH:$HOME/.cargo/bin"
+
+# --- Pokémon greeter ----------------------------------------------------------
+# A random Pokémon beside system + dev info (bin/bin/pokefetch) — only for
+# a brand-new terminal window: the shell's parent must be kitty itself.
+# That rules out tmux panes (parent: tmux), Neovim's :terminal, subshells,
+# `zsh -c` scripts and SSH sessions without needing a list of exceptions —
+# more reliable than $SHLVL, which inherits whatever the session started
+# with. POKEFETCH_OFF=1 (e.g. in ~/.zshrc.local) turns it off.
+if [[ -o interactive && -z ${POKEFETCH_OFF:-} && $(ps -o comm= -p $PPID 2>/dev/null) == kitty ]] \
+   && (( $+commands[pokefetch] )); then
+  pokefetch
+fi

@@ -66,3 +66,9 @@ spotify
 # Same class of gap as the gdm/gnome-shell/nautilus omission in the
 # clean-machine findings, just caught before it bit.
 pgadmin4-desktop-bin
+
+# --- Pokémon terminal greeter (bin/bin/pokefetch) ---------------------------
+# Rust, sprites compiled into the binary: offline and fast enough to run
+# on every new terminal. Chosen over pokemon-colorscripts-git (Python,
+# more votes) for startup time — this runs on every new kitty window.
+pokeget
