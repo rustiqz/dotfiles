@@ -18,6 +18,7 @@ import Quickshell
 import qs.modules.bar
 import qs.modules.hub
 import qs.modules.launcher
+import qs.modules.cheatsheet
 
 ShellRoot {
     Variants {
@@ -31,4 +32,7 @@ ShellRoot {
 
     // Pokédex launcher — $mod+D (qs ipc call launcher toggle).
     Launcher {}
+
+    // Keybind cheatsheet — $mod+/ (qs ipc call cheatsheet toggle).
+    Cheatsheet {}
 }
