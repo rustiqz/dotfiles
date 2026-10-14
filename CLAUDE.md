@@ -59,6 +59,10 @@ second. Built on one laptop, then replayed on other machines.
   `~/.ssh/config` `Host` entries — real hostnames/IPs live in untracked
   `~/.ssh/config.local` (`ssh/.ssh/config`'s tracked base just has an
   `Include`), same `*.local` pattern as git identity.
+- **The bar is Quickshell, not waybar** (Phase 9). `qs ipc show` lists
+  its IPC: `theme reload|name`, `bar brightness|flash <title> <detail>`
+  — any script can flash the dev island. waybar's config is kept in the
+  repo, unused, as the rollback.
 - Now-playing and Docker status live in the ags desktop widget sidebar
   (`$mod+grave`), not waybar — waybar's `mpris`/`custom/docker` modules
   were removed once the sidebar covered both in more detail (see the
@@ -226,10 +230,16 @@ developers (weather, screen time, pomodoro, phone, shaders) is out.
       transitions. Per-project layouts use `work`'s existing hooks
       (`~/.tmux/sessions/<name>.sh` or a repo's `.tmux-session`) rather
       than a new convention; `just` recipes live in each project's repo.
-- [ ] **9 — Quickshell base + bar.** Theme integration
-      (`themes/<name>/quickshell.json` + matugen template), three-island
-      bar with the dev island (focus project/branch, agents, containers,
-      OSD). waybar stays installed as the one-line rollback.
+- [x] **9 — Quickshell base + bar.** `quickshell/.config/quickshell/`
+      replaces waybar (`uwsm app -- qs` in autostart; waybar stays
+      installed as the one-line rollback). Three islands: workspaces with
+      app icons + window title; the dev island (focused project/branch/
+      dirty, agents, containers, CI — flashes events and doubles as the
+      volume/brightness OSD); status (load, net, bt, audio, battery
+      capsule, bell, clock, tray, power). Themed via
+      `themes/<name>/quickshell.json` + matugen template, cross-fading
+      live. `scripts/verify-phase9.sh` 21/21 in the live session;
+      **cold-start check (full logout/login) still pending.**
 - [ ] **10 — Dev hub.** `$mod+Space` right drawer, keyboard-first
       (`a` agents, `c` CI, `s` services, `p` ports, `w` watchers) + one
       quick-controls row. Retires the ags sidebar.
@@ -428,6 +438,20 @@ scripts/
   async.
 - **`PATH=<narrowed> timeout ...` looks `timeout` up in the narrowed PATH**
   — resolve helpers with `command -v` *before* narrowing PATH in a test.
+
+- **A file watch on a symlink doesn't see the symlink being repointed.**
+  `ln -sf` replaces the *link*; Quickshell's FileView (`watchChanges`)
+  keeps watching the file it originally resolved to. So `theme <name>`
+  silently left the bar on the old palette — found by pointing the link
+  at a red test palette and screenshotting a still-blue bar. Fixed with an
+  explicit `qs ipc call theme reload` from `bin/bin/theme`, the same
+  "the switcher tells each app" pattern as swaync/waybar. Any future
+  watcher on an `active-theme.*` link needs the same.
+- **QML property names can collide with built-ins.** `console` is
+  reserved ("Illegal property name"), and `Text` already defines a FINAL
+  `top` ("Cannot override FINAL property"). Both surfaced only as a load
+  failure chain naming the outermost type ("Type Bar unavailable") — read
+  the *last* "caused by" line, it names the real file and line.
 
 ## Clean-machine findings (second machine, 2026-08-15)
 

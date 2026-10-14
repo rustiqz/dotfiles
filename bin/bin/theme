@@ -163,6 +163,17 @@ fi
 # restarted — same as rofi/wlogout, not a failure.
 link "k9s-skin.yaml" "$DOTFILES/k9s/.config/k9s/skins/active-theme.yaml"
 
+# --- Quickshell (bar) ---------------------------------------------------------
+# No restart needed, unlike waybar/ags: the IPC call makes Theme.qml re-read
+# the symlink and cross-fade every colour in place. Its own file watch
+# can't catch this — `ln -sf` replaces the link, not the file the watch is
+# on. timeout + `|| true`: with no bar running the call just errors, and
+# this script must never hang on a session daemon that isn't there (the
+# swaync lesson below).
+if link "quickshell.json" "$DOTFILES/quickshell/.config/quickshell/active-theme.json"; then
+  command -v qs &>/dev/null && timeout 3 qs ipc call theme reload &>/dev/null || true
+fi
+
 # --- ags (docker/music desktop widgets) -------------------------------------
 # Same restart-in-place pattern as waybar above — ags has no live
 # "reload css" IPC command (unlike swaync-client --reload-css), and the

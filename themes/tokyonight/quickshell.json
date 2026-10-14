@@ -1,0 +1,18 @@
+{
+  "_comment": "themes/tokyonight/quickshell.json — same TokyoNight hex values as themes/tokyonight/kitty.conf. Symlinked in as quickshell/.config/quickshell/active-theme.json (bin/bin/theme); Theme.qml watches it and cross-fades on change. Keys are roles, not hues, so the matugen template (matugen/templates/quickshell.json.tpl) fills the same contract.",
+  "name": "tokyonight",
+  "bg": "#16161e",
+  "surface": "#1a1b26",
+  "surfaceHi": "#292e42",
+  "fg": "#c0caf5",
+  "subtle": "#a9b1d6",
+  "muted": "#565f89",
+  "border": "#3b4261",
+  "accent": "#7aa2f7",
+  "accent2": "#bb9af7",
+  "info": "#7dcfff",
+  "ok": "#9ece6a",
+  "warn": "#e0af68",
+  "err": "#f7768e",
+  "islandOpacity": 0.86
+}
