@@ -17,7 +17,7 @@ import qs.widgets
 //
 // Click targets reuse what already exists rather than reinventing it:
 // network/bluetooth/audio open their managers (nm-connection-editor,
-// blueman, pavucontrol), the bell toggles swaync's panel, power opens
+// blueman, pavucontrol), the bell opens the notification centre, power opens
 // wlogout. Phase 10's hub replaces the first three with inline controls.
 Island {
     id: root
@@ -181,7 +181,7 @@ Island {
     // --- notifications ---------------------------------------------------------------------
     Hover {
         hpad: 6
-        onClicked: Notifs.toggleCenter()
+        onClicked: Pops.toggle("notifications", mapToItem(null, width / 2, 0).x)
         onRightClicked: Notifs.toggleDnd()
         Txt {
             text: Notifs.dnd ? Icons.bellDnd : Notifs.count > 0 ? Icons.bellBadge : Icons.bell

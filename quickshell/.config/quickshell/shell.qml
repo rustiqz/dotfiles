@@ -23,6 +23,7 @@ import qs.modules.power
 import qs.modules.wallpaper
 import qs.modules.external
 import qs.modules.popovers
+import qs.modules.notifications
 
 ShellRoot {
     Variants {
@@ -53,6 +54,10 @@ ShellRoot {
     BatteryPopover {}
     SystemPopover {}
     CalendarPopover {}
+    NotificationPopover {}
+
+    // Notification popups — Quickshell is the notification daemon (services/Notifs.qml).
+    Toasts {}
 
     // Click-outside-to-close for rofi and wlogout (not ours, so watched via
     // Hyprland layer events) — same behaviour as every popup above.
