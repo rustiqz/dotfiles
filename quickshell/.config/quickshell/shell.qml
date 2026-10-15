@@ -50,6 +50,7 @@ ShellRoot {
     WifiPopover {}
     BluetoothPopover {}
     AudioPopover {}
+    BatteryPopover {}
 
     // Click-outside-to-close for rofi and wlogout (not ours, so watched via
     // Hyprland layer events) — same behaviour as every popup above.
