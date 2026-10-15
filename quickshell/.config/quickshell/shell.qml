@@ -56,6 +56,7 @@ ShellRoot {
     CalendarPopover {}
     NotificationPopover {}
     DevPopover {}
+    MediaPopover {}
 
     // Notification popups — Quickshell is the notification daemon (services/Notifs.qml).
     Toasts {}

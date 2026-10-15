@@ -6,6 +6,7 @@ import Quickshell.Bluetooth
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
 import Quickshell.Services.SystemTray
+import Quickshell.Services.Mpris
 import qs.common
 import qs.services
 import qs.widgets
@@ -81,6 +82,18 @@ Island {
                  : parent.parent.adapter && parent.parent.adapter.enabled ? Theme.fg : Theme.muted
             font.pixelSize: Theme.iconSize
         }
+    }
+
+    // --- media ----------------------------------------------------------------------
+    // Only exists while some MPRIS player does. Accent when playing, muted
+    // when paused. Click → media popover, middle → play/pause, right → next.
+    Hover {
+        visible: Media.current !== null
+        hpad: 6
+        onClicked: Pops.toggle("media", mapToItem(null, width / 2, 0).x)
+        onMiddleClicked: if (Media.current) Media.current.togglePlaying()
+        onRightClicked: if (Media.current && Media.current.canGoNext) Media.current.next()
+        Txt { text: Icons.music; color: Media.playing ? Theme.accent : Theme.muted; font.pixelSize: Theme.iconSize }
     }
 
     // --- audio ------------------------------------------------------------------------
