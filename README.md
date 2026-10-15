@@ -202,7 +202,6 @@ quickshell/           the bar, hub, launcher, popovers, cheatsheet and notificat
 themes/<name>/        per-app colour files that bin/theme repoints
 matugen/              templates for the generated wallpaper theme
 agent-hooks/          the plugin that reports agent state to devstat
-orchestra/            optional multi-agent workflow (install with orchestra/install.sh)
 scripts/              verify-*.sh assertions, preview-lock.sh, dump-repo.sh
 <app>/                stow packages: kitty/, nvim/, hypr/, zsh/, tmux/…
 ```
@@ -223,10 +222,6 @@ instead of throwing.
 - Machine differences are a `host-<hostname>.txt` entry or a `host/<hostname>/` fragment, never a hostname `if` in a shared file.
 - No secrets. SSH keys, `.env` and tokens are gitignored; anything private lives in a sibling `*.local` file.
 - Font: JetBrainsMono Nerd Font.
-
-CLAUDE.md in this repo is a long, honest log of the gotchas hit while building
-it (stow tree-folding, kitty over ssh, mason and mise, Quickshell quirks…).
-It's worth skimming before you change anything.
 
 ---
 

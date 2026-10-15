@@ -90,3 +90,10 @@ __pycache__/
 # swaync's config.json is the theme switcher's symlink (bin/bin/theme links
 # the active theme's swaync-config.json here) — derived state, not source.
 swaync/.config/swaync/config.json
+
+# Agent instruction files and the multi-agent workflow are personal tooling,
+# kept on disk but never tracked (and scrubbed from history before this repo
+# went public). agent-hooks/ stays tracked: the desktop needs it at runtime.
+/CLAUDE.md
+/AGENTS.md
+/orchestra/
