@@ -52,7 +52,7 @@ Scope {
         visible: open || fade.running
         WlrLayershell.namespace: "quickshell-wallpapers"
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
         onOpenChanged: if (open) { listProc.running = true; keys.forceActiveFocus() }
 

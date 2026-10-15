@@ -55,7 +55,7 @@ PanelWindow {
 
     WlrLayershell.namespace: "quickshell-hub"
     WlrLayershell.layer: WlrLayer.Overlay   // above the scrim (Top)
-    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     onOpenChanged: {
         DevStat.hubOpen = open
