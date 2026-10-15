@@ -229,6 +229,17 @@ second. Built on one laptop, then replayed on other machines.
   `DEVSTAT_DEBUG=1` in an agent's environment traces every hook call.
   Projects are `~/projects` *or* `~/Projects` (machines differ; whichever
   is non-empty, or `$PROJECTS_DIR`) — same rule in `bin/bin/work`.
+- **Agent review loop.** `agent-review-notify` (started detached by
+  `devstat agent-event` when a long agent turn ends while you're elsewhere)
+  runs `checks` (justfile `check`, else package.json typecheck/lint/test,
+  else cargo clippy+test), then notifies with a "Review" action that opens
+  `review` in kitty: nvim + diffview, branch-vs-main on a feature branch.
+  `wt new <branch>` gives each agent task its own worktree; `review --init`
+  seeds a REVIEW.md checklist. In nvim: gitsigns hunks (`]c`, `<leader>h*`),
+  diffview (`<leader>g*`), lazygit float (`<leader>gg`), snacks notifier
+  (`<leader>un` = history of every popup), autoread for agent edits.
+  Notification actions depend on the daemon honouring them; without, the
+  toast still shows and `review` is one command away.
 - **`bin/bin/queues`** — BullMQ queue status over `valkey-cli`
   (localhost:6379 by default, `REDIS_HOST`/`REDIS_PORT` to override).
   `queues` prints every queue busiest-first, `queues <name>` adds recent

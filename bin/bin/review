@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+#
+# review — look at what an agent changed.
+#   review            open nvim in diffview: branch vs main when on a
+#                     feature branch, otherwise the uncommitted changes
+#   review --init     write a REVIEW.md checklist into this repo (agents
+#                     read it too, so both sides review against one list)
+#
+# If the last `checks` run failed, its output is printed first — no point
+# reading a diff that doesn't pass its own tests.
+set -uo pipefail
+
+if [[ ${1:-} == --init ]]; then
+  [[ -e REVIEW.md ]] && { echo "REVIEW.md already exists" >&2; exit 1; }
+  cat > REVIEW.md <<'MD'
+# Review checklist
+
+Applies to agent-written and human-written changes alike.
+
+- [ ] Does it do what was asked — and *only* that? (no drive-by refactors)
+- [ ] Tests cover the new behaviour; a failing test was seen failing first
+- [ ] No secrets, tokens, absolute home paths or machine-specific values
+- [ ] Errors are handled where they can happen, not swallowed
+- [ ] New dependencies are justified and pinned
+- [ ] Public names/types/migrations are backwards compatible, or flagged
+- [ ] No dead code, commented-out blocks or stray debug output
+- [ ] Commit message says *why*, not just what
+MD
+  echo "wrote REVIEW.md"; exit 0
+fi
+
+git rev-parse --git-dir >/dev/null 2>&1 || { echo "review: not a git repo" >&2; exit 1; }
+
+log=${XDG_STATE_HOME:-$HOME/.local/state}/devstat/checks.log
+if [[ -s $log ]]; then
+  echo "Last checks failed:"; head -40 "$log"; echo; read -rp "open diff anyway? [Y/n] " a
+  [[ $a == [nN]* ]] && exit 0
+fi
+
+branch=$(git branch --show-current)
+base=main; git rev-parse --verify -q origin/main >/dev/null || base=master
+if [[ -n $branch && $branch != "$base" ]] && git rev-parse --verify -q "origin/$base" >/dev/null; then
+  exec nvim "+DiffviewOpen origin/$base...HEAD"
+fi
+exec nvim "+DiffviewOpen"

@@ -1085,8 +1085,16 @@ def agent_event(kind_arg):
         emit("agent-done", project=project, session=sid, seconds=took)
         # Only worth a notification for a turn long enough to look away.
         if took >= 20 and not (pid and is_visible(pid)):
-            notify(title("agent-done", project=project), f"after {took // 60}m {took % 60}s",
-                   icon="emblem-ok")
+            t, body = title("agent-done", project=project), f"after {took // 60}m {took % 60}s"
+            helper = shutil.which("agent-review-notify")
+            if helper and cwd:
+                # Detached: runs the project's checks (slow) and offers a
+                # "Review" action; this hook has to return immediately.
+                subprocess.Popen([helper, cwd, t, body], start_new_session=True,
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
+            else:
+                notify(t, body, icon="emblem-ok")
 
 
 def cmd_done(a):

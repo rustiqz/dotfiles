@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#
+# agent-review-notify — what happens after an agent finishes a long turn
+# while you're looking elsewhere: run the project's checks, then notify
+# with the result and a "Review" action that opens the diff in nvim.
+#
+# Started detached by `devstat agent-event` (the hook must return at
+# once); this does the slow parts. Usage:
+#   agent-review-notify <cwd> <title> <took-text>
+set -uo pipefail
+cwd=$1 title=$2 took=$3
+
+result=$(checks "$cwd" 2>&1)
+if (( $? == 0 )); then icon=emblem-ok; urgency=normal; else icon=dialog-warning; urgency=critical; fi
+
+# -A makes notify-send wait and print the chosen action. Daemons without
+# action support just show the toast and this returns empty, which is
+# harmless: the diff is one `review` away.
+choice=$(notify-send -a devstat -u "$urgency" -i "$icon" -A review=Review \
+  "$title" "$took
+$result" 2>/dev/null)
+
+if [[ $choice == review ]]; then
+  exec uwsm app -- kitty --directory "$cwd" -e review
+fi
