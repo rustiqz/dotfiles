@@ -8,6 +8,11 @@ import qs.common
 // must sit a level higher (Overlay). Lightly dims while shown so the
 // popup reads as modal; covers the bar too, so clicking the bar dismisses.
 //
+// Popups on top of this must use keyboardFocus OnDemand, never Exclusive:
+// Hyprland routes no pointer input to any other layer while an exclusive
+// one is up, so the scrim would never see a click (found by test, not
+// theory). OnDemand still takes keys immediately on open.
+//
 // Not HyprlandFocusGrab: a popup holding exclusive keyboard focus never
 // gets `cleared` from it — not on an outside click, not on a focus change
 // (traced in Phase 10; CLAUDE.md, Known gotchas). This needs nothing from

@@ -6,6 +6,7 @@ import Quickshell.Bluetooth
 import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
 import Quickshell.Services.SystemTray
+import Quickshell.Services.Mpris
 import qs.common
 import qs.services
 import qs.widgets
@@ -17,7 +18,7 @@ import qs.widgets
 //
 // Click targets reuse what already exists rather than reinventing it:
 // network/bluetooth/audio open their managers (nm-connection-editor,
-// blueman, pavucontrol), the bell toggles swaync's panel, power opens
+// blueman, pavucontrol), the bell opens the notification centre, power opens
 // wlogout. Phase 10's hub replaces the first three with inline controls.
 Island {
     id: root
@@ -35,7 +36,8 @@ Island {
     function loadColor(v) { return v > 0.85 ? Theme.err : v > 0.6 ? Theme.warn : Theme.subtle }
     Hover {
         hpad: 6
-        onClicked: root.run(["kitty", "--title", "btop", "-e", "btop"])
+        onClicked: Pops.toggle("system", mapToItem(null, width / 2, 0).x)
+        onMiddleClicked: root.run(["kitty", "--title", "btop", "-e", "btop"])
         Txt { text: Icons.cpu; color: root.loadColor(Sys.cpu); font.pixelSize: Theme.iconSize }
         Txt { text: `${Math.round(Sys.cpu * 100)}%`; color: root.loadColor(Sys.cpu); font.pixelSize: Theme.smallSize + 1
               width: 28 /* fixed: digits changing width would jitter the island */ }
@@ -53,7 +55,8 @@ Island {
         readonly property var wifi: devs.find(d => d.type === DeviceType.Wifi)
         readonly property var net: wifi ? wifi.networks.values.find(n => n.connected) : null
         hpad: 6
-        onClicked: root.run(["nm-connection-editor"])
+        onClicked: Pops.toggle("wifi", mapToItem(null, width / 2, 0).x)
+        onRightClicked: root.run(["nm-connection-editor"])
         Txt {
             text: parent.parent.wired ? Icons.ethernet
                 : parent.parent.net ? Icons.wifi[Math.min(3, Math.floor(parent.parent.net.signalStrength * 4))]
@@ -69,8 +72,9 @@ Island {
         readonly property bool connected: Bluetooth.devices.values.some(d => d.connected)
         visible: adapter !== null
         hpad: 6
-        onClicked: root.run(["blueman-manager"])
+        onClicked: Pops.toggle("bluetooth", mapToItem(null, width / 2, 0).x)
         onRightClicked: if (adapter) adapter.enabled = !adapter.enabled
+        onMiddleClicked: root.run(["blueman-manager"])
         Txt {
             text: !parent.parent.adapter || !parent.parent.adapter.enabled ? Icons.btOff
                 : parent.parent.connected ? Icons.btOn : Icons.bt
@@ -80,19 +84,48 @@ Island {
         }
     }
 
+    // --- media ----------------------------------------------------------------------
+    // Only exists while some MPRIS player does. Accent when playing, muted
+    // when paused. Click → media popover, middle → play/pause, right → next.
+    Hover {
+        visible: Media.current !== null
+        hpad: 6
+        onClicked: Pops.toggle("media", mapToItem(null, width / 2, 0).x)
+        onMiddleClicked: if (Media.current) Media.current.togglePlaying()
+        onRightClicked: if (Media.current && Media.current.canGoNext) Media.current.next()
+        Txt { text: Icons.music; color: Media.playing ? Theme.accent : Theme.muted; font.pixelSize: Theme.iconSize }
+    }
+
     // --- audio ------------------------------------------------------------------------
-    // Scroll adjusts, click mutes, right-click opens the mixer. The DevIsland
+    // Scroll adjusts, click opens the audio popover, middle-click mutes, right-click opens pavucontrol. The DevIsland
     // flashes the level on any change, so there's no number here.
     Hover {
         readonly property var audio: root.sink && root.sink.audio ? root.sink.audio : null
         hpad: 6
-        onClicked: if (audio) audio.muted = !audio.muted
+        onClicked: Pops.toggle("audio", mapToItem(null, width / 2, 0).x)
+        onMiddleClicked: if (audio) audio.muted = !audio.muted
         onRightClicked: root.run(["pavucontrol"])
         onScrolled: (d) => { if (audio) audio.volume = Math.max(0, Math.min(1, audio.volume + d * 0.05)) }
         Txt {
             text: !parent.parent.audio || parent.parent.audio.muted ? Icons.volOff
                 : Icons.vol[parent.parent.audio.volume < 0.34 ? 0 : parent.parent.audio.volume < 0.67 ? 1 : 2]
             color: !parent.parent.audio || parent.parent.audio.muted ? Theme.muted : Theme.fg
+            font.pixelSize: Theme.iconSize
+        }
+    }
+
+    // --- power profile -------------------------------------------------------------------
+    // Left-click cycles toward performance, right-click back toward saver
+    // (the same convention waybar's module had). The glyph is the state;
+    // the hub's selector spells the names out.
+    Hover {
+        hpad: 6
+        onClicked: PowerProf.cycle(1)
+        onRightClicked: PowerProf.cycle(-1)
+        onScrolled: (d) => PowerProf.cycle(d > 0 ? 1 : -1)
+        Txt {
+            text: PowerProf.icon(PowerProf.profile)
+            color: PowerProf.color(PowerProf.profile)
             font.pixelSize: Theme.iconSize
         }
     }
@@ -108,6 +141,12 @@ Island {
         implicitWidth: capsule.width + (charging ? 26 : 10)
         implicitHeight: Theme.barHeight
         anchors.verticalCenter: parent.verticalCenter
+
+        MouseArea {   // opens the battery popover (z below the capsule's children is fine — they take no input)
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: Pops.toggle("battery", mapToItem(null, width / 2, 0).x)
+        }
 
         Rectangle {
             id: capsule
@@ -155,7 +194,7 @@ Island {
     // --- notifications ---------------------------------------------------------------------
     Hover {
         hpad: 6
-        onClicked: Notifs.toggleCenter()
+        onClicked: Pops.toggle("notifications", mapToItem(null, width / 2, 0).x)
         onRightClicked: Notifs.toggleDnd()
         Txt {
             text: Notifs.dnd ? Icons.bellDnd : Notifs.count > 0 ? Icons.bellBadge : Icons.bell
@@ -175,6 +214,7 @@ Island {
     Hover {
         hpad: 8
         spacing: 7
+        onClicked: Pops.toggle("calendar", mapToItem(null, width / 2, 0).x)
         Txt {
             text: Qt.formatDateTime(clock.date, "HH:mm")
             font.bold: true

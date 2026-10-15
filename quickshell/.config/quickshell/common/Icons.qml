@@ -32,6 +32,13 @@ Singleton {
     readonly property string volOff: "\u{f0581}"         // md-volume_off
     readonly property var vol: ["\u{f057f}", "\u{f0580}", "\u{f057e}"]  // md-volume_low/medium/high
     readonly property string mic: "\u{f036c}"           // md-microphone
+    readonly property string lock: "\u{f033e}"           // md-lock
+    readonly property string headphones: "\u{f02cb}"     // md-headphones
+    readonly property string keyboard: "\u{f030c}"       // md-keyboard
+    readonly property string mouse: "\u{f037d}"          // md-mouse
+    readonly property string phone: "\u{f011c}"          // md-cellphone
+    readonly property string gamepad: "\u{f02b4}"        // md-gamepad
+    readonly property string speaker: "\u{f04c3}"        // md-speaker
     readonly property string bt: "\u{f00af}"             // md-bluetooth
     readonly property string btOn: "\u{f00b1}"           // md-bluetooth_connect
     readonly property string btOff: "\u{f00b2}"          // md-bluetooth_off
@@ -64,6 +71,13 @@ Singleton {
     readonly property string hub: "\u{f0a1d}"            // md-view_dashboard_outline
     readonly property string orchestra: "\u{f0b9f}"      // md-folder_star_outline
     readonly property string coffee: "\u{f06ca}"         // md-coffee_outline
+    readonly property string profSaver: "\u{f032a}"     // md-leaf
+    readonly property string profBalanced: "\u{f05d1}"  // md-scale_balance
+    readonly property string profPerf: "\u{f04c5}"      // md-speedometer
+    // --- media popover ---
+    readonly property string shuffle: "\u{f049e}"        // md-shuffle_variant
+    readonly property string repeat: "\u{f0456}"         // md-repeat
+    readonly property string repeatOnce: "\u{f0458}"     // md-repeat_once
     // --- launcher (Phase 11) ---
     readonly property string pokeball: "\u{f041d}"       // md-pokeball
     readonly property string calc: "\u{f15a6}"           // md-calculator_variant_outline

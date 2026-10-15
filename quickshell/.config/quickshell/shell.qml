@@ -21,6 +21,9 @@ import qs.modules.launcher
 import qs.modules.cheatsheet
 import qs.modules.power
 import qs.modules.wallpaper
+import qs.modules.external
+import qs.modules.popovers
+import qs.modules.notifications
 
 ShellRoot {
     Variants {
@@ -43,4 +46,22 @@ ShellRoot {
 
     // Wallpaper picker as Pokémon cards — $mod+W (qs ipc call wallpapers toggle).
     Wallpapers {}
+
+    // Bar popovers — hang from the status island's icons (Pops picks which).
+    WifiPopover {}
+    BluetoothPopover {}
+    AudioPopover {}
+    BatteryPopover {}
+    SystemPopover {}
+    CalendarPopover {}
+    NotificationPopover {}
+    DevPopover {}
+    MediaPopover {}
+
+    // Notification popups — Quickshell is the notification daemon (services/Notifs.qml).
+    Toasts {}
+
+    // Click-outside-to-close for rofi and wlogout (not ours, so watched via
+    // Hyprland layer events) — same behaviour as every popup above.
+    ExternalScrim {}
 }

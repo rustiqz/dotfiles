@@ -209,8 +209,12 @@ swaync_reload() {
 if link "swaync.css" "$DOTFILES/swaync/.config/swaync/active-theme.css"; then
   swaync_reload --reload-css
 fi
-if [[ -f $THEME_DIR/swaync-config.json ]]; then
-  cp "$THEME_DIR/swaync-config.json" "$DOTFILES/swaync/.config/swaync/config.json"
+# swaync only reads ~/.config/swaync/config.json, so the link has to be
+# named that. It used to be a `cp` over a *tracked* file, which dirtied the
+# repo on every theme switch (and the committed copy went stale — it still
+# carried f1's "RACE CONTROL" wording). Now it's a gitignored symlink, like
+# every other themed file; see .gitignore.
+if link "swaync-config.json" "$DOTFILES/swaync/.config/swaync/config.json"; then
   swaync_reload -R
 fi
 
