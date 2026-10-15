@@ -35,7 +35,8 @@ Island {
     function loadColor(v) { return v > 0.85 ? Theme.err : v > 0.6 ? Theme.warn : Theme.subtle }
     Hover {
         hpad: 6
-        onClicked: root.run(["kitty", "--title", "btop", "-e", "btop"])
+        onClicked: Pops.toggle("system", mapToItem(null, width / 2, 0).x)
+        onMiddleClicked: root.run(["kitty", "--title", "btop", "-e", "btop"])
         Txt { text: Icons.cpu; color: root.loadColor(Sys.cpu); font.pixelSize: Theme.iconSize }
         Txt { text: `${Math.round(Sys.cpu * 100)}%`; color: root.loadColor(Sys.cpu); font.pixelSize: Theme.smallSize + 1
               width: 28 /* fixed: digits changing width would jitter the island */ }
@@ -200,6 +201,7 @@ Island {
     Hover {
         hpad: 8
         spacing: 7
+        onClicked: Pops.toggle("calendar", mapToItem(null, width / 2, 0).x)
         Txt {
             text: Qt.formatDateTime(clock.date, "HH:mm")
             font.bold: true

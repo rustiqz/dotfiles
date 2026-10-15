@@ -262,9 +262,9 @@ Scope {
                                     gradient: Gradient {
                                         orientation: Gradient.Horizontal
                                         GradientStop { position: 0.0; color: "transparent" }
-                                        GradientStop { position: 0.35; color: "#7dcfff" }
+                                        GradientStop { position: 0.35; color: Theme.info }
                                         GradientStop { position: 0.5; color: "#ffffff" }
-                                        GradientStop { position: 0.65; color: "#bb9af7" }
+                                        GradientStop { position: 0.65; color: Theme.accent2 }
                                         GradientStop { position: 1.0; color: "transparent" }
                                     }
                                     NumberAnimation on x {
