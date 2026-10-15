@@ -49,6 +49,7 @@ ShellRoot {
     // Bar popovers — hang from the status island's icons (Pops picks which).
     WifiPopover {}
     BluetoothPopover {}
+    AudioPopover {}
 
     // Click-outside-to-close for rofi and wlogout (not ours, so watched via
     // Hyprland layer events) — same behaviour as every popup above.

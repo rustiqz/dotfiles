@@ -83,12 +83,13 @@ Island {
     }
 
     // --- audio ------------------------------------------------------------------------
-    // Scroll adjusts, click mutes, right-click opens the mixer. The DevIsland
+    // Scroll adjusts, click opens the audio popover, middle-click mutes, right-click opens pavucontrol. The DevIsland
     // flashes the level on any change, so there's no number here.
     Hover {
         readonly property var audio: root.sink && root.sink.audio ? root.sink.audio : null
         hpad: 6
-        onClicked: if (audio) audio.muted = !audio.muted
+        onClicked: Pops.toggle("audio", mapToItem(null, width / 2, 0).x)
+        onMiddleClicked: if (audio) audio.muted = !audio.muted
         onRightClicked: root.run(["pavucontrol"])
         onScrolled: (d) => { if (audio) audio.volume = Math.max(0, Math.min(1, audio.volume + d * 0.05)) }
         Txt {
