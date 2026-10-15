@@ -4,7 +4,7 @@
 #
 # Unlike everything else autostarted in Phase 5 (waybar, swaync,
 # hyprpaper, hypridle — all `exec-once = uwsm app -- ...` in
-# hypr/autostart.conf), hyprpolkitagent ships a proper unit with
+# hypr/autostart.lua), hyprpolkitagent ships a proper unit with
 # `WantedBy=graphical-session.target` (checked against its actual
 # assets/hyprpolkitagent-service.in upstream, not assumed). That means
 # it's designed to be enabled once and then autostart on its own every

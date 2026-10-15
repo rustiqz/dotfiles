@@ -46,6 +46,7 @@ Singleton {
     readonly property string bellBadge: "\u{f0178}"      // md-bell_badge_outline
     readonly property string bellDnd: "\u{f0a93}"        // md-bell_sleep_outline
     readonly property string power: "\u{f0425}"          // md-power
+    readonly property string clipboard: "\u{f0147}"      // md-clipboard_text_outline
     readonly property string brightness: "\u{f00df}"     // md-brightness_6
     readonly property string charging: "\u{f0084}"       // md-battery_charging
     readonly property string timer: "\u{f051f}"          // md-timer_sand

@@ -11,7 +11,7 @@ import qs.widgets
 // description shown here IS the config; the sheet can't drift from the
 // real binds (Prism's "generated from your config" idea).
 //
-// Grouped by what the bind does (dispatcher + command), numeric series
+// Grouped by what the bind does (its description), numeric series
 // collapsed ("1–0  Workspace n" instead of ten rows). Type to filter;
 // Esc or a click outside closes.
 Scope {
@@ -96,15 +96,17 @@ Scope {
                           XF86AudioPrev: "Prev", XF86MonBrightnessUp: "Bright +", XF86MonBrightnessDown: "Bright −" }
             return map[k] || (k.length === 1 ? k.toUpperCase() : k)
         }
+        // Grouped by description: since Hyprland moved to a Lua config,
+        // `hyprctl binds -j` reports every bind as dispatcher "__lua" with an
+        // opaque numeric arg, so the old dispatcher/command sniffing has
+        // nothing to read. Descriptions (keybinds.lua) are the stable handle.
         function category(b) {
-            const a = b.arg || "", d = b.dispatcher
+            const d = b.description || ""
             if (b.key.startsWith("XF86")) return "Media & hardware"
-            if (["workspace", "movetoworkspace", "togglespecialworkspace"].includes(d)) return "Workspaces"
-            if (["killactive", "togglefloating", "fullscreen", "movefocus", "movewindow",
-                 "resizeactive", "cyclenext", "mouse"].includes(d)) return "Windows"
-            if (a.includes("screenshot")) return "Capture"
-            if (d === "exit" || a.includes("qs ipc") || a.includes("swaync") || a.includes("lock-session")
-                || /\b(theme|wallpaper|cliphist|rofimoji|rofi -show window)\b/.test(a)) return "Shell"
+            if (/^(Move to )?workspace\b|^(Next|Previous) workspace$|^Dropdown terminal$|^Send window to scratchpad$/i.test(d)) return "Workspaces"
+            if (/^(Close window|Toggle floating|Fullscreen|Focus |Move window |Shrink |Grow |Next window|Previous window|Drag window|Resize window)/.test(d)) return "Windows"
+            if (/^Screenshot/.test(d)) return "Capture"
+            if (/^(Exit Hyprland|App launcher|Dev hub|Power menu|Lock screen|Wallpaper picker|Theme picker|Emoji picker|Clipboard history|Delete clipboard entry|Search open windows|Notification centre|Keybind cheatsheet|Vim \/ nvim cheatsheet)$/.test(d)) return "Shell"
             return "Apps"
         }
         readonly property var order: ["Apps", "Shell", "Windows", "Workspaces", "Capture", "Media & hardware"]

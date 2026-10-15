@@ -320,12 +320,23 @@ session_commands() {
   # written as `uwsm app -- <cmd>`, so the wrapper's own name gets stripped
   # off while building the list — and it's precisely the one whose absence
   # takes the whole desktop down rather than one feature.
-  grep -lqE 'uwsm[[:space:]]+app[[:space:]]+--' "$DOTFILES"/hypr/.config/hypr/*.conf 2>/dev/null \
+  grep -lqE 'uwsm[[:space:]]+app[[:space:]]+--' "$DOTFILES"/hypr/.config/hypr/*.lua 2>/dev/null \
     && echo uwsm
 
-  # Pull the command out of every directive that launches one: Hyprland's
-  # `exec-once =` / `exec,` (binds), and hypridle's `lock_cmd =` /
-  # `on-timeout =` / `on-resume =`.
+  # The compositor config is Lua (hyprland.lua + modules): a command is the
+  # string in `hl.exec_cmd("...")`, or the second string argument of the
+  # keybinds.lua `exec(keys, "cmd", ...)` helper (the first is the key
+  # combo). Both may carry a `uwsm app -- ` prefix, stripped as below.
+  # Whole-line comments only are dropped: a trailing `--` is also the
+  # `uwsm app --` separator. `|| true`: no match must not trip pipefail.
+  sed -E 's/^[[:space:]]*--.*//' "$DOTFILES"/hypr/.config/hypr/*.lua 2>/dev/null \
+    | perl -ne 'print "$1\n" while /hl\.exec_cmd\("([^"]*)"/g;
+                if (/^\s*exec\(/) { my @s = /"((?:[^"\\]|\\.)*)"/g; print "$s[1]\n" if defined $s[1]; }' \
+    | sed -E 's/^uwsm[[:space:]]+app[[:space:]]+--[[:space:]]*//' \
+    | awk '{print $1}' \
+    | grep -vE '^(\$|$)' || true
+
+  # hypridle's `lock_cmd =` / `on-timeout =` / `on-resume =` (still hyprlang).
   sed -e 's/#.*//' "$DOTFILES"/hypr/.config/hypr/*.conf 2>/dev/null \
     | grep -oE '(exec-once|exec|lock_cmd|on-timeout|on-resume)[[:space:]]*[=,][^#]*' \
     | sed -E 's/^[a-z_-]+[[:space:]]*[=,][[:space:]]*//' \

@@ -28,28 +28,29 @@ hdr() { printf '\n\033[1;34m== %s\033[0m\n' "$*"; }
 # associated with an application ID"). Logged once per cold start, by Qt,
 # not by this config — filtered by its exact text so any other warning
 # still fails the check.
-qslog() { timeout 5 qs log 2>/dev/null | grep -v 'Failed to register with host portal'; }
+qslog() { timeout 5 qs log 2>/dev/null | grep -vE 'Failed to register with host portal|QWaylandTextInputv3::(en|dis)ableSurface'; }
 
 mapped() { hyprctl layers -j 2>/dev/null | jq -r '.[].levels[][] | .namespace' | grep -qx "$1"; }
 
 # ---------------------------------------------------------------------------
 hdr "Popups: reachable, modal, blurred"
 # ---------------------------------------------------------------------------
-RULES="$DOTFILES/hypr/.config/hypr/windowrules.conf"
+RULES="$DOTFILES/hypr/.config/hypr/windowrules.lua"
 binds=$(hyprctl binds -j)
 # target | namespace | bind description
 for row in "cheatsheet|quickshell-cheatsheet|Keybind cheatsheet" \
            "power|quickshell-power|Power menu" \
            "wallpapers|quickshell-wallpapers|Wallpaper picker"; do
   IFS='|' read -r target ns desc <<<"$row"
-  arg=$(jq -r --arg d "$desc" '[.[] | select(.description == $d)][0].arg' <<<"$binds")
-  [[ $arg == "qs ipc call $target toggle" ]] && ok "'$desc' bind → qs ipc call $target toggle" || no "'$desc' bind runs '$arg'"
+  n=$(jq --arg d "$desc" '[.[] | select(.description == $d)] | length' <<<"$binds")
+  grep -qF "\"qs ipc call $target toggle\", \"$desc\"" "$DOTFILES/hypr/.config/hypr/keybinds.lua" && [[ $n == 1 ]] \
+    && ok "'$desc' bind → qs ipc call $target toggle" || no "'$desc' bind isn't 'qs ipc call $target toggle' (live binds: $n)"
   if mapped "$ns"; then no "$ns mapped before opening"; continue; fi
   timeout 3 qs ipc call "$target" toggle &>/dev/null; sleep 0.9
   mapped "$ns" && mapped "$ns-scrim" && ok "$target opens with its scrim" || no "$target: layer or scrim not mapped"
   timeout 3 qs ipc call "$target" toggle &>/dev/null; sleep 0.9
   mapped "$ns" || mapped "$ns-scrim" && no "$target: still mapped after close" || ok "$target closes cleanly"
-  grep -qE "blur on, match:namespace .*${target}" "$RULES" && ok "$target backdrop blurred" || no "no blur layerrule covering $target's scrim"
+  grep -qE "namespace = .*${target}" "$RULES" && ok "$target backdrop blurred" || no "no blur layerrule covering $target's scrim"
 done
 grep -q '"power", "toggle"' "$DOTFILES/quickshell/.config/quickshell/modules/bar/Status.qml" \
   && ok "bar power glyph opens the power menu" || no "bar power glyph doesn't open the power menu"
@@ -96,6 +97,7 @@ fi
 hdr "Notifications (swaync)"
 # ---------------------------------------------------------------------------
 for f in "$DOTFILES"/themes/*/swaync-config.json "$DOTFILES/swaync/.config/swaync/config.json"; do
+  [[ -e $f ]] || continue   # the active-theme link is absent under themes without swaync config (e.g. wallpaper)
   m=$(jq -r '"\(.["control-center-margin-top"])/\(.["control-center-margin-right"])/\(.["control-center-margin-bottom"])"' "$f")
   [[ $m == 6/12/12 ]] && ok "$(realpath --relative-to="$DOTFILES" "$f"): floats under the bar ($m)" \
                      || no "$(realpath --relative-to="$DOTFILES" "$f"): margins $m, expected 6/12/12"
@@ -108,7 +110,7 @@ hdr "Shell health"
 # ---------------------------------------------------------------------------
 bad=$(qslog | grep -E 'WARN|ERROR' | head -3)
 [[ -z $bad ]] && ok "qs log: no warnings or errors" || no "qs log: $bad"
-out=$(Hyprland --verify-config -c "$DOTFILES/hypr/.config/hypr/hyprland.conf" 2>&1)
+out=$(Hyprland --verify-config -c "$DOTFILES/hypr/.config/hypr/hyprland.lua" 2>&1)
 grep -q 'config ok' <<<"$out" && ok "Hyprland config verifies" || no "Hyprland config errors"
 
 # ---------------------------------------------------------------------------

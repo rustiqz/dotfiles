@@ -20,6 +20,7 @@ import qs.modules.hub
 import qs.modules.launcher
 import qs.modules.cheatsheet
 import qs.modules.power
+import qs.modules.clipboard
 import qs.modules.wallpaper
 import qs.modules.external
 import qs.modules.popovers
@@ -40,6 +41,9 @@ ShellRoot {
 
     // Keybind cheatsheet — $mod+/ (qs ipc call cheatsheet toggle).
     Cheatsheet {}
+
+    // Clipboard history — $mod+Ctrl+V and the bar's clipboard glyph (qs ipc call clipboard toggle).
+    Clipboard {}
 
     // Power menu — $mod+P and the bar's power glyph (qs ipc call power toggle).
     PowerMenu {}

@@ -29,7 +29,7 @@ hdr() { printf '\n\033[1;34m== %s\033[0m\n' "$*"; }
 # associated with an application ID"). Logged once per cold start, by Qt,
 # not by this config — filtered by its exact text so any other warning
 # still fails the check.
-qslog() { timeout 5 qs log 2>/dev/null | grep -v 'Failed to register with host portal'; }
+qslog() { timeout 5 qs log 2>/dev/null | grep -vE 'Failed to register with host portal|QWaylandTextInputv3::(en|dis)ableSurface'; }
 
 trap 'timeout 3 qs ipc call launcher openWith "" &>/dev/null; timeout 3 qs ipc call launcher toggle &>/dev/null' EXIT
 layer() { hyprctl layers -j 2>/dev/null | jq -c --arg n "$1" '[.[].levels | to_entries[] | .key as $l | .value[] | select(.namespace == $n) | {l: ($l|tonumber), x, y, w, h}][0] // empty'; }
@@ -41,10 +41,11 @@ ipc=$(timeout 5 qs ipc show 2>/dev/null)
 for f in toggle openWith; do
   grep -A3 'target launcher' <<<"$ipc" | grep -q "function $f" && ok "IPC launcher.$f" || no "IPC launcher.$f missing"
 done
-arg=$(hyprctl binds -j | jq -r '[.[] | select(.description == "App launcher")][0].arg')
-[[ $arg == "qs ipc call launcher toggle" ]] && ok "\$mod+D → launcher" || no "\$mod+D runs '$arg'"
+n=$(hyprctl binds -j | jq '[.[] | select(.description == "App launcher")] | length')
+grep -qF '"qs ipc call launcher toggle", "App launcher"' "$DOTFILES/hypr/.config/hypr/keybinds.lua" \
+  && [[ $n == 1 ]] && ok "\$mod+D → launcher" || no "\$mod+D isn't bound to 'qs ipc call launcher toggle' (live binds: $n)"
 grep -q '"launcher", "toggle"' "$QS/modules/bar/Workspaces.qml" && ok "bar's launcher button opens it" || no "bar button doesn't open the launcher"
-grep -q 'rofi -show drun' "$DOTFILES/hypr/.config/hypr/keybinds.conf" && no "rofi drun still bound" || ok "rofi drun no longer bound"
+grep -q 'rofi -show drun' "$DOTFILES/hypr/.config/hypr/keybinds.lua" && no "rofi drun still bound" || ok "rofi drun no longer bound"
 pacman -Qq rofi &>/dev/null && ok "rofi still installed (clipboard/ssh/theme pickers)" || no "rofi missing — the pickers need it"
 
 # ---------------------------------------------------------------------------

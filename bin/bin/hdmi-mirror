@@ -73,10 +73,10 @@ case "${1:-toggle}" in
 esac
 
 if [ "$action" = "mirror" ]; then
-  hyprctl keyword monitor "$external,$mode,auto,1,mirror,$internal"
+  hyprctl eval "hl.monitor({ output = \"$external\", mode = \"$mode\", position = \"auto\", scale = 1, mirror = \"$internal\" })"
   notify-send "Display" "$external mirroring $internal ($mode)"
 else
   # Back to the wildcard's behaviour: native mode, placed to the right.
-  hyprctl keyword monitor "$external,preferred,${width}x0,1"
+  hyprctl eval "hl.monitor({ output = \"$external\", mode = \"preferred\", position = \"${width}x0\", scale = 1 })"
   notify-send "Display" "$external extending to the right of $internal"
 fi

@@ -191,6 +191,14 @@ Island {
         }
     }
 
+    // --- clipboard history -------------------------------------------------------------------
+    // Opens the clipboard history popup (modules/clipboard/, cliphist).
+    Hover {
+        hpad: 6
+        onClicked: Quickshell.execDetached(["qs", "ipc", "call", "clipboard", "toggle"])
+        Txt { text: Icons.clipboard; color: Theme.fg; font.pixelSize: Theme.iconSize }
+    }
+
     // --- notifications ---------------------------------------------------------------------
     Hover {
         hpad: 6

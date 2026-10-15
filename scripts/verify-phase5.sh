@@ -98,15 +98,22 @@ hdr "GDM session entry"
 # ---------------------------------------------------------------------------
 hdr "Stow links — static config"
 # ---------------------------------------------------------------------------
-for f in hyprland.conf autostart.conf keybinds.conf look.conf input.conf \
-         monitors.conf windowrules.conf hyprlock.conf hypridle.conf hyprpaper.conf; do
+for f in hyprland.lua autostart.lua keybinds.lua look.lua input.lua theme.lua \
+         monitors.lua windowrules.lua hyprlock.conf hypridle.conf hyprpaper.conf; do
   chk_link "$HOME/.config/hypr/$f"
 done
 chk_link "$HOME/.config/waybar/config.jsonc"
 chk_link "$HOME/.config/waybar/style.css"
 chk_link "$HOME/.config/rofi/config.rasi"
 chk_link "$HOME/.config/swaync/style.css"
-chk_link "$HOME/.config/swaync/config.json"
+# swaync is the rollback notification daemon now (Quickshell owns the bus
+# name), and the wallpaper theme ships no swaync-config.json, so the switcher
+# only creates this link under tokyonight/f1.
+if [[ -e $HOME/.config/swaync/config.json || -L $HOME/.config/swaync/config.json ]]; then
+  chk_link "$HOME/.config/swaync/config.json"
+else
+  wa "swaync/config.json not linked (rollback daemon only; created by 'theme tokyonight|f1')"
+fi
 chk_link "$HOME/.config/wlogout/layout"
 chk_link "$HOME/.config/wlogout/style.css"
 chk_link "$HOME/.config/qt6ct/qt6ct.conf"
@@ -234,11 +241,12 @@ systemctl --user list-unit-files 'xdg-desktop-portal-hyprland.service' --no-lege
   || no "xdg-desktop-portal-hyprland unit not found"
 
 # ---------------------------------------------------------------------------
-hdr "Autostart processes (exec-once in hypr/autostart.conf, live session only)"
+hdr "Autostart processes (hyprland.start in hypr/autostart.lua, live session only)"
 # ---------------------------------------------------------------------------
 if (( IN_SESSION )); then
-  pgrep -x waybar    &>/dev/null && ok "waybar running"    || no "waybar not running"
-  pgrep -x swaync     &>/dev/null && ok "swaync running"    || no "swaync not running"
+  # The bar and notification daemon are Quickshell now (waybar/swaync are
+  # kept installed as rollbacks, not run).
+  pgrep -x qs        &>/dev/null && ok "quickshell (bar + notifications) running" || no "quickshell not running"
   pgrep -x hyprpaper &>/dev/null && ok "hyprpaper running" || no "hyprpaper not running"
   pgrep -x hypridle  &>/dev/null && ok "hypridle running"  || no "hypridle not running"
 
@@ -247,15 +255,16 @@ if (( IN_SESSION )); then
                || no "cliphist watchers: expected 2 (text+image), found ${n:-0}"
 
   # Tray applets: not exec-once (systemd-xdg-autostart-generator starts
-  # these from their own .desktop files — see autostart.conf's comment
-  # on why an exec-once here would just race that), but still worth
+  # these from their own .desktop files — see autostart.lua's comment
+  # on why an exec_cmd here would just race that), but still worth
   # confirming they're actually up.
   pgrep -f nm-applet       &>/dev/null && ok "nm-applet running"       || wa "nm-applet not running"
   pgrep -f blueman-applet  &>/dev/null && ok "blueman-applet running" || wa "blueman-applet not running"
 
-  if command -v swaync-client &>/dev/null; then
-    swaync-client --reload-css &>/dev/null && ok "swaync-client reaches the daemon" \
-                                            || no "swaync-client can't reach swaync"
+  # Only when swaync is the daemon: swaync-client blocks forever if it isn't.
+  if pidof swaync &>/dev/null && command -v swaync-client &>/dev/null; then
+    timeout 5 swaync-client --reload-css &>/dev/null && ok "swaync-client reaches the daemon" \
+                                                     || wa "swaync-client can't reach swaync (not the notification daemon any more)"
   fi
 else
   wa "not running inside a live Hyprland session — skipping autostart process checks"

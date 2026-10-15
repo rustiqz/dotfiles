@@ -30,7 +30,7 @@ hdr() { printf '\n\033[1;34m== %s\033[0m\n' "$*"; }
 # associated with an application ID"). Logged once per cold start, by Qt,
 # not by this config — filtered by its exact text so any other warning
 # still fails the check.
-qslog() { timeout 5 qs log 2>/dev/null | grep -v 'Failed to register with host portal'; }
+qslog() { timeout 5 qs log 2>/dev/null | grep -vE 'Failed to register with host portal|QWaylandTextInputv3::(en|dis)ableSurface'; }
 
 TMP=$(mktemp -d)
 LINK="$QS/active-theme.json"
@@ -52,9 +52,9 @@ target=$(realpath -e "$HOME/.config/quickshell/shell.qml" 2>/dev/null)
 # ---------------------------------------------------------------------------
 hdr "Bar replaces waybar"
 # ---------------------------------------------------------------------------
-AUTO="$DOTFILES/hypr/.config/hypr/autostart.conf"
-grep -q '^exec-once = uwsm app -- qs$' "$AUTO" && ok "autostart launches qs via uwsm" || no "autostart has no 'uwsm app -- qs'"
-grep -q '^exec-once = uwsm app -- waybar' "$AUTO" && no "autostart still launches waybar" || ok "autostart no longer launches waybar"
+AUTO="$DOTFILES/hypr/.config/hypr/autostart.lua"
+grep -q 'hl.exec_cmd("uwsm app -- qs")' "$AUTO" && ok "autostart launches qs via uwsm" || no "autostart has no 'uwsm app -- qs'"
+grep -q 'hl.exec_cmd("uwsm app -- waybar' "$AUTO" && no "autostart still launches waybar" || ok "autostart no longer launches waybar"
 pgrep -x qs &>/dev/null && ok "qs running" || no "qs not running"
 pgrep -x waybar &>/dev/null && no "waybar still running alongside the bar" || ok "waybar not running"
 scope=$(systemctl --user list-units 'app-Hyprland-qs-*' --no-legend 2>/dev/null)
@@ -73,8 +73,8 @@ else
 fi
 layers=$(hyprctl layers -j 2>/dev/null | jq -r '.[].levels[][] | .namespace' 2>/dev/null)
 grep -qx quickshell-bar <<<"$layers" && ok "layer 'quickshell-bar' mapped" || no "no 'quickshell-bar' layer"
-rules=$(grep -c 'match:namespace ^(quickshell-bar' "$DOTFILES/hypr/.config/hypr/windowrules.conf")
-(( rules >= 2 )) && ok "blur + ignore_alpha layerrules target quickshell-bar" || no "layerrules don't cover quickshell-bar"
+rules=$(grep -c 'namespace = "^(quickshell-bar' "$DOTFILES/hypr/.config/hypr/windowrules.lua")
+(( rules >= 1 )) && ok "blur + ignore_alpha layerrules target quickshell-bar" || no "layerrules don't cover quickshell-bar"
 
 # ---------------------------------------------------------------------------
 hdr "Theming"
@@ -116,9 +116,9 @@ grep -q 'target bar' <<<"$ipc" && grep -q 'function brightness' <<<"$ipc" \
   && ok "IPC target 'bar' (brightness, flash)" || no "IPC target 'bar' missing"
 timeout 3 qs ipc call bar flash "verify-phase9" "dev island IPC" &>/dev/null \
   && ok "flash call accepted" || no "qs ipc call bar flash failed"
-binds=$(grep -c 'brightnessctl set 5%[+-] && qs ipc call bar brightness' "$DOTFILES/hypr/.config/hypr/keybinds.conf")
+binds=$(grep -c 'brightnessctl set 5%[+-] && qs ipc call bar brightness' "$DOTFILES/hypr/.config/hypr/keybinds.lua")
 (( binds == 2 )) && ok "brightness keys poke the island OSD" || no "brightness binds don't call the bar ($binds/2)"
-out=$(Hyprland --verify-config -c "$DOTFILES/hypr/.config/hypr/hyprland.conf" 2>&1)
+out=$(Hyprland --verify-config -c "$DOTFILES/hypr/.config/hypr/hyprland.lua" 2>&1)
 grep -q 'config ok' <<<"$out" && ok "Hyprland config verifies" || no "Hyprland config errors"
 
 # ---------------------------------------------------------------------------

@@ -167,7 +167,7 @@ hyprland
 # Session manager. NOT optional, despite being easy to mistake for one:
 # every `exec-once` in hypr/autostart.conf (waybar, swaync, cliphist,
 # hyprpaper, hypridle, qs) and every application keybind in
-# hypr/keybinds.conf is written as `uwsm app -- <cmd>`, so without this
+# hypr/keybinds.lua is written as `uwsm app -- <cmd>`, so without this
 # binary the compositor still starts and the config still parses — and
 # nothing else in the desktop works at all. No bar, no wallpaper, no
 # notifications, and every app keybind silently does nothing, which

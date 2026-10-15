@@ -9,7 +9,7 @@
 # presumably leftover from an earlier manual experiment. dunst.service
 # ships as `Type=dbus, BusName=org.freedesktop.Notifications`, the same
 # D-Bus-activation pattern as the xdg-desktop-portal services (see
-# hypr/.config/hypr/autostart.conf) — a plain `disable` only stops
+# hypr/.config/hypr/autostart.lua) — a plain `disable` only stops
 # boot-time enablement, not activation-on-demand the next time any app
 # sends a notification, so `mask` is required, not just `disable`.
 #

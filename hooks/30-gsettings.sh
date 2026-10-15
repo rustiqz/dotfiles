@@ -15,7 +15,7 @@ gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 # gsettings set org.gnome.desktop.interface gtk-theme 'Tokyonight-Dark'
 
 # Cursor theme and size — Hyprland also needs these exported as
-# XCURSOR_THEME/XCURSOR_SIZE in hyprland.conf for consistent cursors
+# XCURSOR_THEME/XCURSOR_SIZE in the Hyprland config for consistent cursors
 # across Wayland-native and XWayland apps.
 # gsettings set org.gnome.desktop.interface cursor-theme 'Bibata-Modern-Ice'
 # gsettings set org.gnome.desktop.interface cursor-size 24

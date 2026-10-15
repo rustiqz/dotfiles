@@ -20,7 +20,7 @@ mapped() { hyprctl layers -j 2>/dev/null | jq -r '.[].levels[][] | .namespace' |
 # Filter the one benign startup line — see verify-phase12.sh.
 # `qs log` keeps history across live reloads, so only look at what was
 # logged since the last successful load — earlier lines may be already fixed.
-qslog() { timeout 5 qs log 2>/dev/null | grep -v 'Failed to register with host portal' | awk '/Configuration Loaded/{n=0; next} {l[n++]=$0} END{for(i=0;i<n;i++) print l[i]}'; }
+qslog() { timeout 5 qs log 2>/dev/null | grep -vE 'Failed to register with host portal|QWaylandTextInputv3::(en|dis)ableSurface' | awk '/Configuration Loaded/{n=0; next} {l[n++]=$0} END{for(i=0;i<n;i++) print l[i]}'; }
 
 hdr "Popovers open and close"
 ipc=$(qs ipc show 2>&1)

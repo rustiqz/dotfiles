@@ -28,7 +28,7 @@ hdr() { printf '\n\033[1;34m== %s\033[0m\n' "$*"; }
 # associated with an application ID"). Logged once per cold start, by Qt,
 # not by this config — filtered by its exact text so any other warning
 # still fails the check.
-qslog() { timeout 5 qs log 2>/dev/null | grep -v 'Failed to register with host portal'; }
+qslog() { timeout 5 qs log 2>/dev/null | grep -vE 'Failed to register with host portal|QWaylandTextInputv3::(en|dis)ableSurface'; }
 
 TMP=$(mktemp -d)
 trap 'timeout 3 qs ipc call hub close &>/dev/null; rm -rf "$TMP"' EXIT
@@ -46,8 +46,10 @@ for key in space grave; do
   n=$(jq --arg k "$key" '[.[] | select((.key | ascii_downcase) == $k and .modmask == 64 and .description == "Dev hub")] | length' <<<"$binds")
   [[ $n == 1 ]] && ok "\$mod+$key → Dev hub" || no "\$mod+$key not bound to the hub"
 done
-toggle=$(jq -r '[.[] | select(.description == "Dev hub")][0].arg' <<<"$binds")
-[[ $toggle == "qs ipc call hub toggle" ]] && ok "bind runs '$toggle'" || no "hub bind runs '$toggle'"
+# `hyprctl binds -j` reports Lua binds as dispatcher "__lua" with an opaque
+# arg, so the command itself is checked in the source.
+grep -qF '"qs ipc call hub toggle", "Dev hub"' "$DOTFILES/hypr/.config/hypr/keybinds.lua" \
+  && ok "hub bind runs 'qs ipc call hub toggle'" || no "hub bind doesn't run 'qs ipc call hub toggle'"
 
 # ---------------------------------------------------------------------------
 hdr "Hub maps and unmaps"
@@ -75,8 +77,8 @@ timeout 3 qs ipc call hub close &>/dev/null; sleep 0.8
 mapped && no "hub layer still mapped after close" || ok "close → layer unmapped"
 hyprctl layers -j | jq -r '.[].levels[][] | .namespace' | grep -qx quickshell-hub-scrim \
   && no "scrim still mapped after close (would eat every click)" || ok "close → scrim unmapped too"
-rules=$(grep -c 'match:namespace ^(quickshell-hub)' "$DOTFILES/hypr/.config/hypr/windowrules.conf")
-(( rules >= 2 )) && ok "hub layer blurred (blur + ignore_alpha)" || no "no blur layerrules for quickshell-hub"
+rules=$(grep -c 'namespace = "^(quickshell-hub)\$"' "$DOTFILES/hypr/.config/hypr/windowrules.lua")
+(( rules >= 1 )) && ok "hub layer blurred (blur + ignore_alpha)" || no "no blur layerrules for quickshell-hub"
 
 # ---------------------------------------------------------------------------
 hdr "Hub actions (devstat act)"
@@ -97,8 +99,8 @@ done
 hdr "ags sidebar retired"
 # ---------------------------------------------------------------------------
 pgrep -f 'gjs.*ags|ags run' &>/dev/null && no "ags still running" || ok "ags not running"
-grep -q 'ags run' "$DOTFILES/hypr/.config/hypr/autostart.conf" && no "autostart still launches ags" || ok "not in autostart"
-grep -q 'ags toggle' "$DOTFILES/hypr/.config/hypr/keybinds.conf" && no "a keybind still calls ags" || ok "no ags keybind"
+grep -q 'ags run' "$DOTFILES/hypr/.config/hypr/autostart.lua" && no "autostart still launches ags" || ok "not in autostart"
+grep -q 'ags toggle' "$DOTFILES/hypr/.config/hypr/keybinds.lua" && no "a keybind still calls ags" || ok "no ags keybind"
 grep -q 'ags.css' "$DOTFILES/bin/bin/theme" && no "theme switcher still links ags.css" || ok "theme switcher no longer links ags"
 [[ ! -e $DOTFILES/ags ]] && ok "ags/ stow package removed" || no "ags/ still in the repo (bootstrap would stow it)"
 [[ ! -e $HOME/.config/ags ]] && ok "~/.config/ags unlinked" || no "~/.config/ags still exists"
@@ -112,7 +114,7 @@ hdr "Shell health"
 log=$(qslog)
 bad=$(grep -E 'WARN|ERROR' <<<"$log" | head -3)
 [[ -z $bad ]] && ok "qs log: no warnings or errors" || no "qs log: $bad"
-out=$(Hyprland --verify-config -c "$DOTFILES/hypr/.config/hypr/hyprland.conf" 2>&1)
+out=$(Hyprland --verify-config -c "$DOTFILES/hypr/.config/hypr/hyprland.lua" 2>&1)
 grep -q 'config ok' <<<"$out" && ok "Hyprland config verifies" || no "Hyprland config errors"
 
 # ---------------------------------------------------------------------------
