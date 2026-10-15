@@ -1,0 +1,656 @@
+[
+ {
+  "name": "Motions",
+  "type": "flying",
+  "rows": [
+   {
+    "keys": "h j k l",
+    "desc": "left / down / up / right"
+   },
+   {
+    "keys": "w b e",
+    "desc": "word fwd / back / end"
+   },
+   {
+    "keys": "W B E",
+    "desc": "WORD (whitespace) variants"
+   },
+   {
+    "keys": "0 ^ $",
+    "desc": "line start / first char / end"
+   },
+   {
+    "keys": "gg G",
+    "desc": "file top / bottom"
+   },
+   {
+    "keys": "{n} G",
+    "desc": "go to line n"
+   },
+   {
+    "keys": "{ }",
+    "desc": "paragraph back / fwd"
+   },
+   {
+    "keys": "%",
+    "desc": "matching bracket"
+   },
+   {
+    "keys": "f{c} F{c}",
+    "desc": "find char fwd / back on line"
+   },
+   {
+    "keys": "t{c} T{c}",
+    "desc": "till char fwd / back"
+   },
+   {
+    "keys": "; ,",
+    "desc": "repeat / reverse f t"
+   },
+   {
+    "keys": "H M L",
+    "desc": "screen top / middle / bottom"
+   },
+   {
+    "keys": "Ctrl-d Ctrl-u",
+    "desc": "half page down / up"
+   },
+   {
+    "keys": "Ctrl-f Ctrl-b",
+    "desc": "page down / up"
+   },
+   {
+    "keys": "zz zt zb",
+    "desc": "centre / top / bottom cursor line"
+   },
+   {
+    "keys": "Ctrl-o Ctrl-i",
+    "desc": "jump back / forward"
+   },
+   {
+    "keys": "` `",
+    "desc": "jump to previous position"
+   },
+   {
+    "keys": "m{a} '{a}",
+    "desc": "set / jump to mark"
+   },
+   {
+    "keys": "g ;",
+    "desc": "last change position"
+   },
+   {
+    "keys": "* #",
+    "desc": "search word under cursor fwd / back"
+   },
+   {
+    "keys": "gd gD",
+    "desc": "local / global declaration (no LSP)"
+   }
+  ]
+ },
+ {
+  "name": "Edit",
+  "type": "fighting",
+  "rows": [
+   {
+    "keys": "i a",
+    "desc": "insert before / after cursor"
+   },
+   {
+    "keys": "I A",
+    "desc": "insert at line start / end"
+   },
+   {
+    "keys": "o O",
+    "desc": "new line below / above"
+   },
+   {
+    "keys": "x X",
+    "desc": "delete char under / before"
+   },
+   {
+    "keys": "r{c} R",
+    "desc": "replace char / replace mode"
+   },
+   {
+    "keys": "s S",
+    "desc": "substitute char / line"
+   },
+   {
+    "keys": "c c",
+    "desc": "change line"
+   },
+   {
+    "keys": "C D",
+    "desc": "change / delete to end of line"
+   },
+   {
+    "keys": "d d",
+    "desc": "delete line"
+   },
+   {
+    "keys": "y y",
+    "desc": "yank line  (also Y)"
+   },
+   {
+    "keys": "p P",
+    "desc": "paste after / before"
+   },
+   {
+    "keys": "u Ctrl-r",
+    "desc": "undo / redo"
+   },
+   {
+    "keys": ".",
+    "desc": "repeat last change"
+   },
+   {
+    "keys": "~",
+    "desc": "toggle case"
+   },
+   {
+    "keys": "g u",
+    "desc": "lower case (+ motion);  g U upper"
+   },
+   {
+    "keys": "J",
+    "desc": "join lines"
+   },
+   {
+    "keys": "> >  < <",
+    "desc": "indent / dedent line"
+   },
+   {
+    "keys": "=",
+    "desc": "auto-indent (+ motion)"
+   },
+   {
+    "keys": "Ctrl-a Ctrl-x",
+    "desc": "increment / decrement number"
+   },
+   {
+    "keys": "g c",
+    "desc": "comment (neovim builtin, + motion)"
+   }
+  ]
+ },
+ {
+  "name": "Operators + objects",
+  "type": "psychic",
+  "rows": [
+   {
+    "keys": "d i w",
+    "desc": "delete inner word"
+   },
+   {
+    "keys": "c i \"",
+    "desc": "change inside quotes"
+   },
+   {
+    "keys": "y a (",
+    "desc": "yank around parens"
+   },
+   {
+    "keys": "d i {",
+    "desc": "delete inside braces"
+   },
+   {
+    "keys": "v i p",
+    "desc": "select paragraph"
+   },
+   {
+    "keys": "c i t",
+    "desc": "change inside HTML tag"
+   },
+   {
+    "keys": "d a f",
+    "desc": "delete a function  (mini.ai)"
+   },
+   {
+    "keys": "c i c",
+    "desc": "change inside class  (mini.ai)"
+   },
+   {
+    "keys": "d a a",
+    "desc": "delete an argument  (mini.ai)"
+   },
+   {
+    "keys": "y s i w \"",
+    "desc": "surround word with \"  (surround)"
+   },
+   {
+    "keys": "d s \"",
+    "desc": "delete surrounding \""
+   },
+   {
+    "keys": "c s \" '",
+    "desc": "change \" to '"
+   },
+   {
+    "keys": "{n} d d",
+    "desc": "count prefix: n lines"
+   },
+   {
+    "keys": "d t {c}",
+    "desc": "delete till char"
+   }
+  ]
+ },
+ {
+  "name": "Visual",
+  "type": "fairy",
+  "rows": [
+   {
+    "keys": "v V Ctrl-v",
+    "desc": "char / line / block select"
+   },
+   {
+    "keys": "o",
+    "desc": "jump to other end of selection"
+   },
+   {
+    "keys": "gv",
+    "desc": "reselect last selection"
+   },
+   {
+    "keys": "I A",
+    "desc": "block mode: insert / append on every line"
+   },
+   {
+    "keys": "> <",
+    "desc": "indent / dedent selection"
+   },
+   {
+    "keys": "u U",
+    "desc": "lower / upper case"
+   },
+   {
+    "keys": ":",
+    "desc": "command on selection"
+   },
+   {
+    "keys": "y d c",
+    "desc": "yank / delete / change"
+   }
+  ]
+ },
+ {
+  "name": "Search & replace",
+  "type": "ice",
+  "rows": [
+   {
+    "keys": "/ ?",
+    "desc": "search fwd / back"
+   },
+   {
+    "keys": "n N",
+    "desc": "next / prev match"
+   },
+   {
+    "keys": "Esc",
+    "desc": "clear highlight"
+   },
+   {
+    "keys": ":%s/a/b/g",
+    "desc": "replace all in file (live preview)"
+   },
+   {
+    "keys": ":%s/a/b/gc",
+    "desc": "...asking for each"
+   },
+   {
+    "keys": ":s/a/b/",
+    "desc": "replace on this line"
+   },
+   {
+    "keys": ":g/pat/d",
+    "desc": "delete lines matching"
+   },
+   {
+    "keys": ":v/pat/d",
+    "desc": "delete lines NOT matching"
+   },
+   {
+    "keys": "q{a} ... q",
+    "desc": "record macro to register a"
+   },
+   {
+    "keys": "@{a} @@",
+    "desc": "play macro / repeat last"
+   },
+   {
+    "keys": "{n} @{a}",
+    "desc": "play macro n times"
+   }
+  ]
+ },
+ {
+  "name": "Files, buffers, windows",
+  "type": "ground",
+  "rows": [
+   {
+    "keys": ":w :q :wq",
+    "desc": "write / quit / both"
+   },
+   {
+    "keys": ":q! :qa!",
+    "desc": "quit discarding / quit all"
+   },
+   {
+    "keys": ":e {file}",
+    "desc": "edit file"
+   },
+   {
+    "keys": ":bn :bp :bd",
+    "desc": "next / prev / close buffer"
+   },
+   {
+    "keys": "Ctrl-^",
+    "desc": "toggle last buffer"
+   },
+   {
+    "keys": ":sp :vsp",
+    "desc": "horizontal / vertical split"
+   },
+   {
+    "keys": "Ctrl-h j k l",
+    "desc": "move between windows  (config)"
+   },
+   {
+    "keys": "Ctrl-w =",
+    "desc": "equalise window sizes"
+   },
+   {
+    "keys": "Ctrl-w o",
+    "desc": "only this window"
+   },
+   {
+    "keys": "Ctrl-w c",
+    "desc": "close window"
+   },
+   {
+    "keys": ":tabnew gt gT",
+    "desc": "tabs: new / next / prev"
+   },
+   {
+    "keys": "Ctrl-w T",
+    "desc": "move window to tab"
+   }
+  ]
+ },
+ {
+  "name": "Registers & clipboard",
+  "type": "normal",
+  "rows": [
+   {
+    "keys": "\" + y",
+    "desc": "yank to system clipboard"
+   },
+   {
+    "keys": "\" 0 p",
+    "desc": "paste last yank (not delete)"
+   },
+   {
+    "keys": "\" _ d",
+    "desc": "delete without clobbering"
+   },
+   {
+    "keys": "Ctrl-r {r}",
+    "desc": "paste register in insert / cmd mode"
+   },
+   {
+    "keys": ":reg",
+    "desc": "show registers"
+   },
+   {
+    "keys": "y p",
+    "desc": "clipboard=unnamedplus: these already use the system clipboard"
+   }
+  ]
+ },
+ {
+  "name": "Find  (fzf-lua)",
+  "type": "steel",
+  "rows": [
+   {
+    "keys": "Space f f",
+    "desc": "files"
+   },
+   {
+    "keys": "Space f g",
+    "desc": "live grep"
+   },
+   {
+    "keys": "Space f b",
+    "desc": "buffers"
+   },
+   {
+    "keys": "Space f r",
+    "desc": "recent files"
+   },
+   {
+    "keys": "Space f h",
+    "desc": "help tags"
+   },
+   {
+    "keys": "-",
+    "desc": "parent dir as buffer  (oil; :w applies renames)"
+   }
+  ]
+ },
+ {
+  "name": "Jump  (flash)",
+  "type": "electric",
+  "rows": [
+   {
+    "keys": "s {2 chars}",
+    "desc": "jump anywhere on screen"
+   },
+   {
+    "keys": "S",
+    "desc": "select treesitter node"
+   },
+   {
+    "keys": "Ctrl-s",
+    "desc": "in / search: toggle flash"
+   }
+  ]
+ },
+ {
+  "name": "LSP",
+  "type": "water",
+  "rows": [
+   {
+    "keys": "g d",
+    "desc": "definition"
+   },
+   {
+    "keys": "g r",
+    "desc": "references"
+   },
+   {
+    "keys": "K",
+    "desc": "hover docs"
+   },
+   {
+    "keys": "Space r n",
+    "desc": "rename symbol"
+   },
+   {
+    "keys": "Space c a",
+    "desc": "code action"
+   },
+   {
+    "keys": "] d",
+    "desc": "next diagnostic;  [ d  prev"
+   },
+   {
+    "keys": "Space x x",
+    "desc": "workspace problems  (trouble)"
+   },
+   {
+    "keys": "Space x b",
+    "desc": "buffer problems"
+   },
+   {
+    "keys": "Space x r",
+    "desc": "LSP references list"
+   },
+   {
+    "keys": "Ctrl-Space",
+    "desc": "completion menu  (blink)"
+   },
+   {
+    "keys": "Tab Ctrl-n Ctrl-p",
+    "desc": "cycle completion"
+   },
+   {
+    "keys": "Enter",
+    "desc": "accept completion"
+   },
+   {
+    "keys": ":LspInfo :LspRestart",
+    "desc": "server state / restart"
+   },
+   {
+    "keys": "conform",
+    "desc": "prettier runs on save"
+   }
+  ]
+ },
+ {
+  "name": "Review agent changes",
+  "type": "grass",
+  "rows": [
+   {
+    "keys": "] c",
+    "desc": "next hunk;  [ c  prev hunk"
+   },
+   {
+    "keys": "Space h p",
+    "desc": "preview hunk"
+   },
+   {
+    "keys": "Space h s",
+    "desc": "stage hunk"
+   },
+   {
+    "keys": "Space h r",
+    "desc": "reset (revert) hunk"
+   },
+   {
+    "keys": "Space h b",
+    "desc": "blame line"
+   },
+   {
+    "keys": "Space h d",
+    "desc": "diff file vs index"
+   },
+   {
+    "keys": "Space g d",
+    "desc": "diffview: working tree"
+   },
+   {
+    "keys": "Space g m",
+    "desc": "diffview: branch vs main"
+   },
+   {
+    "keys": "Space g h",
+    "desc": "diffview: file history"
+   },
+   {
+    "keys": "Space g q",
+    "desc": "close diffview"
+   },
+   {
+    "keys": "Space g g",
+    "desc": "lazygit float"
+   },
+   {
+    "keys": "review",
+    "desc": "shell: review · checks · wt new <branch>"
+   }
+  ]
+ },
+ {
+  "name": "Tests  (neotest) & Rust",
+  "type": "fire",
+  "rows": [
+   {
+    "keys": "Space t t",
+    "desc": "nearest test"
+   },
+   {
+    "keys": "Space t f",
+    "desc": "test file"
+   },
+   {
+    "keys": "Space t l",
+    "desc": "re-run last"
+   },
+   {
+    "keys": "Space t s",
+    "desc": "summary panel"
+   },
+   {
+    "keys": "Space t o",
+    "desc": "test output"
+   },
+   {
+    "keys": "Space t w",
+    "desc": "watch file"
+   },
+   {
+    "keys": ":RustLsp codeAction",
+    "desc": "rust code actions"
+   },
+   {
+    "keys": ":RustLsp runnables",
+    "desc": "run / test targets"
+   },
+   {
+    "keys": ":RustLsp expandMacro",
+    "desc": "expand macro"
+   }
+  ]
+ },
+ {
+  "name": "Help & errors",
+  "type": "dark",
+  "rows": [
+   {
+    "keys": "Space u n",
+    "desc": "notification history  (snacks)"
+   },
+   {
+    "keys": "Space u d",
+    "desc": "dismiss notifications"
+   },
+   {
+    "keys": "Space",
+    "desc": "wait → which-key shows all leader keys"
+   },
+   {
+    "keys": ":messages",
+    "desc": "message history"
+   },
+   {
+    "keys": ":checkhealth",
+    "desc": "health report"
+   },
+   {
+    "keys": ":Lazy",
+    "desc": "plugin manager"
+   },
+   {
+    "keys": ":Mason",
+    "desc": "LSP / tool installer"
+   },
+   {
+    "keys": ":help {topic}",
+    "desc": "built-in docs; Ctrl-] follows a tag"
+   }
+  ]
+ }
+]
