@@ -74,6 +74,10 @@ Singleton {
     readonly property string profSaver: "\u{f032a}"     // md-leaf
     readonly property string profBalanced: "\u{f05d1}"  // md-scale_balance
     readonly property string profPerf: "\u{f04c5}"      // md-speedometer
+    // --- media popover ---
+    readonly property string shuffle: "\u{f049e}"        // md-shuffle_variant
+    readonly property string repeat: "\u{f0456}"         // md-repeat
+    readonly property string repeatOnce: "\u{f0458}"     // md-repeat_once
     // --- launcher (Phase 11) ---
     readonly property string pokeball: "\u{f041d}"       // md-pokeball
     readonly property string calc: "\u{f15a6}"           // md-calculator_variant_outline
