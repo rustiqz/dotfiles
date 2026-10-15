@@ -1,23 +1,136 @@
+<div align="center">
+
 # dotfiles
 
-Reproducible Arch Linux setup: coding environment first, Hyprland desktop
-second. Built on one laptop, meant to be replayed on others —
-one command re-provisions a fresh machine to the same state.
+**An Arch Linux + Hyprland desktop built around one question:
+_what is my code doing right now?_**
 
-TokyoNight everywhere by default, with a wallpaper-driven theme generated
-on demand. The desktop is built around development: a Quickshell bar and
-dev hub that show your agents, CI, containers and dev servers at a glance,
-a Neovim setup with an agent-review loop, and a Pokémon layer on top.
+Agents, CI, containers, dev servers and PRs are one keypress away, and the
+whole setup rebuilds from a single command.
 
 ![Dev hub over Neovim](docs/screenshots/hub.jpg)
 
+`Hyprland` · `Quickshell` · `Neovim` · `kitty + zsh` · `matugen` · `GNU Stow`
+
+</div>
+
+---
+
+## Why this is useful for developers
+
+Most rices optimise for looks. This one optimises for the loop of writing code,
+running it, and finding out whether it worked. The look is a bonus.
+
+| Problem | What this setup does |
+|---|---|
+| "Did CI go red while I was in the editor?" | A timer polls GitHub Actions every 3 min and notifies **only** on a default-branch red/green change, and only if you're not already looking at that project. |
+| "Is my coding agent waiting on me?" | Claude/Codex sessions report state through a small hook plugin. The bar, hub and notifications show *working*, *needs input* and *finished*, and <kbd>Enter</kbd> jumps to the exact window or tmux pane. |
+| "What's running on this machine?" | Compose services, listening dev servers and watch-mode builders (`vitest`, `tsx`, `bacon`…) per project, with start/stop/logs buttons. |
+| "Which project am I in?" | The bar's centre island follows the **visible kitty tab**: project, branch, dirty state, agents. |
+| "Review what the agent changed." | When a long agent turn ends while you're away, project checks run (`just check`, `package.json` scripts, or `cargo clippy + test`) and a **Review** action opens Neovim + diffview, branch vs `main`. |
+| "Set up a new machine." | `./bootstrap.sh` is idempotent. Every config is a stow package, everything else is a numbered hook. |
+| "Does it still work on a clean box?" | Every phase has a read-only `verify-*` script, and `verify-portability.sh` fails if anything machine-specific leaks into the repo. |
+
+Anything that isn't for developers (weather, pomodoro, screen time, phone widgets) is
+deliberately left out.
+
+---
+
+## A tour
+
+### Dev hub: `$mod + Space`
+
+A keyboard-first drawer. Sections are one letter each:
+
+| Key | Section | What you can do |
+|---|---|---|
+| `a` | Agents (the "Party") | see Claude/Codex sessions and plan usage; <kbd>Enter</kbd> jumps to the window |
+| `c` | CI + PRs | <kbd>Enter</kbd> opens the run, `l` opens the failed log in a terminal |
+| `s` | Compose services | <kbd>Enter</kbd> logs, `u`/`d` up/down (uses a project's `just up/down` when present), `z` lazydocker |
+| `p` | Listening dev servers | what's bound to which port, labelled by project |
+| `w` | Watchers | running test/build watchers |
+
+Plus volume, brightness and mic sliders, Wi-Fi/Bluetooth/Silence/Caffeine
+toggles, a power-profile selector and now-playing. Open a section from a
+script with `qs ipc call hub openSection <letter>`.
+
+### Launcher: `$mod + D`
+
+![Launcher](docs/screenshots/launcher.jpg)
+
+A Pokédex-style launcher with frecency ranking ("caught" counts) and modes
+you reach by typing a prefix:
+
+| Prefix | Mode |
+|---|---|
+| *(none)* | apps |
+| `/` | projects: opens a tmux session through `work` |
+| `>` | run a command (<kbd>Shift+Enter</kbd> runs it in a terminal) |
+| `@` | switch to an open window |
+| `=` | calculator (`qalc`) |
+| `:` | emoji |
+| `?` | help |
+
+### Terminal workflow
+
+![Terminal workspace](docs/screenshots/terminal.jpg)
+
+kitty + zsh + starship, with lazygit, yazi, btop and k9s all following the
+active theme. `work` is a tmux sessionizer over `~/projects`; `wt new <branch>`
+gives each agent task its own git worktree; `queues` prints BullMQ queue
+status over `valkey-cli`; `ssh-connect` (<kbd>$mod+S</kbd>) picks from your
+`~/.ssh/config` hosts. A zsh hook notifies when a command that ran 30 s or
+more finishes while you're elsewhere.
+
+### Neovim
+
+Neovim 0.11+ on lazy.nvim and the **native** `vim.lsp.config` API: vtsls,
+eslint, lua_ls, tailwindcss, jsonls, yamlls, dockerls, compose and taplo via
+Mason; rust-analyzer via rustaceanvim. Treesitter on the `main` branch,
+blink.cmp, fzf-lua, neotest, trouble, and an agent-review set: gitsigns hunks,
+diffview, a lazygit float, and autoread so agent edits appear live.
+
+`$mod + /` opens a cheatsheet generated live from `hyprctl binds`. <kbd>Tab</kbd>
+flips to a hand-curated Vim and Neovim tab.
+
+![Vim cheatsheet](docs/screenshots/cheatsheet.jpg)
+
+### Theming
+
+One command re-themes the whole desktop: kitty, Quickshell, Hyprland, rofi,
+GTK/Qt, cursor, yazi, k9s, Obsidian, hyprlock and wlogout.
+
+```sh
+theme tokyonight   # default
+theme f1           # pixel-art breakaway (partial)
+theme wallpaper    # generated from the current wallpaper with matugen
+theme              # interactive picker
+```
+
+`theme wallpaper` extracts a Material You palette from whatever wallpaper is
+set and regenerates every app's colours. It never runs automatically. The
+wallpaper picker (`$mod + W`) is a deck of Pokémon-style cards; <kbd>Enter</kbd>
+sets the wallpaper and <kbd>Shift+Enter</kbd> also recolours the desktop.
+
+![Wallpaper picker](docs/screenshots/wallpapers.jpg)
+
+A theme can be partial: one that defines a single app's file leaves everything
+else as it was.
+
+### Power menu and lock
+
+![Power menu](docs/screenshots/power.jpg)
+
+`$mod + P` opens the power menu. Reboot and shut down need a second press.
+The lock screen is hyprlock with a trainer-card layout, and fingerprint login
+self-enables wherever a reader exists.
+
+---
+
 ## Quick start
 
-HTTPS, not SSH: a fresh machine has no SSH key registered with GitHub
-yet, so an SSH clone fails before anything else can run. Works for any
-account and any username — nothing in the repo bakes in a home path.
-Arch Linux only; read `bootstrap.sh` and `hooks/` before running them,
-since they install packages, enable services and change your login shell.
+Arch Linux only. **Read `bootstrap.sh` and `hooks/` first**: they install
+packages, enable services and change your login shell.
 
 ```sh
 git clone https://github.com/rustiqz/dotfiles.git ~/dotfiles
@@ -25,216 +138,123 @@ cd ~/dotfiles
 ./bootstrap.sh
 ```
 
-`bootstrap.sh` is idempotent — safe to re-run any time (after pulling new
-changes, after adding a package to a manifest, whatever). It:
+HTTPS rather than SSH, because a fresh machine has no key registered yet.
+Nothing in the repo bakes in a username or home path, so any account works.
 
-1. Installs base tooling (`git`, `stow`, `base-devel`)
-2. Installs `paru` (AUR helper) if missing
-3. Installs everything listed in `packages/*.txt`
-4. Symlinks every app config into `$HOME` via GNU Stow
-5. Runs the hooks in `hooks/` (systemd units, shell change, git identity
-   seed, theme default, etc. — anything that isn't just a file)
+`bootstrap.sh` is safe to re-run any time. It:
 
-Verify any phase is actually working with its own script:
+1. runs `pacman -Syu` (never a partial upgrade) and installs `git`, `stow`, `base-devel`
+2. builds `paru` from source if it's missing
+3. installs everything in `packages/*.txt` (official repos and AUR)
+4. symlinks every app config into `$HOME` with GNU Stow, moving conflicting files to `*.pre-dotfiles.bak`
+5. runs `hooks/` in filename order: services, shell, git identity seed, Docker, Rust toolchain, theme default and so on
+6. warns about any command a Hyprland config calls that no manifest installs
 
-```sh
-./scripts/verify-phase1.sh   # base system
-./scripts/verify-phase2.sh   # shell & terminal
-./scripts/verify-phase3.sh   # dev toolchain
-./scripts/verify-phase4.sh   # editor
-./scripts/verify-phase5.sh   # Hyprland desktop
-./scripts/verify-portability.sh  # nothing machine-specific is tracked
-```
-(`verify-phase7.sh` … `verify-phase12.sh` and `verify-popovers.sh` cover the dev shell.)
+Per-machine and private values go in untracked `*.local` files (git identity,
+`~/.ssh/config.local`, a shell tweak file). The relevant hook seeds a
+commented placeholder so they're easy to find.
 
-Each is read-only and reports pass/fail/warn per check — nothing to
-interpret, just run it.
-
-## What's inside
-
-| Phase | Status | Covers |
-|---|---|---|
-| 0 — Scaffolding | ✅ | Stow layout, `bootstrap.sh`, `.gitignore`, host overrides |
-| 1 — Base system | ✅ | pacman tuning, mirrors, zram, PipeWire, bluetooth, fonts, Intel graphics, microcode, power management |
-| 2 — Shell & terminal | ✅ | kitty, zsh, starship, fzf/ripgrep/fd/bat/eza/zoxide/delta/btop/lazygit, TokyoNight theming |
-| 3 — Dev toolchain | ✅ | git, SSH, Node (mise), Docker, psql, valkey-cli, Temporal CLI, direnv, Bruno |
-| 4 — Editor | ✅ | Neovim + lazy.nvim, LSP via mason, tmux (TPM), `~/bin/work` sessionizer |
-| 5 — Hyprland | ✅ | Compositor, waybar, rofi, notifications, lock/idle/wallpaper, screenshots, theming, quick-access keybinds |
-| 6 — Finalize | ✅ | This README. Clean-machine bootstrap validated by hand on a second real machine. |
-| 7 — Developer toolchain | ✅ | rustup, mold + sccache, just, Neovim treesitter/LSP/neotest/trouble |
-| 8 — `devstat` | ✅ | JSON data layer: focus, CI, services, ports, agents, watchers; agent hooks and notifications |
-| 9 — Quickshell bar | ✅ | Replaces waybar: workspaces, dev island, status island, popovers |
-| 10 — Dev hub | ✅ | Keyboard-first drawer: agents, CI, services, ports, watchers, quick controls |
-| 11 — Pokédex launcher | ✅ | Apps, projects, run, windows, calc, emoji |
-| 12 — Cards and polish | ✅ | Cheatsheets, power menu, wallpaper picker, lock screen |
-
-## Highlights
-
-### Whole-desktop theme switcher
+Check that everything works:
 
 ```sh
-theme tokyonight   # default
-theme f1           # pixel-art breakaway (currently: notifications only)
-theme wallpaper    # generated from whatever wallpaper is set
-theme              # interactive picker (rofi)
+./scripts/verify-phase1.sh    # base system
+./scripts/verify-phase2.sh    # shell and terminal
+./scripts/verify-phase3.sh    # dev toolchain
+./scripts/verify-phase4.sh    # editor
+./scripts/verify-phase5.sh    # Hyprland
+./scripts/verify-portability.sh   # nothing machine-specific is tracked
 ```
 
-One command re-themes kitty, rofi, Hyprland borders/hyprlock,
-the Quickshell bar and notifications, wlogout, Qt (qt6ct/qt5ct), GTK/icon/cursor, yazi, k9s, Obsidian
-together. Each theme lives in `themes/<name>/` and can be
-partial — a theme that only defines one app's file leaves everything
-else on whatever was active before.
+`verify-phase7.sh` to `verify-phase12.sh` and `verify-popovers.sh` cover the
+dev shell. They are read-only and print pass/fail/warn per check.
 
-`theme wallpaper` is the interesting one: it doesn't have a
-hand-written `themes/wallpaper/` directory at all. Running it invokes
-[matugen](https://github.com/InioX/matugen) against the current
-wallpaper (`matugen/config.toml` + `matugen/templates/*.tpl`), extracts
-a Material You palette, and regenerates every themed app's colors from
-it on the spot — never automatically, only when you ask.
+---
 
-### Bar and dev hub
+## Keybinds
 
-The bar is [Quickshell](https://quickshell.org) (`quickshell/`): three
-floating islands, with a centre "dev island" showing the focused
-project's branch and dirty state, running agents, containers and CI —
-and briefly expanding for events (CI red/green, an agent needing input,
-a long command finishing) and as the volume/brightness OSD.
+`$mod` is Super. The live list is always `$mod + /`.
 
-![Launcher](docs/screenshots/launcher.jpg)
+| Bind | Action | Bind | Action |
+|---|---|---|---|
+| `Return` | Terminal | `Space` / `` ` `` | Dev hub |
+| `D` | Launcher | `/` | Cheatsheet (<kbd>Tab</kbd>: Vim) |
+| `B` | Firefox | `E` | Files (nautilus) |
+| `Y` | yazi | `C` | k9s |
+| `S` | SSH picker | `M` | Spotify |
+| `N` | Notification centre | `.` | Emoji picker |
+| `W` | Wallpaper picker | `Shift+T` | Theme picker |
+| `P` | Power menu | `Escape` | Lock |
+| `Q` | Close window | `Shift+E` | Exit session |
+| `h/j/k/l` | Focus | `Shift+h/j/k/l` | Move window |
+| `Ctrl+h/j/k/l` | Resize | `Tab` / `Shift+Tab` | Cycle windows |
+| `1-9`, `0` | Workspace | `Shift+1-9`, `Shift+0` | Move window to workspace |
+| `Ctrl+V` | Clipboard history | `Ctrl+Shift+V` | Wipe history |
 
-The launcher (`$mod + D`) is a Pokédex-style device: apps ranked by launch
-count, plus `/` projects, `>` run, `@` windows, `=` calculator, `:` emoji.
+Screenshots use `Print`: region, `$mod+Print` window, `$mod+Shift+Print` full
+screen. Add `Ctrl` (or `Alt` for windows) to edit afterwards.
 
-`$mod + Space` opens the dev hub: a keyboard-driven drawer with agents
-(`a`), CI and PRs (`c`), compose services with up/down/logs (`s`),
-listening dev servers (`p`) and watch-mode builders (`w`), plus volume,
-brightness, mic, Wi-Fi/Bluetooth/Do-not-disturb/Caffeine toggles and
-now-playing. All data comes from `bin/bin/devstat`, which prints the same
-thing as JSON in a terminal.
+---
 
-### Terminal workflow
+## How it's built
 
-lazygit, yazi (themed through the same switcher) and Neovim sit side by side
-in kitty; every one of them follows the active theme.
+```
+bootstrap.sh          idempotent provisioner
+packages/             pacman.txt, aur.txt (shared) and host-<hostname>.txt
+hooks/                numbered post-install scripts (services, shell, docker, rust, theme…)
+host/<hostname>/      per-machine fragments, only when something truly differs
+bin/                  devstat, theme, work, wt, review, checks, queues, ssh-connect…
+quickshell/           the bar, hub, launcher, popovers, cheatsheet and notifications (QML)
+themes/<name>/        per-app colour files that bin/theme repoints
+matugen/              templates for the generated wallpaper theme
+agent-hooks/          the plugin that reports agent state to devstat
+orchestra/            optional multi-agent workflow (install with orchestra/install.sh)
+scripts/              verify-*.sh assertions, preview-lock.sh, dump-repo.sh
+<app>/                stow packages: kitty/, nvim/, hypr/, zsh/, tmux/…
+```
 
-![Terminal workspace](docs/screenshots/terminal.jpg)
+Every other top-level directory is a stow package whose inner tree mirrors
+`$HOME`. Adding an app's config needs no change to `bootstrap.sh`.
 
-### Neovim and the cheatsheet
+**`devstat` is the data layer.** `bin/bin/devstat` prints what is running,
+building and waiting as JSON, using only the Python standard library. The bar,
+hub and popovers just render it, so everything is testable from a terminal.
+Each section degrades to a value that says why (Docker stopped, `gh` offline)
+instead of throwing.
 
-Neovim runs on the native LSP API with lazy.nvim, plus an agent-review loop
-(`review`, `wt`, `checks`: diffview, gitsigns, lazygit). `$mod + /` opens a
-live cheatsheet of every Hyprland bind; Tab flips to a hand-curated Vim and
-Neovim tab.
+**Conventions**
 
-![Vim cheatsheet](docs/screenshots/cheatsheet.jpg)
+- Every config change lands in the repo. If it can't be a file, it's a hook.
+- Everything is idempotent.
+- Machine differences are a `host-<hostname>.txt` entry or a `host/<hostname>/` fragment, never a hostname `if` in a shared file.
+- No secrets. SSH keys, `.env` and tokens are gitignored; anything private lives in a sibling `*.local` file.
+- Font: JetBrainsMono Nerd Font.
 
-### Wallpapers and power menu
+CLAUDE.md in this repo is a long, honest log of the gotchas hit while building
+it (stow tree-folding, kitty over ssh, mason and mise, Quickshell quirks…).
+It's worth skimming before you change anything.
 
-`$mod + W` is a Pokémon-card wallpaper picker: type, HP and attacks come from
-each image's own palette. Enter sets the wallpaper; Shift+Enter also runs
-`theme wallpaper` to recolour the desktop. `$mod + P` is the power menu
-(reboot and shut down need a second press).
+---
 
-![Wallpaper picker](docs/screenshots/wallpapers.jpg)
-![Power menu](docs/screenshots/power.jpg)
+## Status
 
-### Keybinds
-
-Everything below assumes `$mod` = Super.
-
-| Bind | Action |
+| Phase | Covers |
 |---|---|
-| `Return` | Terminal |
-| `D` | Launcher (Pokédex) |
-| `Space` | Dev hub |
-| `/` | Cheatsheet (Tab: Vim) |
-| `Q` | Close window |
-| `Shift+E` | Exit session |
-| `B` | Firefox |
-| `E` | Files (nautilus) |
-| `M` | Spotify |
-| `S` | SSH picker (`~/.ssh/config` hosts) |
-| `P` | Power menu |
-| `.` | Emoji picker |
-| `Shift+T` | Theme picker |
-| `W` | Wallpaper picker |
-| `Escape` | Lock screen |
-| `h/j/k/l` | Focus movement (vim-style) |
-| `Shift+h/j/k/l` | Move window |
-| `Ctrl+h/j/k/l` | Resize window |
-| `Tab` / `Shift+Tab` | Cycle windows forward/back |
-| `1-9`, `0` | Switch workspace |
-| `Shift+1-9`, `Shift+0` | Move window to workspace |
-| `Ctrl+V` / `Ctrl+Shift+V` | Clipboard history / wipe history |
+| 0-1 | Scaffolding, base system: pacman, mirrors, zram, PipeWire, Bluetooth, Intel graphics |
+| 2-3 | Shell and terminal, dev toolchain: git, SSH, mise/Node, Docker, psql, valkey-cli, Temporal, direnv |
+| 4-5 | Neovim and tmux, Hyprland, theming and the theme switcher |
+| 6 | Finalise, verified by replaying `bootstrap.sh` on a second real machine |
+| 7-8 | Rust toolchain, `devstat` and agent hooks |
+| 9-10 | Quickshell bar, dev hub |
+| 11-12 | Launcher, cheatsheets, wallpaper cards, lock screen |
 
-Screenshot binds are the one exception to the `$mod`-everywhere rule above —
-listed here with the modifier spelled out in full each time:
+Tested on an Intel laptop (Comet Lake-U, integrated graphics, systemd-boot with a UKI)
+and one other machine. Expect to adjust `packages/host-*.txt`, display setup
+and fingerprint support for different hardware.
 
-| Bind | Action |
-|---|---|
-| `Print` | Screenshot region |
-| `$mod+Ctrl+Print` | Screenshot region, then edit |
-| `$mod+Print` | Screenshot window |
-| `$mod+Alt+Print` | Screenshot window, then edit |
-| `$mod+Shift+Print` | Screenshot full screen |
-| `$mod+Shift+Ctrl+Print` | Screenshot full screen, then edit |
+## Credits and licence
 
-## Repo layout
-
-```
-bootstrap.sh          idempotent provisioner; safe to re-run any time
-packages/
-  pacman.txt           official repos, shared across every machine
-  aur.txt              AUR, shared
-  host-<hostname>.txt  official repos, this machine only
-hooks/                 post-install scripts, run in filename order
-host/<hostname>/       per-machine config fragments, stowed separately
-scripts/
-  verify-phase<N>.sh   read-only assertions, exit criterion per phase
-  dump-repo.sh         dump structure + contents for handoff
-themes/<name>/         per-theme color/config files (bin/bin/theme reads these)
-matugen/               templates + config for the generated wallpaper theme
-orchestra/             optional agent workflow; installed with orchestra/install.sh
-<app>/                 stow packages, e.g. kitty/.config/kitty/kitty.conf
-```
-
-Every other top-level directory is a stow package — its inner tree
-mirrors `$HOME` exactly, and `bootstrap.sh` symlinks it in automatically.
-Adding a new app's config needs no changes to `bootstrap.sh` itself,
-just a new directory shaped like `<app>/.config/<app>/...`.
-
-## Conventions
-
-- **Every config change lands in this repo.** Nothing configured only
-  through a GUI or left in shell history. If it can't be a file, it's a
-  hook.
-- **Everything is idempotent.** Safe to re-run `bootstrap.sh` or any
-  hook at any time.
-- **Machine differences** go one of two places only: a
-  `packages/host-<hostname>.txt` entry, or a config fragment in
-  `host/<hostname>/`. Never a hostname conditional inside a shared file.
-- **No secrets.** SSH keys, `.env`, tokens are gitignored. Any config
-  needing an untracked local value sources a sibling `*.local` file
-  (git identity, SSH hosts, shell PATH tweaks from third-party
-  installers — anything machine- or person-specific).
-- **Font:** JetBrainsMono Nerd Font, everywhere icons show up.
-
-## Multi-machine notes
-
-Nothing in this repo is host-specific yet beyond `packages/host-<hostname>.txt`
-(CPU microcode — hardware-dependent, doesn't belong in the shared
-manifest). Everything else — including the coding/media tooling, the
-theme switcher, and the desktop widgets — installs the same way on any
-machine that bootstraps from this repo.
-
-If you're cloning onto a machine that already has its own configs for
-something this repo manages, `bootstrap.sh` moves each conflicting file to
-`<name>.pre-dotfiles.bak` before stowing. Review those backups after the
-first run. It leaves a conflict in place if that backup name already exists.
-
-## License and credits
-
-MIT, see `LICENSE`. That covers the configs and scripts only. The wallpapers
-in `wallpapers/` are third-party images with their own terms; replace them
-with your own if you redistribute. Themes, plugins and tools (TokyoNight,
-matugen, Quickshell, pokeget and others) belong to their authors.
+MIT, see [`LICENSE`](LICENSE). That covers the configs and scripts only. The
+images in `wallpapers/` are third-party and keep their own terms. Replace them
+if you redistribute. TokyoNight, matugen, Quickshell, Hyprland, pokeget and the
+other tools and plugins belong to their authors. The Pokémon theming is an
+affectionate homage, not an affiliated project.
