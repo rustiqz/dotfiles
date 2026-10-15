@@ -149,6 +149,7 @@ scripts/
   dump-repo.sh         dump structure + contents for handoff
 themes/<name>/         per-theme color/config files (bin/bin/theme reads these)
 matugen/               templates + config for the generated wallpaper theme
+orchestra/             optional agent workflow; installed with orchestra/install.sh
 <app>/                 stow packages, e.g. kitty/.config/kitty/kitty.conf
 ```
 
@@ -181,10 +182,7 @@ manifest). Everything else — including the coding/media tooling, the
 theme switcher, and the desktop widgets — installs the same way on any
 machine that bootstraps from this repo.
 
-If you're cloning this onto a machine that already has its own configs
-for something this repo also manages (a manually-set-up `.zshrc`,
-`lazygit` config, etc.), back those up or remove them before running
-`bootstrap.sh` — `stow` refuses to overwrite a real file with a symlink
-rather than silently clobbering it, so bootstrap will stop partway
-through with a conflict instead of losing anything, but you'll need to
-resolve that by hand before it can finish.
+If you're cloning onto a machine that already has its own configs for
+something this repo manages, `bootstrap.sh` moves each conflicting file to
+`<name>.pre-dotfiles.bak` before stowing. Review those backups after the
+first run. It leaves a conflict in place if that backup name already exists.
