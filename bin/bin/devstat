@@ -419,6 +419,36 @@ def git_state(path):
             "ahead": ahead, "behind": behind}
 
 
+def kitty_active(pid):
+    """What the *visible* tab of kitty process `pid` is doing: {cwd, fg}
+    (cwd of its foreground process, and those pids), or None.
+
+    A Hyprland window is a whole kitty process, tabs included — so walking
+    the window's descendants (below) can only guess, and "newest process"
+    picks whichever tab was opened last, not the one on screen. kitty
+    knows which tab is active; it just has to be asked, over the socket
+    kitty.conf opens (`listen_on`). None when that isn't available — a
+    kitty started before the setting, or remote control off — and the
+    caller falls back to the descendant guess."""
+    rc, out = run(["kitten", "@", "--to", f"unix:@kitty-{pid}", "ls"], timeout=2)
+    if rc != 0:
+        return None
+    try:
+        oses = json.loads(out)
+    except ValueError:
+        return None
+    # With several OS windows in one kitty process, the focused one.
+    osw = next((o for o in oses if o.get("is_focused")), oses[0] if oses else None)
+    tab = next((t for t in (osw or {}).get("tabs", []) if t.get("is_active")), None)
+    wins = (tab or {}).get("windows", [])
+    w = next((w for w in wins if w.get("is_active")), wins[0] if wins else None)
+    if not w:
+        return None
+    fg = w.get("foreground_processes") or []
+    return {"cwd": (fg[0].get("cwd") if fg else None) or w.get("cwd"),
+            "fg": [f["pid"] for f in fg if "pid" in f]}
+
+
 def sec_focus():
     win = focused_window()
     if not win:
@@ -427,9 +457,14 @@ def sec_focus():
     cwd = None
     desc = descendants(pid)
     table = procs()
+    # kitty: ask which tab is on screen (see kitty_active) before guessing.
+    kt = kitty_active(pid) if win.get("class") == "kitty" else None
+    if kt:
+        clients = {c["pid"]: c for c in tmux_clients()}
+        cwd = next((clients[f]["path"] for f in kt["fg"] if f in clients), None) or kt["cwd"]
     # Terminal running tmux: the meaningful path is the client's current pane.
     tmux_kids = [p for p in desc if table.get(p, {}).get("comm", "").startswith("tmux")]
-    if tmux_kids:
+    if cwd is None and tmux_kids:
         client_pids = {c["pid"]: c for c in tmux_clients()}
         for p in tmux_kids:
             if p in client_pids:
