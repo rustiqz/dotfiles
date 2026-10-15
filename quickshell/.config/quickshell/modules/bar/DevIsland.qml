@@ -261,7 +261,7 @@ Island {
                 hpad: 5
                 onClicked: {
                     const r = DevStat.reposFailing[0]
-                    const w = r && r.workflows.find(w => ["failure", "timed_out", "startup_failure"].includes(w.conclusion) && !w.managed)
+                    const w = r && (r.workflows || []).find(w => ["failure", "timed_out", "startup_failure"].includes(w.conclusion) && !w.managed)
                     Quickshell.execDetached(["xdg-open", w ? w.url : "https://github.com/notifications"])
                 }
                 Txt {

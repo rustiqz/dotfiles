@@ -92,6 +92,25 @@ second. Built on one laptop, then replayed on other machines.
   starts with a Pokéball tinted by git state (`bin/bin/prompt-pokeball`).
   Launcher, wallpaper cards and cheatsheet share type badges from
   `common/Dex.qml`; the lock screen is a Trainer Card.
+- **Bar popovers** (`widgets/Popover.qml`, `services/Pops.qml`,
+  `modules/popovers/`): clicking a status-island icon drops a themed card
+  under it — Wi-Fi (Quickshell.Networking, inline password), Bluetooth
+  (BlueZ; one battery figure per device — per-bud/case levels aren't in
+  BlueZ, so there is no L/R/Case view), audio (devices + per-app sliders),
+  battery (UPower, health from sysfs, power profile), system (CPU graph,
+  mem/swap/disk, kill-a-process), calendar, notification centre. Old
+  behaviours moved to right/middle click (nm-connection-editor, blueman,
+  pavucontrol, btop). `qs ipc call popover toggle <name> <x>` opens one
+  from a script. `scripts/verify-popovers.sh` checks them all.
+- **Quickshell is the notification daemon**, not swaync
+  (`services/Notifs.qml` owns `org.freedesktop.Notifications`;
+  `modules/notifications/` draws toasts and the centre; `$mod+N` is
+  `qs ipc call notifs toggle`). swaync stays installed as the rollback
+  (restore its `exec-once` and the old bind) — never run both. swaync can't
+  hand its history to another UI, which is why the daemon moved. Caveat:
+  `themes/f1`'s swaync skin no longer applies, and if something notifies
+  before `qs` is up, D-Bus activation can start swaync first (it then
+  holds the name; `pkill swaync` and reload `qs`).
 - yazi (`$mod+Y`, opens in a kitty window) is themed through the same
   switcher as everything else — flavors are looked up by *directory*
   name (`~/.config/yazi/flavors/<name>.yazi/`), so `bin/bin/theme`
