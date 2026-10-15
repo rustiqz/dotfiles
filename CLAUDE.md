@@ -133,7 +133,10 @@ second. Built on one laptop, then replayed on other machines.
   hand its history to another UI, which is why the daemon moved. Caveat:
   `themes/f1`'s swaync skin no longer applies, and if something notifies
   before `qs` is up, D-Bus activation can start swaync first (it then
-  holds the name; `pkill swaync` and reload `qs`).
+  holds the name; `pkill swaync` and reload `qs`). swaync's `config.json`
+  is the switcher's gitignored symlink (like every `active-theme.*`), not
+  a tracked file — `bin/bin/theme` used to `cp` over it, dirtying the repo
+  on every switch.
 - yazi (`$mod+Y`, opens in a kitty window) is themed through the same
   switcher as everything else — flavors are looked up by *directory*
   name (`~/.config/yazi/flavors/<name>.yazi/`), so `bin/bin/theme`
