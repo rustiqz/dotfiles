@@ -32,6 +32,13 @@ Singleton {
     readonly property string volOff: "\u{f0581}"         // md-volume_off
     readonly property var vol: ["\u{f057f}", "\u{f0580}", "\u{f057e}"]  // md-volume_low/medium/high
     readonly property string mic: "\u{f036c}"           // md-microphone
+    readonly property string lock: "\u{f033e}"           // md-lock
+    readonly property string headphones: "\u{f02cb}"     // md-headphones
+    readonly property string keyboard: "\u{f030c}"       // md-keyboard
+    readonly property string mouse: "\u{f037d}"          // md-mouse
+    readonly property string phone: "\u{f011c}"          // md-cellphone
+    readonly property string gamepad: "\u{f02b4}"        // md-gamepad
+    readonly property string speaker: "\u{f04c3}"        // md-speaker
     readonly property string bt: "\u{f00af}"             // md-bluetooth
     readonly property string btOn: "\u{f00b1}"           // md-bluetooth_connect
     readonly property string btOff: "\u{f00b2}"          // md-bluetooth_off

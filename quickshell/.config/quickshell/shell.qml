@@ -22,6 +22,7 @@ import qs.modules.cheatsheet
 import qs.modules.power
 import qs.modules.wallpaper
 import qs.modules.external
+import qs.modules.popovers
 
 ShellRoot {
     Variants {
@@ -44,6 +45,10 @@ ShellRoot {
 
     // Wallpaper picker as Pokémon cards — $mod+W (qs ipc call wallpapers toggle).
     Wallpapers {}
+
+    // Bar popovers — hang from the status island's icons (Pops picks which).
+    WifiPopover {}
+    BluetoothPopover {}
 
     // Click-outside-to-close for rofi and wlogout (not ours, so watched via
     // Hyprland layer events) — same behaviour as every popup above.
