@@ -98,6 +98,7 @@ zoxide                     # cd replacement: jumps to frecent directories
 git-delta                  # git diff/log pager, configured in git's stow pkg
 btop                       # process/resource monitor, mouse + theme support
 lazygit                    # terminal git UI, config themed to match the rest
+shellcheck                # shell linter, run by nvim-lint (nvim/plugins/lint.lua)
 jq                         # JSON query/pretty-print, used constantly at a CLI
 
 # Not otherwise guaranteed on a minimal Arch install; hooks/41-bat-theme.sh

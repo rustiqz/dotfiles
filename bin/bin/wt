@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# wt — one git worktree per agent task, so an agent's work never mixes
+# with yours and `review` shows exactly its changes.
+#   wt new <branch>   create ../<repo>.wt/<branch> on a new branch, print path
+#   wt ls             list worktrees
+#   wt rm <branch>    remove the worktree (the branch stays until merged)
+set -euo pipefail
+root=$(git rev-parse --show-toplevel)
+base="$(dirname "$root")/$(basename "$root").wt"
+case ${1:-} in
+  new) b=${2:?usage: wt new <branch>}; mkdir -p "$base"
+       git worktree add -b "$b" "$base/${b//\//-}" >&2; echo "$base/${b//\//-}" ;;
+  ls)  git worktree list ;;
+  rm)  b=${2:?usage: wt rm <branch>}; git worktree remove "$base/${b//\//-}" ;;
+  *)   sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac

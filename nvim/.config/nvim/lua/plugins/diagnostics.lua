@@ -7,6 +7,18 @@
 --   xx  whole workspace    xb  current buffer only
 --   xr  LSP references/definitions for the word under the cursor
 return {
+  -- Diagnostics inline at the end of the line, wrapped and coloured by
+  -- severity, instead of Neovim's single-line virtual text. Replaces the
+  -- built-in virtual_text so each problem isn't shown twice.
+  {
+    "rachartier/tiny-inline-diagnostic.nvim",
+    event = "VeryLazy",
+    priority = 1000,
+    config = function()
+      require("tiny-inline-diagnostic").setup()
+      vim.diagnostic.config({ virtual_text = false })
+    end,
+  },
   {
     "folke/trouble.nvim",
     cmd = "Trouble",
