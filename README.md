@@ -112,6 +112,13 @@ brightness, mic, Wi-Fi/Bluetooth/Do-not-disturb/Caffeine toggles and
 now-playing. All data comes from `bin/bin/devstat`, which prints the same
 thing as JSON in a terminal.
 
+### Terminal workflow
+
+lazygit, yazi (themed through the same switcher) and Neovim sit side by side
+in kitty; every one of them follows the active theme.
+
+![Terminal workspace](docs/screenshots/terminal.jpg)
+
 ### Neovim and the cheatsheet
 
 Neovim runs on the native LSP API with lazy.nvim, plus an agent-review loop
@@ -120,6 +127,16 @@ live cheatsheet of every Hyprland bind; Tab flips to a hand-curated Vim and
 Neovim tab.
 
 ![Vim cheatsheet](docs/screenshots/cheatsheet.jpg)
+
+### Wallpapers and power menu
+
+`$mod + W` is a Pokémon-card wallpaper picker: type, HP and attacks come from
+each image's own palette. Enter sets the wallpaper; Shift+Enter also runs
+`theme wallpaper` to recolour the desktop. `$mod + P` is the power menu
+(reboot and shut down need a second press).
+
+![Wallpaper picker](docs/screenshots/wallpapers.jpg)
+![Power menu](docs/screenshots/power.jpg)
 
 ### Keybinds
 
