@@ -129,6 +129,13 @@ return {
         end,
       })
 
+      -- taplo fetches the schema catalog on every initialize and logs a
+      -- decode error (the catalog format outran this taplo build). Cargo.toml
+      -- etc. don't need remote schemas for syntax/format support.
+      vim.lsp.config("taplo", {
+        settings = { evenBetterToml = { schema = { enabled = false } } },
+      })
+
       vim.lsp.enable(servers)
 
       -- Buffer-local, and only set where a server actually attached —
