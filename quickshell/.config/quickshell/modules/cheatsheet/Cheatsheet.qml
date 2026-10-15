@@ -30,6 +30,10 @@ Scope {
         id: sheet
         property bool open: false
         property var groups: []
+        // "hypr" = live Hyprland binds; "vim" = vim.json, a hand-curated
+        // sheet of vim itself plus this repo's nvim keymaps. Tab flips.
+        property string mode: "hypr"
+        property var vimGroups: []
 
         screen: Quickshell.screens.find(s => Hyprland.focusedMonitor && s.name === Hyprland.focusedMonitor.name)
                 || Quickshell.screens[0]
@@ -42,11 +46,13 @@ Scope {
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-        onOpenChanged: if (open) { filter.text = ""; binds.running = true; filter.forceActiveFocus() }
+        onOpenChanged: if (open) { filter.text = ""; binds.running = true; vimFile.reload(); filter.forceActiveFocus() }
 
         IpcHandler {
             target: "cheatsheet"
-            function toggle(): void { sheet.open = !sheet.open }
+            function toggle(): void { sheet.mode = "hypr"; sheet.open = !sheet.open }
+            // `qs ipc call cheatsheet vim` — straight to the vim/nvim sheet.
+            function vim(): void { sheet.mode = "vim"; sheet.open = !sheet.open }
         }
 
         // --- data ------------------------------------------------------------------------
@@ -54,6 +60,23 @@ Scope {
             id: binds
             command: ["hyprctl", "binds", "-j"]
             stdout: StdioCollector { onStreamFinished: { try { sheet.groups = sheet.build(JSON.parse(text)) } catch (e) {} } }
+        }
+
+        FileView {
+            id: vimFile
+            path: Quickshell.shellPath("modules/cheatsheet/vim.json")
+            blockLoading: true
+            onLoaded: {
+                try {
+                    sheet.vimGroups = JSON.parse(text()).map(g => {
+                        const t = Dex.types[g.type] || Dex.types.normal
+                        // keys are space-separated keycaps; a row with
+                        // none (or "shell") still renders its description.
+                        return { name: g.name, color: t.color, type: t.name,
+                                 rows: g.rows.map(r => ({ keys: r.keys.split(" ").filter(k => k), desc: r.desc })) }
+                    })
+                } catch (e) { console.warn("vim.json:", e) }
+            }
         }
 
         function mods(mask) {
@@ -116,7 +139,7 @@ Scope {
         }
 
         readonly property string q: filter.text.toLowerCase()
-        readonly property var shown: groups.map(g => ({
+        readonly property var shown: (mode === "vim" ? vimGroups : groups).map(g => ({
             name: g.name, color: g.color, type: g.type,   // type: the badge label (dropping it left blank badges)
             rows: g.rows.filter(r => !q || r.desc.toLowerCase().includes(q) || r.keys.join(" ").toLowerCase().includes(q)),
         })).filter(g => g.rows.length)
@@ -143,8 +166,9 @@ Scope {
                     Txt { text: Icons.keys; color: Theme.accent; font.pixelSize: 26 }
                     Column {
                         anchors.verticalCenter: parent.verticalCenter
-                        Txt { anchors.verticalCenter: undefined; text: "Keybinds"; font.bold: true; font.pixelSize: 20 }
-                        Txt { anchors.verticalCenter: undefined; text: "read live from your Hyprland config"
+                        Txt { anchors.verticalCenter: undefined; text: sheet.mode === "vim" ? "Vim & Neovim" : "Keybinds"; font.bold: true; font.pixelSize: 20 }
+                        Txt { anchors.verticalCenter: undefined
+                              text: (sheet.mode === "vim" ? "vim motions + this nvim config" : "read live from your Hyprland config") + "  ·  Tab switches"
                               color: Theme.subtle; font.pixelSize: Theme.smallSize + 1 }
                     }
                 }
@@ -163,9 +187,17 @@ Scope {
                         color: Theme.fg; font.family: Theme.font; font.pixelSize: 13
                         clip: true; focus: true
                         Keys.onEscapePressed: sheet.open = false
+                        // Arrow/page keys scroll the sheet — the vim tab is longer than the screen.
+                        Keys.onDownPressed: flick.contentY = Math.min(flick.contentHeight - flick.height, flick.contentY + 120)
+                        Keys.onUpPressed: flick.contentY = Math.max(0, flick.contentY - 120)
+                        Keys.onPressed: e => {
+                            if (e.key === Qt.Key_PageDown) flick.contentY = Math.min(flick.contentHeight - flick.height, flick.contentY + flick.height * 0.8)
+                            else if (e.key === Qt.Key_PageUp) flick.contentY = Math.max(0, flick.contentY - flick.height * 0.8)
+                        }
+                        Keys.onTabPressed: sheet.mode = sheet.mode === "vim" ? "hypr" : "vim"
                         Txt {
                             anchors.verticalCenter: undefined
-                            visible: !filter.text; text: "Filter binds…"; color: Theme.muted; font: filter.font
+                            visible: !filter.text; text: sheet.mode === "vim" ? "Filter keys…" : "Filter binds…"; color: Theme.muted; font: filter.font
                         }
                     }
                 }
@@ -238,6 +270,7 @@ Scope {
                                                     required property var modelData
                                                     width: grp.width; height: 22
                                                     Row {
+                                                        id: keyRow
                                                         spacing: 4
                                                         anchors.verticalCenter: parent.verticalCenter
                                                         Repeater {
@@ -247,7 +280,7 @@ Scope {
                                                     }
                                                     Txt {
                                                         anchors.right: parent.right
-                                                        width: Math.min(implicitWidth, parent.width * 0.55)
+                                                        width: Math.min(implicitWidth, parent.width - keyRow.width - 12)
                                                         horizontalAlignment: Text.AlignRight
                                                         elide: Text.ElideRight
                                                         text: modelData.desc

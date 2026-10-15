@@ -229,6 +229,11 @@ second. Built on one laptop, then replayed on other machines.
   `DEVSTAT_DEBUG=1` in an agent's environment traces every hook call.
   Projects are `~/projects` *or* `~/Projects` (machines differ; whichever
   is non-empty, or `$PROJECTS_DIR`) — same rule in `bin/bin/work`.
+- **Vim/nvim cheatsheet** is the second tab of the `$mod+/` sheet (Tab
+  flips; `$mod+Shift+/` opens it directly, `qs ipc call cheatsheet vim`).
+  Unlike the Hyprland tab it is hand-curated, in
+  `quickshell/.../modules/cheatsheet/vim.json` (generic vim + this repo's
+  keymaps) — update it in the same change as any nvim keymap.
 - **Agent review loop.** `agent-review-notify` (started detached by
   `devstat agent-event` when a long agent turn ends while you're elsewhere)
   runs `checks` (justfile `check`, else package.json typecheck/lint/test,
