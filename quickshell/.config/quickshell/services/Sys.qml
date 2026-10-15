@@ -14,7 +14,16 @@ Singleton {
     property real memUsedGb: 0
     property real memTotalGb: 0
 
+    property real swapUsedGb: 0
+    property real swapTotalGb: 0
+    property var cpuHist: []  // last 40 CPU samples (0..1), for the system popover's graph
+    property real netDown: 0  // bytes/s across every non-loopback interface
+    property real netUp: 0
+
     property var _last: null
+    property var _net: null
+
+    FileView { id: netdev; path: "/proc/net/dev"; blockLoading: true }
 
     FileView { id: stat; path: "/proc/stat"; blockLoading: true }
     FileView { id: meminfo; path: "/proc/meminfo"; blockLoading: true }
@@ -32,6 +41,19 @@ Singleton {
                 root.cpu = dt > 0 ? 1 - (idle - root._last.idle) / dt : 0
             }
             root._last = { idle, total }
+            root.cpuHist = [...root.cpuHist.slice(-39), root.cpu]
+
+            // /proc/net/dev: "iface: rx_bytes ... (8 rx cols) tx_bytes ...". Rate = delta / 2s tick.
+            netdev.reload()
+            let rx = 0, tx = 0
+            for (const line of netdev.text().split("\n").slice(2)) {
+                const [name, rest] = line.split(":")
+                if (!rest || name.trim() === "lo") continue
+                const c = rest.trim().split(/\s+/).map(Number)
+                rx += c[0]; tx += c[8]
+            }
+            if (root._net) { root.netDown = Math.max(0, (rx - root._net.rx) / 2); root.netUp = Math.max(0, (tx - root._net.tx) / 2) }
+            root._net = { rx, tx }
 
             meminfo.reload()
             const m = {}
@@ -43,6 +65,8 @@ Singleton {
                 root.mem = 1 - m.MemAvailable / m.MemTotal
                 root.memTotalGb = m.MemTotal / 1048576
                 root.memUsedGb = (m.MemTotal - m.MemAvailable) / 1048576
+                root.swapTotalGb = (m.SwapTotal || 0) / 1048576
+                root.swapUsedGb = ((m.SwapTotal || 0) - (m.SwapFree || 0)) / 1048576
             }
         }
     }
