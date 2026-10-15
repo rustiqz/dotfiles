@@ -53,7 +53,8 @@ Island {
         readonly property var wifi: devs.find(d => d.type === DeviceType.Wifi)
         readonly property var net: wifi ? wifi.networks.values.find(n => n.connected) : null
         hpad: 6
-        onClicked: root.run(["nm-connection-editor"])
+        onClicked: Pops.toggle("wifi", mapToItem(null, width / 2, 0).x)
+        onRightClicked: root.run(["nm-connection-editor"])
         Txt {
             text: parent.parent.wired ? Icons.ethernet
                 : parent.parent.net ? Icons.wifi[Math.min(3, Math.floor(parent.parent.net.signalStrength * 4))]
@@ -69,8 +70,9 @@ Island {
         readonly property bool connected: Bluetooth.devices.values.some(d => d.connected)
         visible: adapter !== null
         hpad: 6
-        onClicked: root.run(["blueman-manager"])
+        onClicked: Pops.toggle("bluetooth", mapToItem(null, width / 2, 0).x)
         onRightClicked: if (adapter) adapter.enabled = !adapter.enabled
+        onMiddleClicked: root.run(["blueman-manager"])
         Txt {
             text: !parent.parent.adapter || !parent.parent.adapter.enabled ? Icons.btOff
                 : parent.parent.connected ? Icons.btOn : Icons.bt
