@@ -27,7 +27,7 @@ ipc=$(qs ipc show 2>&1)
 for t in popover notifs; do
   [[ $ipc == *"target $t"* ]] && ok "ipc target '$t' registered" || no "ipc target '$t' missing"
 done
-for name in wifi bluetooth audio battery system calendar notifications; do
+for name in wifi bluetooth audio battery system calendar notifications dev media; do
   qs ipc call popover toggle "$name" 1500 >/dev/null 2>&1
   sleep 0.8
   mapped quickshell-popover && ok "$name: card mapped" || no "$name: card did not map"
@@ -35,6 +35,15 @@ for name in wifi bluetooth audio battery system calendar notifications; do
   sleep 0.6
   mapped quickshell-popover && no "$name: card still mapped after close" || ok "$name: closed"
 done
+
+hdr "Dev island focus"
+# devstat's focus section follows kitty's *active tab* over a socket that
+# kitty.conf opens; without it the island names the newest process in any tab.
+grep -q '^listen_on unix:@kitty-{kitty_pid}' kitty/.config/kitty/kitty.conf \
+  && grep -q '^allow_remote_control socket-only' kitty/.config/kitty/kitty.conf \
+  && ok "kitty.conf opens the per-process control socket" || no "kitty.conf lacks listen_on/allow_remote_control"
+python3 -c "import ast;ast.parse(open('bin/bin/devstat').read())" 2>/dev/null \
+  && ok "devstat parses" || no "devstat has a syntax error"
 
 hdr "Notification daemon"
 owner=$(busctl --user status org.freedesktop.Notifications 2>/dev/null | awk -F= '/^Comm=/{print $2}')

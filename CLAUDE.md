@@ -102,6 +102,29 @@ second. Built on one laptop, then replayed on other machines.
   behaviours moved to right/middle click (nm-connection-editor, blueman,
   pavucontrol, btop). `qs ipc call popover toggle <name> <x>` opens one
   from a script. `scripts/verify-popovers.sh` checks them all.
+- **Dev popover** (`modules/popovers/DevPopover.qml`, click the island's
+  project/branch): two columns — project/branch/PR header, agents with
+  live "working 4m" timers (click jumps), plan-usage meters; CI, PRs —
+  and a full-width RUNNING strip (orchestra delegations, watchers,
+  compose projects with start/stop/logs buttons, listening ports). Keys:
+  `↵` jump, `c` CI run, `l` failed log, `p` PR, `h` hub. The island itself
+  is deliberately just project·branch + the agent chip; CI/usage/containers
+  moved into the popover (CI failures still flash as events).
+- **Media popover** (`modules/popovers/MediaPopover.qml`,
+  `services/Media.qml`): the bar's music chip (exists only while an MPRIS
+  player does; middle = play/pause, right = next). Art, track, seekable
+  progress, shuffle/repeat, player volume, player chips when several.
+  `Media.current` picks pinned → playing → first. MPRIS never pushes
+  `position`, so the popover calls `positionChanged()` once a second.
+  Tested against a fake MPRIS service (Gio) — no input simulator is
+  installed, so clicks themselves were never exercised, only the API calls.
+- **The island's project follows the visible kitty tab.** A Hyprland
+  window is one kitty process, tabs included; `devstat focus` used to take
+  the newest descendant process, i.e. the last-opened tab. kitty.conf now
+  opens `listen_on unix:@kitty-{kitty_pid}` (+ `allow_remote_control
+  socket-only`) and `kitty_active()` asks `kitten @ ls` for the active
+  tab's foreground cwd. Only kitty windows started after the setting have
+  the socket; older ones fall back to the guess.
 - **Quickshell is the notification daemon**, not swaync
   (`services/Notifs.qml` owns `org.freedesktop.Notifications`;
   `modules/notifications/` draws toasts and the centre; `$mod+N` is
