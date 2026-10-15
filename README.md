@@ -5,14 +5,19 @@ second. Built on one laptop, meant to be replayed on others —
 one command re-provisions a fresh machine to the same state.
 
 TokyoNight everywhere by default, with a wallpaper-driven theme generated
-on demand and a pixel-art breakaway theme for notifications.
+on demand. The desktop is built around development: a Quickshell bar and
+dev hub that show your agents, CI, containers and dev servers at a glance,
+a Neovim setup with an agent-review loop, and a Pokémon layer on top.
+
+![Dev hub over Neovim](docs/screenshots/hub.jpg)
 
 ## Quick start
 
 HTTPS, not SSH: a fresh machine has no SSH key registered with GitHub
-yet, so an SSH clone fails before anything else can run. (Private repo:
-`gh auth login` first, or use a token.) Works for any account and any
-username — nothing in the repo bakes in a home path.
+yet, so an SSH clone fails before anything else can run. Works for any
+account and any username — nothing in the repo bakes in a home path.
+Arch Linux only; read `bootstrap.sh` and `hooks/` before running them,
+since they install packages, enable services and change your login shell.
 
 ```sh
 git clone https://github.com/rustiqz/dotfiles.git ~/dotfiles
@@ -38,7 +43,9 @@ Verify any phase is actually working with its own script:
 ./scripts/verify-phase3.sh   # dev toolchain
 ./scripts/verify-phase4.sh   # editor
 ./scripts/verify-phase5.sh   # Hyprland desktop
+./scripts/verify-portability.sh  # nothing machine-specific is tracked
 ```
+(`verify-phase7.sh` … `verify-phase12.sh` and `verify-popovers.sh` cover the dev shell.)
 
 Each is read-only and reports pass/fail/warn per check — nothing to
 interpret, just run it.
@@ -53,7 +60,13 @@ interpret, just run it.
 | 3 — Dev toolchain | ✅ | git, SSH, Node (mise), Docker, psql, valkey-cli, Temporal CLI, direnv, Bruno |
 | 4 — Editor | ✅ | Neovim + lazy.nvim, LSP via mason, tmux (TPM), `~/bin/work` sessionizer |
 | 5 — Hyprland | ✅ | Compositor, waybar, rofi, notifications, lock/idle/wallpaper, screenshots, theming, quick-access keybinds |
-| 6 — Finalize | ⏳ | This README. Clean-machine bootstrap gets validated by hand on each new machine rather than a disposable VM. |
+| 6 — Finalize | ✅ | This README. Clean-machine bootstrap validated by hand on a second real machine. |
+| 7 — Developer toolchain | ✅ | rustup, mold + sccache, just, Neovim treesitter/LSP/neotest/trouble |
+| 8 — `devstat` | ✅ | JSON data layer: focus, CI, services, ports, agents, watchers; agent hooks and notifications |
+| 9 — Quickshell bar | ✅ | Replaces waybar: workspaces, dev island, status island, popovers |
+| 10 — Dev hub | ✅ | Keyboard-first drawer: agents, CI, services, ports, watchers, quick controls |
+| 11 — Pokédex launcher | ✅ | Apps, projects, run, windows, calc, emoji |
+| 12 — Cards and polish | ✅ | Cheatsheets, power menu, wallpaper picker, lock screen |
 
 ## Highlights
 
@@ -66,9 +79,9 @@ theme wallpaper    # generated from whatever wallpaper is set
 theme              # interactive picker (rofi)
 ```
 
-One command re-themes kitty, waybar, rofi, Hyprland borders/hyprlock,
-swaync, wlogout, Qt (qt6ct/qt5ct), GTK/icon/cursor, yazi, Obsidian, and
-the desktop widget sidebar together. Each theme lives in `themes/<name>/` and can be
+One command re-themes kitty, rofi, Hyprland borders/hyprlock,
+the Quickshell bar and notifications, wlogout, Qt (qt6ct/qt5ct), GTK/icon/cursor, yazi, k9s, Obsidian
+together. Each theme lives in `themes/<name>/` and can be
 partial — a theme that only defines one app's file leaves everything
 else on whatever was active before.
 
@@ -87,12 +100,26 @@ project's branch and dirty state, running agents, containers and CI —
 and briefly expanding for events (CI red/green, an agent needing input,
 a long command finishing) and as the volume/brightness OSD.
 
+![Launcher](docs/screenshots/launcher.jpg)
+
+The launcher (`$mod + D`) is a Pokédex-style device: apps ranked by launch
+count, plus `/` projects, `>` run, `@` windows, `=` calculator, `:` emoji.
+
 `$mod + Space` opens the dev hub: a keyboard-driven drawer with agents
 (`a`), CI and PRs (`c`), compose services with up/down/logs (`s`),
 listening dev servers (`p`) and watch-mode builders (`w`), plus volume,
 brightness, mic, Wi-Fi/Bluetooth/Do-not-disturb/Caffeine toggles and
 now-playing. All data comes from `bin/bin/devstat`, which prints the same
 thing as JSON in a terminal.
+
+### Neovim and the cheatsheet
+
+Neovim runs on the native LSP API with lazy.nvim, plus an agent-review loop
+(`review`, `wt`, `checks`: diffview, gitsigns, lazygit). `$mod + /` opens a
+live cheatsheet of every Hyprland bind; Tab flips to a hand-curated Vim and
+Neovim tab.
+
+![Vim cheatsheet](docs/screenshots/cheatsheet.jpg)
 
 ### Keybinds
 
@@ -101,16 +128,17 @@ Everything below assumes `$mod` = Super.
 | Bind | Action |
 |---|---|
 | `Return` | Terminal |
-| `D` | App launcher (rofi) |
+| `D` | Launcher (Pokédex) |
+| `Space` | Dev hub |
+| `/` | Cheatsheet (Tab: Vim) |
 | `Q` | Close window |
 | `Shift+E` | Exit session |
 | `B` | Firefox |
 | `E` | Files (nautilus) |
 | `M` | Spotify |
 | `S` | SSH picker (`~/.ssh/config` hosts) |
-| `P` | Power menu (wlogout) |
+| `P` | Power menu |
 | `.` | Emoji picker |
-| `` ` `` | Toggle desktop widget sidebar |
 | `Shift+T` | Theme picker |
 | `W` | Wallpaper picker |
 | `Escape` | Lock screen |
@@ -186,3 +214,10 @@ If you're cloning onto a machine that already has its own configs for
 something this repo manages, `bootstrap.sh` moves each conflicting file to
 `<name>.pre-dotfiles.bak` before stowing. Review those backups after the
 first run. It leaves a conflict in place if that backup name already exists.
+
+## License and credits
+
+MIT, see `LICENSE`. That covers the configs and scripts only. The wallpapers
+in `wallpapers/` are third-party images with their own terms; replace them
+with your own if you redistribute. Themes, plugins and tools (TokyoNight,
+matugen, Quickshell, pokeget and others) belong to their authors.
