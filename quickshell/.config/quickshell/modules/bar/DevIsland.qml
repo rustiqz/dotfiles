@@ -150,10 +150,12 @@ Island {
             readonly property var f: DevStat.focus
             readonly property var git: f && f.git ? f.git : null
 
-            // project · branch ●n ↑a↓b — or the focused window's class
-            Row {
+            // project · branch ●n ↑a↓b — or the focused window's class.
+            // Click opens the dev popover (modules/popovers/DevPopover.qml).
+            Hover {
                 spacing: 6
-                anchors.verticalCenter: parent.verticalCenter
+                hpad: 6
+                onClicked: Pops.toggle("dev", mapToItem(null, width / 2, 0).x)
                 Txt {
                     text: restFace.f && restFace.f.project ? Icons.branch : Icons.app
                     color: restFace.f && restFace.f.project ? Theme.accent : Theme.muted
@@ -220,65 +222,6 @@ Island {
                     visible: DevStat.sessions.length > 1
                     text: DevStat.sessions.length
                     color: Theme.subtle
-                    font.pixelSize: Theme.smallSize + 1
-                }
-            }
-
-            // Claude's 5-hour session usage (from the status-line snapshot),
-            // coloured like the status line itself: green, yellow from 60%,
-            // red from 85%. Click → the hub's Party, which has both windows.
-            Hover {
-                readonly property real u: DevStat.claudeSession
-                visible: u >= 0
-                hpad: 5
-                onClicked: Quickshell.execDetached(["qs", "ipc", "call", "hub", "openSection", "a"])
-                Txt { text: "5h"; color: Theme.muted; font.pixelSize: Theme.smallSize }
-                Txt {
-                    text: `${Math.round(parent.parent.u)}%`
-                    color: parent.parent.u >= 85 ? Theme.err : parent.parent.u >= 60 ? Theme.warn : Theme.ok
-                    font.pixelSize: Theme.smallSize + 1
-                    font.bold: true
-                }
-            }
-
-            // Containers: count running; warn tint when a compose project is
-            // degraded (unhealthy or partially up). Click → lazydocker.
-            Hover {
-                readonly property bool degraded: DevStat.services.projects
-                                                 && DevStat.services.projects.some(p => p.state === "degraded")
-                visible: DevStat.containersRunning > 0
-                hpad: 5
-                onClicked: Quickshell.execDetached(["uwsm", "app", "--", "kitty", "--title", "lazydocker", "-e", "lazydocker"])
-                Txt { text: Icons.docker; color: parent.parent.degraded ? Theme.warn : Theme.info; font.pixelSize: Theme.iconSize }
-                Txt { text: DevStat.containersRunning; color: Theme.subtle; font.pixelSize: Theme.smallSize + 1 }
-            }
-
-            // CI: red with count when a repo's default branch is failing,
-            // spinning while runs are in flight, a quiet check otherwise.
-            // Click opens the first failing run.
-            Hover {
-                visible: DevStat.ci && DevStat.ci.available
-                hpad: 5
-                onClicked: {
-                    const r = DevStat.reposFailing[0]
-                    const w = r && r.workflows.find(w => ["failure", "timed_out", "startup_failure"].includes(w.conclusion) && !w.managed)
-                    Quickshell.execDetached(["xdg-open", w ? w.url : "https://github.com/notifications"])
-                }
-                Txt {
-                    text: DevStat.reposFailing.length ? Icons.ciFail : DevStat.ciRunning ? Icons.ciRun : Icons.ciPass
-                    color: DevStat.reposFailing.length ? Theme.err : DevStat.ciRunning ? Theme.info : Theme.ok
-                    opacity: DevStat.ci && DevStat.ci.stale ? 0.5 : 1
-                    font.pixelSize: Theme.iconSize
-                    RotationAnimator on rotation {
-                        running: DevStat.ciRunning && !DevStat.reposFailing.length
-                        loops: Animation.Infinite; from: 0; to: 360; duration: 1400
-                        onRunningChanged: if (!running) parent.rotation = 0
-                    }
-                }
-                Txt {
-                    visible: DevStat.reposFailing.length > 0
-                    text: DevStat.reposFailing.length
-                    color: Theme.err
                     font.pixelSize: Theme.smallSize + 1
                 }
             }

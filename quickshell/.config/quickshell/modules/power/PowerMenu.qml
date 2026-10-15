@@ -47,7 +47,7 @@ Scope {
         visible: open || fade.running
         WlrLayershell.namespace: "quickshell-power"
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
         onOpenChanged: if (open) { cursor = 0; armed = -1; uptimeProc.running = true; keys.forceActiveFocus() }
 

@@ -10,9 +10,10 @@
  * system icon theme via freedesktop lookup (show-icons below), not a
  * Nerd Font glyph, so there's no PUA codepoint to get wrong.
  *
- * Note: on Wayland, rofi can't reliably detect clicks outside its own
- * window (a rofi 2.0 Wayland-backend limitation, not a bug in this
- * config) — Escape is the reliable way to dismiss it, not click-away.
+ * Note: on Wayland, rofi can't detect clicks outside its own window (a
+ * rofi 2.0 backend limitation). Click-away is provided from outside instead:
+ * quickshell/.../modules/external/ExternalScrim.qml shows a scrim while a
+ * `rofi` layer exists and kills rofi when it's clicked.
  */
 
 @import "active-theme.rasi"
@@ -29,22 +30,37 @@ configuration {
   text-color:         @foreground;
 }
 
+/* Shaped like the Quickshell popups (power menu, launcher): Theme.radius+4
+ * corners and a 1px quiet border, with the accent kept for the prompt and
+ * selection instead of an outline. */
 window {
   width: 600px;
-  border: 2px;
-  border-color: @accent;
-  border-radius: 6px;   /* matches decoration.rounding in hypr/look.conf */
+  border: 1px;
+  border-color: @border;
+  border-radius: 18px;
 }
 
 mainbox {
-  padding: 8px;
+  padding: 12px;
 }
 
 inputbar {
   background-color: @background-alt;
   text-color: @foreground;
-  padding: 8px 10px;
-  border-radius: 4px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  spacing: 8px;
+}
+
+prompt {
+  background-color: transparent;
+  text-color: @accent;
+}
+
+entry {
+  background-color: transparent;
+  text-color: @foreground;
+  placeholder-color: @muted;
 }
 
 listview {
@@ -63,8 +79,9 @@ listview {
  * "no alternating/pill styling" preference.
  */
 element {
-  padding: 6px 8px;
-  border-radius: 4px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  spacing: 10px;
 }
 
 element normal.normal,
@@ -75,7 +92,7 @@ element alternate.normal {
 
 element selected.normal {
   background-color: @selected;
-  text-color: @foreground;
+  text-color: @accent;
 }
 
 element-icon {

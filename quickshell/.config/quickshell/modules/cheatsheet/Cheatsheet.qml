@@ -40,7 +40,7 @@ Scope {
         visible: open || fade.running
         WlrLayershell.namespace: "quickshell-cheatsheet"
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
         onOpenChanged: if (open) { filter.text = ""; binds.running = true; filter.forceActiveFocus() }
 

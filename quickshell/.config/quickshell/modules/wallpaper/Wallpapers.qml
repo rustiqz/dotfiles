@@ -52,7 +52,7 @@ Scope {
         visible: open || fade.running
         WlrLayershell.namespace: "quickshell-wallpapers"
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
         onOpenChanged: if (open) { listProc.running = true; keys.forceActiveFocus() }
 
@@ -262,9 +262,9 @@ Scope {
                                     gradient: Gradient {
                                         orientation: Gradient.Horizontal
                                         GradientStop { position: 0.0; color: "transparent" }
-                                        GradientStop { position: 0.35; color: "#7dcfff" }
+                                        GradientStop { position: 0.35; color: Theme.info }
                                         GradientStop { position: 0.5; color: "#ffffff" }
-                                        GradientStop { position: 0.65; color: "#bb9af7" }
+                                        GradientStop { position: 0.65; color: Theme.accent2 }
                                         GradientStop { position: 1.0; color: "transparent" }
                                     }
                                     NumberAnimation on x {

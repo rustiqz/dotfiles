@@ -9,4 +9,7 @@
   foreground:         {{ colors.on_background.default.hex }};
   selected:           {{ colors.surface_container_highest.default.hex }};
   accent:             {{ colors.primary.default.hex }};
+  border:             {{ colors.outline_variant.default.hex }};
+  muted:              {{ colors.outline.default.hex }};
+  subtle:             {{ colors.on_surface_variant.default.hex }};
 }

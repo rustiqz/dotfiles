@@ -55,7 +55,7 @@ PanelWindow {
 
     WlrLayershell.namespace: "quickshell-hub"
     WlrLayershell.layer: WlrLayer.Overlay   // above the scrim (Top)
-    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     onOpenChanged: {
         DevStat.hubOpen = open
@@ -193,14 +193,14 @@ PanelWindow {
         const out = []
         for (const r of ci.repos) {
             const name = r.slug.split("/").pop()
-            const failing = r.workflows.filter(w => bad.includes(w.conclusion) && !w.managed)
+            const failing = (r.workflows || []).filter(w => bad.includes(w.conclusion) && !w.managed)
             const actionsUrl = `https://github.com/${r.slug}/actions`
             out.push({
                 icon: Icons.github, iconColor: stateColor[r.state] || Theme.muted,
                 title: name,
                 subtitle: failing.length ? `failing: ${failing.map(w => w.name).join(", ")}`
-                        : r.running.length ? `running: ${r.running.map(w => w.name).join(", ")}`
-                        : r.workflows.length ? "all workflows passing" : "no workflows",
+                        : (r.running || []).length ? `running: ${(r.running || []).map(w => w.name).join(", ")}`
+                        : (r.workflows || []).length ? "all workflows passing" : "no workflows",
                 chip: r.state === "none" ? "" : r.state, chipColor: stateColor[r.state],
                 actions: {
                     Enter: () => hub.url(failing.length ? failing[0].url : actionsUrl),
@@ -209,7 +209,7 @@ PanelWindow {
                         ["sh", "-c", `gh run view ${failing[0].id} -R ${r.slug} --log-failed | less -R`]) : null,
                 },
             })
-            for (const pr of r.prs) {
+            for (const pr of (r.prs || [])) {
                 const chip = pr.checks_failing ? `${pr.checks_failing} failing` : pr.checks_pending ? "checks…" : "checks ok"
                 out.push({
                     indent: 1, icon: Icons.pr,

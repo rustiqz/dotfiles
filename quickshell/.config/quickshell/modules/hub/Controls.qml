@@ -153,6 +153,56 @@ Column {
         }
     }
 
+    // --- power profile ------------------------------------------------------------------
+    // Segmented selector for power-profiles-daemon: one segment per
+    // profile the hardware offers, the active one filled. Full width
+    // because a profile is a choice among named options, not an on/off.
+    Row {
+        id: profiles
+        width: parent.width
+        spacing: 6
+        Repeater {
+            model: PowerProf.order
+            delegate: Rectangle {
+                id: seg
+                required property int modelData
+                readonly property bool on: PowerProf.profile === modelData
+                readonly property color tint: PowerProf.color(modelData)
+                width: (profiles.width - (PowerProf.order.length - 1) * 6) / PowerProf.order.length
+                height: 38
+                radius: 12
+                color: on ? Theme.alpha(Theme.accent, 0.22) : Theme.alpha(Theme.surfaceHi, 0.6)
+                border.width: 1
+                border.color: on ? Theme.alpha(Theme.accent, 0.6) : "transparent"
+                Behavior on color { ColorAnimation { duration: Theme.animFast } }
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 6
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: PowerProf.icon(seg.modelData)
+                        color: seg.on ? Theme.accent : Theme.subtle
+                        font.family: Theme.font
+                        font.pixelSize: Theme.iconSize + 2
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: PowerProf.label(seg.modelData)
+                        color: seg.on ? Theme.fg : Theme.subtle
+                        font.family: Theme.font
+                        font.pixelSize: Theme.smallSize
+                        font.bold: true
+                    }
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: PowerProf.set(seg.modelData)
+                }
+            }
+        }
+    }
+
     // --- now playing --------------------------------------------------------------------
     // The playing player if any, else the first that exists. Hidden when
     // there's nothing — no empty "Nothing playing" card taking up room.

@@ -74,7 +74,10 @@ second. Built on one laptop, then replayed on other machines.
   opens, `l` failed log in a terminal), `s` compose services (Enter logs,
   `u`/`d` up/down via `devstat act`, `z` lazydocker), `p` listening dev
   servers, `w` watchers — plus volume/brightness/mic sliders,
-  Wi-Fi/Bluetooth/Silence/Caffeine toggles and now-playing. It replaced
+  Wi-Fi/Bluetooth/Silence/Caffeine toggles, a power-profile selector
+  (Saver/Balanced/Performance, also an icon in the bar's status island —
+  click cycles up, right-click down; both read `services/PowerProf.qml`)
+  and now-playing. It replaced
   the ags sidebar (Docker + now-playing); ags is gone from the repo and
   manifests. `qs ipc call hub openSection <letter>` opens a section from
   a script.
@@ -89,6 +92,51 @@ second. Built on one laptop, then replayed on other machines.
   starts with a Pokéball tinted by git state (`bin/bin/prompt-pokeball`).
   Launcher, wallpaper cards and cheatsheet share type badges from
   `common/Dex.qml`; the lock screen is a Trainer Card.
+- **Bar popovers** (`widgets/Popover.qml`, `services/Pops.qml`,
+  `modules/popovers/`): clicking a status-island icon drops a themed card
+  under it — Wi-Fi (Quickshell.Networking, inline password), Bluetooth
+  (BlueZ; one battery figure per device — per-bud/case levels aren't in
+  BlueZ, so there is no L/R/Case view), audio (devices + per-app sliders),
+  battery (UPower, health from sysfs, power profile), system (CPU graph,
+  mem/swap/disk, kill-a-process), calendar, notification centre. Old
+  behaviours moved to right/middle click (nm-connection-editor, blueman,
+  pavucontrol, btop). `qs ipc call popover toggle <name> <x>` opens one
+  from a script. `scripts/verify-popovers.sh` checks them all.
+- **Dev popover** (`modules/popovers/DevPopover.qml`, click the island's
+  project/branch): two columns — project/branch/PR header, agents with
+  live "working 4m" timers (click jumps), plan-usage meters; CI, PRs —
+  and a full-width RUNNING strip (orchestra delegations, watchers,
+  compose projects with start/stop/logs buttons, listening ports). Keys:
+  `↵` jump, `c` CI run, `l` failed log, `p` PR, `h` hub. The island itself
+  is deliberately just project·branch + the agent chip; CI/usage/containers
+  moved into the popover (CI failures still flash as events).
+- **Media popover** (`modules/popovers/MediaPopover.qml`,
+  `services/Media.qml`): the bar's music chip (exists only while an MPRIS
+  player does; middle = play/pause, right = next). Art, track, seekable
+  progress, shuffle/repeat, player volume, player chips when several.
+  `Media.current` picks pinned → playing → first. MPRIS never pushes
+  `position`, so the popover calls `positionChanged()` once a second.
+  Tested against a fake MPRIS service (Gio) — no input simulator is
+  installed, so clicks themselves were never exercised, only the API calls.
+- **The island's project follows the visible kitty tab.** A Hyprland
+  window is one kitty process, tabs included; `devstat focus` used to take
+  the newest descendant process, i.e. the last-opened tab. kitty.conf now
+  opens `listen_on unix:@kitty-{kitty_pid}` (+ `allow_remote_control
+  socket-only`) and `kitty_active()` asks `kitten @ ls` for the active
+  tab's foreground cwd. Only kitty windows started after the setting have
+  the socket; older ones fall back to the guess.
+- **Quickshell is the notification daemon**, not swaync
+  (`services/Notifs.qml` owns `org.freedesktop.Notifications`;
+  `modules/notifications/` draws toasts and the centre; `$mod+N` is
+  `qs ipc call notifs toggle`). swaync stays installed as the rollback
+  (restore its `exec-once` and the old bind) — never run both. swaync can't
+  hand its history to another UI, which is why the daemon moved. Caveat:
+  `themes/f1`'s swaync skin no longer applies, and if something notifies
+  before `qs` is up, D-Bus activation can start swaync first (it then
+  holds the name; `pkill swaync` and reload `qs`). swaync's `config.json`
+  is the switcher's gitignored symlink (like every `active-theme.*`), not
+  a tracked file — `bin/bin/theme` used to `cp` over it, dirtying the repo
+  on every switch.
 - yazi (`$mod+Y`, opens in a kitty window) is themed through the same
   switcher as everything else — flavors are looked up by *directory*
   name (`~/.config/yazi/flavors/<name>.yazi/`), so `bin/bin/theme`
@@ -523,15 +571,17 @@ scripts/
   sizes from its content) — warned on every open, caught by the verify
   script's clean-log check.
 
-- **`HyprlandFocusGrab` never clears on a layer with exclusive keyboard
-  focus.** The hub's grab went active on open but never fired `cleared`
-  — not on an outside click (reported by use), not even when focus moved
-  to another window via `hyprctl dispatch focuswindow` (traced with
-  console.info). Click-outside-to-close is a full-screen transparent
-  scrim layer one level under the hub instead; it needs nothing from
-  the compositor. There's no input simulator installed (ydotool/wtype),
-  so verify-phase10 asserts the scrim's geometry and stacking, not the
-  click itself.
+- **A popup with `keyboardFocus: Exclusive` gets no click-outside, ever.**
+  Hyprland sends no pointer input to any other layer while an exclusive
+  one is up, so the shared scrim (`widgets/Scrim.qml`, one level under
+  the popup) never saw a click or touch — and `HyprlandFocusGrab` never
+  fired `cleared` for the same reason. All popups now use `OnDemand`,
+  which still takes keys immediately on open. This went unnoticed for
+  phases because verify-phase10 asserted the scrim's geometry and
+  stacking only (no input simulator installed); the fix was found by
+  switching one popup to OnDemand and clicking. rofi/wlogout get the
+  same scrim from `modules/external/ExternalScrim.qml`, driven by
+  Hyprland `openlayer`/`closelayer` events.
 
 - **Quickshell needs the icon theme set explicitly** —
   `//@ pragma IconTheme Papirus-Dark` in `shell.qml` (startup-only, a
