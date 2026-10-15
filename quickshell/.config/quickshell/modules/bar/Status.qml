@@ -128,6 +128,12 @@ Island {
         implicitHeight: Theme.barHeight
         anchors.verticalCenter: parent.verticalCenter
 
+        MouseArea {   // opens the battery popover (z below the capsule's children is fine — they take no input)
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: Pops.toggle("battery", mapToItem(null, width / 2, 0).x)
+        }
+
         Rectangle {
             id: capsule
             anchors.centerIn: parent
