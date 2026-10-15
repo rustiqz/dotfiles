@@ -28,4 +28,7 @@ require("lazy").setup({
   -- Update checks require a network call on every startup; off by
   -- default, run `:Lazy check` when actually looking for updates.
   checker = { enabled = false },
+  -- No plugin here needs luarocks; with rocks on, lazy's health check
+  -- errors about a hererocks/luarocks install that doesn't exist.
+  rocks = { enabled = false },
 })

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#
+# checks — run a project's own quality gates and say pass/fail, so an
+# agent's work can be triaged *before* you read the diff: green diffs get
+# reviewed, red ones go straight back to the agent.
+#
+# Gate order of preference, first match wins per ecosystem:
+#   justfile `check` recipe   -> `just check` (the project knows best)
+#   package.json              -> typecheck, lint, test (whichever scripts exist)
+#   Cargo.toml                -> clippy -D warnings, test
+#
+# Usage: checks [dir]     exit 0 = all green, 1 = something failed
+# Output: one line per gate ("✓ lint" / "✗ test"); failing output is kept
+# in $XDG_STATE_HOME/devstat/checks.log for `review` to show.
+set -uo pipefail
+
+dir=${1:-$PWD}
+cd "$dir" || { echo "checks: no such dir: $dir" >&2; exit 2; }
+
+log=${XDG_STATE_HOME:-$HOME/.local/state}/devstat/checks.log
+mkdir -p "$(dirname "$log")"
+: > "$log"
+
+fail=0
+gate() {
+  local name=$1; shift
+  # timeout: a hung test runner must not hang the notification forever.
+  if out=$(timeout 300 "$@" 2>&1); then
+    echo "✓ $name"
+  else
+    echo "✗ $name"
+    fail=1
+    printf '=== %s (%s)\n%s\n' "$name" "$*" "$out" >> "$log"
+  fi
+}
+
+ran=0
+if [[ -f justfile || -f Justfile ]] && just --summary 2>/dev/null | tr ' ' '\n' | grep -qx check; then
+  gate check just check; ran=1
+else
+  if [[ -f package.json ]]; then
+    # Pick the package manager from the lockfile, like every JS tool does.
+    pm=npm; [[ -f pnpm-lock.yaml ]] && pm=pnpm
+    for s in typecheck lint test; do
+      jq -e --arg s "$s" '.scripts[$s]' package.json >/dev/null 2>&1 && { gate "$s" "$pm" run "$s"; ran=1; }
+    done
+  fi
+  if [[ -f Cargo.toml ]]; then
+    gate clippy cargo clippy --all-targets -- -D warnings
+    gate test cargo test
+    ran=1
+  fi
+fi
+
+(( ran )) || { echo "· no checks found"; exit 0; }
+exit $fail
