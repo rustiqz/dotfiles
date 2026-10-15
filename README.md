@@ -29,7 +29,7 @@ running it, and finding out whether it worked. The look is a bonus.
 | "Which project am I in?" | The bar's centre island follows the **visible kitty tab**: project, branch, dirty state, agents. |
 | "Review what the agent changed." | When a long agent turn ends while you're away, project checks run (`just check`, `package.json` scripts, or `cargo clippy + test`) and a **Review** action opens Neovim + diffview, branch vs `main`. |
 | "Set up a new machine." | `./bootstrap.sh` is idempotent. Every config is a stow package, everything else is a numbered hook. |
-| "Does it still work on a clean box?" | Every phase has a read-only `verify-*` script, and `verify-portability.sh` fails if anything machine-specific leaks into the repo. |
+| "Does it still work on a clean box?" | Read-only `scripts/verify-*.sh` checks cover each area, and `verify-portability.sh` fails if anything machine-specific leaks into the repo. |
 
 Anything that isn't for developers (weather, pomodoro, screen time, phone widgets) is
 deliberately left out.
@@ -154,19 +154,14 @@ Per-machine and private values go in untracked `*.local` files (git identity,
 `~/.ssh/config.local`, a shell tweak file). The relevant hook seeds a
 commented placeholder so they're easy to find.
 
-Check that everything works:
+Check that everything works. These scripts are read-only and print
+pass/fail/warn per check:
 
 ```sh
-./scripts/verify-phase1.sh    # base system
-./scripts/verify-phase2.sh    # shell and terminal
-./scripts/verify-phase3.sh    # dev toolchain
-./scripts/verify-phase4.sh    # editor
-./scripts/verify-phase5.sh    # Hyprland
+./scripts/verify-phase5.sh        # Hyprland session, one script per area (ls scripts/)
+./scripts/verify-popovers.sh      # bar popovers
 ./scripts/verify-portability.sh   # nothing machine-specific is tracked
 ```
-
-`verify-phase7.sh` to `verify-phase12.sh` and `verify-popovers.sh` cover the
-dev shell. They are read-only and print pass/fail/warn per check.
 
 ---
 
@@ -235,21 +230,12 @@ It's worth skimming before you change anything.
 
 ---
 
-## Status
+## Hardware
 
-| Phase | Covers |
-|---|---|
-| 0-1 | Scaffolding, base system: pacman, mirrors, zram, PipeWire, Bluetooth, Intel graphics |
-| 2-3 | Shell and terminal, dev toolchain: git, SSH, mise/Node, Docker, psql, valkey-cli, Temporal, direnv |
-| 4-5 | Neovim and tmux, Hyprland, theming and the theme switcher |
-| 6 | Finalise, verified by replaying `bootstrap.sh` on a second real machine |
-| 7-8 | Rust toolchain, `devstat` and agent hooks |
-| 9-10 | Quickshell bar, dev hub |
-| 11-12 | Launcher, cheatsheets, wallpaper cards, lock screen |
-
-Tested on an Intel laptop (Comet Lake-U, integrated graphics, systemd-boot with a UKI)
-and one other machine. Expect to adjust `packages/host-*.txt`, display setup
-and fingerprint support for different hardware.
+Developed on an Intel laptop (Comet Lake-U, integrated graphics, systemd-boot
+with a UKI) and replayed on a second machine. Expect to adjust
+`packages/host-*.txt`, display setup and fingerprint support for different
+hardware.
 
 ## Credits and licence
 
