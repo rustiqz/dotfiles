@@ -47,3 +47,14 @@ vim.filetype.add({
   },
 })
 vim.treesitter.language.register("yaml", "yaml.docker-compose")
+
+-- Agents edit files while they're open here. Without this the buffer goes
+-- stale and the next :w clobbers the agent's work (or prompts "file changed").
+-- checktime on focus/idle reloads clean buffers silently.
+opt.autoread = true
+vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold" }, {
+  group = vim.api.nvim_create_augroup("autoread-checktime", { clear = true }),
+  callback = function()
+    if vim.fn.mode() ~= "c" then vim.cmd("silent! checktime") end
+  end,
+})
