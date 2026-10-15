@@ -10,9 +10,10 @@
  * system icon theme via freedesktop lookup (show-icons below), not a
  * Nerd Font glyph, so there's no PUA codepoint to get wrong.
  *
- * Note: on Wayland, rofi can't reliably detect clicks outside its own
- * window (a rofi 2.0 Wayland-backend limitation, not a bug in this
- * config) — Escape is the reliable way to dismiss it, not click-away.
+ * Note: on Wayland, rofi can't detect clicks outside its own window (a
+ * rofi 2.0 backend limitation). Click-away is provided from outside instead:
+ * quickshell/.../modules/external/ExternalScrim.qml shows a scrim while a
+ * `rofi` layer exists and kills rofi when it's clicked.
  */
 
 @import "active-theme.rasi"

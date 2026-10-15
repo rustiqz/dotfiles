@@ -21,6 +21,7 @@ import qs.modules.launcher
 import qs.modules.cheatsheet
 import qs.modules.power
 import qs.modules.wallpaper
+import qs.modules.external
 
 ShellRoot {
     Variants {
@@ -43,4 +44,8 @@ ShellRoot {
 
     // Wallpaper picker as Pokémon cards — $mod+W (qs ipc call wallpapers toggle).
     Wallpapers {}
+
+    // Click-outside-to-close for rofi and wlogout (not ours, so watched via
+    // Hyprland layer events) — same behaviour as every popup above.
+    ExternalScrim {}
 }

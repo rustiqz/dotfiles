@@ -57,7 +57,7 @@ Scope {
 
         WlrLayershell.namespace: "quickshell-launcher"
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
         onOpenChanged: {
             if (!open) return

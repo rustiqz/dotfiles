@@ -526,15 +526,17 @@ scripts/
   sizes from its content) — warned on every open, caught by the verify
   script's clean-log check.
 
-- **`HyprlandFocusGrab` never clears on a layer with exclusive keyboard
-  focus.** The hub's grab went active on open but never fired `cleared`
-  — not on an outside click (reported by use), not even when focus moved
-  to another window via `hyprctl dispatch focuswindow` (traced with
-  console.info). Click-outside-to-close is a full-screen transparent
-  scrim layer one level under the hub instead; it needs nothing from
-  the compositor. There's no input simulator installed (ydotool/wtype),
-  so verify-phase10 asserts the scrim's geometry and stacking, not the
-  click itself.
+- **A popup with `keyboardFocus: Exclusive` gets no click-outside, ever.**
+  Hyprland sends no pointer input to any other layer while an exclusive
+  one is up, so the shared scrim (`widgets/Scrim.qml`, one level under
+  the popup) never saw a click or touch — and `HyprlandFocusGrab` never
+  fired `cleared` for the same reason. All popups now use `OnDemand`,
+  which still takes keys immediately on open. This went unnoticed for
+  phases because verify-phase10 asserted the scrim's geometry and
+  stacking only (no input simulator installed); the fix was found by
+  switching one popup to OnDemand and clicking. rofi/wlogout get the
+  same scrim from `modules/external/ExternalScrim.qml`, driven by
+  Hyprland `openlayer`/`closelayer` events.
 
 - **Quickshell needs the icon theme set explicitly** —
   `//@ pragma IconTheme Papirus-Dark` in `shell.qml` (startup-only, a
