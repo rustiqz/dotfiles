@@ -105,13 +105,16 @@ Rectangle {
         }
     }
 
-    // Countdown: a thin accent line draining along the bottom edge.
+    // Countdown: a thin accent line draining along the bottom. `clip` only
+    // clips to the bounding box, not the rounded corners, so the line is
+    // inset from the corners (and lifted off the edge) rather than run
+    // edge to edge, where it would poke out past the curve.
     Rectangle {
         visible: root.timeoutMs > 0
-        anchors.bottom: parent.bottom
-        height: 2; color: Theme.accent; opacity: 0.7
-        width: parent.width
-        NumberAnimation on width { running: root.timeoutMs > 0; from: root.width; to: 0; duration: root.timeoutMs }
+        x: root.radius; y: root.height - 5
+        height: 2; radius: 1; color: Theme.accent; opacity: 0.7
+        width: root.width - root.radius * 2
+        NumberAnimation on width { running: root.timeoutMs > 0; from: root.width - root.radius * 2; to: 0; duration: root.timeoutMs }
     }
     Timer { running: root.timeoutMs > 0; interval: root.timeoutMs > 0 ? root.timeoutMs : 1; onTriggered: root.expired() }
 }
