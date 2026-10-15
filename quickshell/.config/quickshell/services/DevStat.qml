@@ -41,7 +41,9 @@ Singleton {
     // there, so they're only polled then — no point scanning /proc and
     // ss every few seconds for a panel nobody is looking at.
     property bool hubOpen: false
-    onHubOpenChanged: if (hubOpen) refreshAll()
+    // The dev popover (modules/popovers/DevPopover.qml) shows them too.
+    readonly property bool wantHub: hubOpen || Pops.current === "dev"
+    onWantHubChanged: if (wantHub) refreshAll()
 
     function refreshAll() {
         refreshFocus()
@@ -103,7 +105,7 @@ Singleton {
         onTriggered: root.refreshFocus()
     }
     Timer {
-        interval: 3000; running: root.hubOpen; repeat: true
+        interval: 3000; running: root.wantHub; repeat: true
         onTriggered: if (!hubProc.running) hubProc.running = true
     }
     Timer {
