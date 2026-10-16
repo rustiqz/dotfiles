@@ -44,7 +44,68 @@ fi
 # sprite row as the "name". The merged stream is consistent: name, then
 # sprite, nothing doubled. One call keeps a random pick's name and sprite
 # the same Pokémon.
-out=$(pokeget "${1:-random}" "${shiny[@]}" 2>&1) || out=""
+# Image styles, picked with POKEFETCH_STYLE (default art):
+#   art    official artwork, high-res, smooth        (kitty graphics)
+#   pixel  the games' 96px front sprite, pixel-art   (kitty graphics)
+#   ansi   pokeget's half-block characters — works anywhere, lowest detail
+# The image styles need kitty (not tmux/ssh, which don't pass graphics
+# through). Images come from PokeAPI's sprite repo and are cached, so only
+# the first sighting of each Pokémon needs the network; any failure
+# (offline, 3s timeout) drops to ansi. POKEFETCH_ANSI=1 is the old spelling
+# of POKEFETCH_STYLE=ansi. A random pick is a dex number so the image and
+# the name come from the same Pokémon.
+style=${POKEFETCH_STYLE:-art}
+[[ -n ${POKEFETCH_ANSI:-} ]] && style=ansi
+art=""
+target=${1:-}
+# An image is pinned to its cells while text reflows around it, so a window
+# that is resized after drawing (a new tile opens at one size, then the
+# compositor resizes it) or that is too narrow for the info column (the
+# longest line plus the 26-cell image needs ~110 columns) leaves wrapped
+# text running over the picture. So: wait (up to ~0.6s) for the width to
+# stop changing, and use the ANSI sprite, which degrades gracefully, when
+# it's narrow. POKEFETCH_MIN_COLS tunes the threshold.
+if [[ $style != ansi && -t 1 ]]; then
+  cols=0
+  for _ in 1 2 3 4 5 6; do
+    now=$(tput cols 2>/dev/null || echo 0)
+    [[ $now == "$cols" ]] && break
+    cols=$now; sleep 0.1
+  done
+  (( cols < ${POKEFETCH_MIN_COLS:-110} )) && style=ansi
+fi
+if [[ $style != ansi && ${TERM:-} == xterm-kitty && -z ${TMUX:-} && -z ${SSH_TTY:-} ]]; then
+  [[ -z $target ]] && target=$(( RANDOM % 1025 + 1 ))
+  # The image repo is keyed by dex number; resolve a name once via PokeAPI
+  # and remember it (a name pokeget knows but PokeAPI doesn't → ansi).
+  if [[ $target != [0-9]* ]]; then
+    idf=${XDG_CACHE_HOME:-$HOME/.cache}/pokefetch/id-${target,,}
+    if [[ ! -s $idf ]]; then
+      mkdir -p "${idf%/*}"
+      curl -fsS -m 3 "https://pokeapi.co/api/v2/pokemon-species/${target,,}" 2>/dev/null \
+        | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' >"$idf.tmp" 2>/dev/null \
+        && mv "$idf.tmp" "$idf" || rm -f "$idf.tmp"
+    fi
+    [[ -s $idf ]] && target=$(<"$idf")
+  fi
+  if [[ $target == [0-9]* ]]; then
+    case $style in
+      pixel) base=sprites/pokemon ;;
+      *)     style=art; base=sprites/pokemon/other/official-artwork ;;
+    esac
+    sub=""; pre=$style-
+    (( ${#shiny[@]} )) && { sub=shiny/; pre=$pre-shiny-; }
+    dir=${XDG_CACHE_HOME:-$HOME/.cache}/pokefetch
+    art=$dir/$pre$target.png
+    if [[ ! -s $art ]]; then
+      mkdir -p "$dir"
+      curl -fsS -m 3 -o "$art.tmp" "https://raw.githubusercontent.com/PokeAPI/sprites/master/$base/${sub}${target}.png" \
+        && mv "$art.tmp" "$art" || { rm -f "$art.tmp"; art=""; }
+    fi
+  fi
+fi
+
+out=$(pokeget "${target:-random}" "${shiny[@]}" 2>&1) || out=""
 if [[ -z $out ]]; then
   fastfetch
   exit
@@ -57,4 +118,8 @@ if (( ${#shiny[@]} )); then
 else
   printf '\n  \e[1mA wild \e[1;35m%s\e[0;1m appeared!\e[0m\n' "$name"
 fi
-fastfetch --file-raw <(printf '%s\n' "$sprite")
+if [[ -n $art ]]; then
+  fastfetch --logo "$art" --logo-type kitty-direct --logo-width 26 --logo-height 13
+else
+  fastfetch --file-raw <(printf '%s\n' "$sprite")
+fi
