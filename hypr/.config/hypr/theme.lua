@@ -14,7 +14,12 @@ local f = io.open(os.getenv("HOME") .. "/.config/hypr/active-theme.conf", "r")
 if f then
   for line in f:lines() do
     local name, value = line:match("^%$([%w_]+)%s*=%s*(.-)%s*$")
-    if name then M[name] = value end
+    if name then
+      -- hyprlang allows a trailing `  # comment` on a value line; Lua's
+      -- config parser doesn't, and rejects "rgba(0b0c1299)  # ..." as an
+      -- invalid colour. Colours never contain " #", so cut from there.
+      M[name] = (value:gsub("%s+#.*$", ""))
+    end
   end
   f:close()
 end
