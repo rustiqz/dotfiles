@@ -129,6 +129,19 @@ if ! paru --version &>/dev/null; then
   rm -rf "$tmp"
 fi
 
+# Drop the `rust` package that building paru pulled in. paru's makedepends
+# include cargo, so `makepkg -s` installs the repo `rust` package to satisfy
+# it — and `rustup` (packages/pacman.txt) conflicts with `rust`. pacman's
+# "remove rust?" conflict prompt defaults to No under --noconfirm, so the
+# manifest install below aborted on exactly this, on a clean machine. paru
+# only needs cargo to build, not to run, so removing it is safe; rustup (plus
+# hooks/55-rust-toolchain.sh) is the single source of the toolchain here.
+# -Rns without -dd: if something genuinely depends on rust, fail loudly.
+if pacman -Qq rust &>/dev/null && ! pacman -Qq rustup &>/dev/null; then
+  log "Removing makedepend 'rust' (conflicts with rustup)"
+  sudo pacman -Rns --noconfirm rust
+fi
+
 # Reads a manifest file and feeds it to the given installer command.
 #   $1        = path to manifest
 #   $2..      = installer command (e.g. `sudo pacman`, `paru`)

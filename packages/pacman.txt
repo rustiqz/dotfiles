@@ -442,6 +442,8 @@ obsidian
 # so never add those here. The toolchain itself, its components
 # (rust-analyzer, rust-src, clippy, rustfmt) and cross targets are
 # installed by hooks/55-rust-toolchain.sh, not pacman.
+# bootstrap.sh removes the `rust` package that building paru drags in before
+# this line is reached — otherwise pacman's conflict prompt aborts the install.
 rustup
 
 # Build speed — wired in by cargo/.cargo/config.toml (stowed):
