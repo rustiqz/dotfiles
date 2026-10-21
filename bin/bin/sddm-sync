@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+#
+# sddm-sync — install the login-screen theme (sddm/theme/) into SDDM and
+# restyle it from whatever desktop theme is active.
+#
+# Why this isn't a stow package: SDDM reads themes from /usr/share/sddm/
+# themes and config from /etc/sddm.conf.d, and the greeter runs as the
+# `sddm` user before any login, so it can't follow symlinks into
+# ~/dotfiles (and can't read $HOME at all). The theme is therefore *copied*
+# into place, with two derived files written into the copy:
+#   theme.conf       palette from the active theme's quickshell.json
+#                    (same role keys the bar uses: bg, fg, accent, ...)
+#   background.jpg   the current wallpaper, scaled down — the greeter has
+#                    no access to ~/.local/share/wallpapers
+# Re-run after `theme <name>` or a wallpaper change to refresh the login
+# screen; it is deliberately not automatic, since it needs sudo.
+#
+# Idempotent. Exits 0 without touching anything if sddm isn't installed.
+#
+# Usage: sddm-sync
+
+set -uo pipefail
+
+DOTFILES="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)"
+SRC="$DOTFILES/sddm"
+DEST=/usr/share/sddm/themes/dotfiles
+
+if ! command -v sddm >/dev/null 2>&1; then
+  echo "sddm-sync: sddm not installed, skipping" >&2
+  exit 0
+fi
+
+# Needs a real terminal for sudo's password prompt. Without one every sudo
+# call below fails, and pam_faillock counts each as a failed login: four of
+# them locked the account's sudo out for 10 minutes. So refuse up front, and
+# authenticate exactly once (`sudo -v`) rather than once per command.
+if [[ ! -t 0 ]]; then
+  echo "sddm-sync: needs a terminal for sudo — run it yourself, not from a script/agent" >&2
+  exit 1
+fi
+sudo -v || { echo "sddm-sync: sudo authentication failed" >&2; exit 1; }
+
+# Everything is staged in a temp dir first so a failure half-way never
+# leaves the installed theme with a missing file.
+STAGE=$(mktemp -d)
+trap 'rm -rf "$STAGE"' EXIT
+cp -r "$SRC/theme/." "$STAGE/"
+
+# --- palette ---------------------------------------------------------------
+PALETTE="$DOTFILES/quickshell/.config/quickshell/active-theme.json"
+if [[ -f $PALETTE ]] && command -v jq >/dev/null 2>&1; then
+  {
+    echo "[General]"
+    echo "background=background.jpg"
+    jq -r '"bg=\(.bg)\nsurface=\(.surface)\nfg=\(.fg)\nmuted=\(.muted)\naccent=\(.accent)\naccent2=\(.accent2)\nerr=\(.err)\nok=\(.ok)"' "$PALETTE"
+    echo "font=JetBrainsMono Nerd Font"
+  } > "$STAGE/theme.conf"
+else
+  echo "sddm-sync: no active quickshell theme, keeping the fallback palette" >&2
+fi
+
+# --- wallpaper -------------------------------------------------------------
+WALL=$(readlink -f "$HOME/.local/share/wallpapers/.current" 2>/dev/null || true)
+if [[ -f $WALL ]]; then
+  # 1920px wide is plenty under a 64px blur, and keeps the copy small.
+  if command -v magick >/dev/null 2>&1; then
+    magick "$WALL" -resize '1920x>' -quality 85 "$STAGE/background.jpg"
+  else
+    cp "$WALL" "$STAGE/background.jpg"
+  fi
+fi
+
+# --- install ---------------------------------------------------------------
+# Any failed step (typically sudo without a terminal) must not end in
+# a success message, so chain them and bail on the first failure.
+{
+  sudo install -d "$DEST" /etc/sddm.conf.d &&
+  sudo cp -r "$STAGE/." "$DEST/" &&
+  sudo chmod -R a+rX "$DEST" &&
+  sudo install -m 644 "$SRC"/sddm.conf.d/*.conf /etc/sddm.conf.d/
+} || { echo "sddm-sync: install failed (run it from a terminal so sudo can ask)" >&2; exit 1; }
+echo "sddm-sync: installed $DEST"

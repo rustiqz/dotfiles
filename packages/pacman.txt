@@ -340,26 +340,23 @@ nautilus
 
 # --- Phase 5: login manager + fallback session ------------------------------
 #
-# CLAUDE.md has described GDM as the login manager and GNOME as the
-# permanent fallback session since Phase 5, but neither was ever listed
-# here — both were already installed on the original machine, so nothing
-# needed the entry. A clean machine bootstrapped from this repo would
-# get Hyprland and no way to log into it. Same class of bug as uwsm.
-#
-# GDM specifically, not sddm: it's what CLAUDE.md documents, it's what
-# the GNOME fallback expects, and it handles the uwsm session entry
-# correctly. hooks/20-services.sh makes it the active display manager
-# (and disables any other one it finds) rather than assuming a fresh
-# machine has none enabled.
-gdm
+# SDDM, because its login screen is a QML theme we can restyle to match the
+# rest of the desktop (sddm/theme/, installed by bin/bin/sddm-sync via
+# hooks/76-sddm.sh). GDM's greeter is GNOME Shell CSS in a gresource —
+# practically unthemeable. hooks/20-services.sh makes sddm the active
+# display manager and disables any other one it finds. SDDM lists both the
+# Hyprland (uwsm) and GNOME sessions from /usr/share/{wayland-,}sessions.
+sddm
+# SDDM's greeter is a Qt Quick app: the theme needs QtQuick.Effects (blur)
+# from qt6-declarative (already a sddm dependency) and svg for the Pokéball.
+qt6-svg
 
 # The fallback session itself. Deliberately gnome-shell rather than the
 # full `gnome` group: the group pulls in ~60 packages of applications
 # (games, weather, maps) that this repo has no interest in, when what
 # "fallback" actually needs is a session that reliably starts when
-# Hyprland can't. gnome-shell + gdm covers that; nautilus above is the
-# one GNOME application genuinely wanted, and it's tracked separately
-# for its own reason.
+# Hyprland can't. nautilus above is the one GNOME application genuinely
+# wanted, and it's tracked separately for its own reason.
 gnome-shell
 
 # --- Phase 5 follow-up: coding/media tooling --------------------------------

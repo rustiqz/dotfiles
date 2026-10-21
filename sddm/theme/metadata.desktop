@@ -1,0 +1,11 @@
+[SddmGreeterTheme]
+Name=dotfiles
+Description=Trainer Card login screen, matching the hyprlock design
+Author=dotfiles
+Version=1.0
+Type=sddm-theme
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=dotfiles
+Theme-API=2.0
+QtVersion=6
